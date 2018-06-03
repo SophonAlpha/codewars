@@ -1,16 +1,38 @@
 # https://www.codewars.com/kata/next-bigger-number-with-the-same-digits/train/python
 
 def next_bigger(n):
-    # find upper bound
+    next_num = -1
     n_str = list(str(n))
-    for i in reversed(range(len(n_str))):
-        upper_bound = n_str[:]
-        for idx, digit in enumerate(n_str[i:]):
-            if int(digit) < int(n_str[i]):
-                upper_bound[i] = digit
-                upper_bound[i + idx] = n_str[i]
-    
-    return upper_bound
+    # step through each digit from right to left
+    for i1 in reversed(range(len(n_str))):
+        right_part = n_str[i1 + 1:]
+        # find the smallest number in the right part that is bigger than
+        # the current digit
+        bigger_number = None
+        pos = None
+        for i2, digit in enumerate(right_part):
+            if int(digit) > int(n_str[i1]):
+                if bigger_number == None:
+                    bigger_number = int(digit)
+                    pos = i1 + i2 + 1
+                else:
+                    bigger_number = int(digit) if int(digit) < bigger_number else bigger_number
+                    pos = i1 + i2 + 1
+        if not(bigger_number == None): break
+
+    if not(bigger_number == None):
+        next_num = n_str[:]
+        # swap the digits
+        next_num[i1] = n_str[pos]
+        next_num[pos] = n_str[i1]
+        # sort the right part by order
+        next_num = next_num[:i1 + 1] + sorted(next_num[i1 + 1:])
+        # transform to integer
+        next_num = int(''.join(next_num))
+    else:
+        next_num = -1
+
+    return next_num
 
 def next_bigger_v2(n):
     n_str = list(str(n))
@@ -42,7 +64,6 @@ def next_bigger_v1(n):
             if num > n and num < next_num:
                 next_num = num
     return next_num
-
 
 print(next_bigger(318007070431)) # 318007071034
 print(next_bigger(69777535752)) # 69777537255
