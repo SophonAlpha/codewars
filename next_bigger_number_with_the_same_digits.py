@@ -65,6 +65,8 @@ def next_bigger_v1(n):
                 next_num = num
     return next_num
 
+print(next_bigger(12000000000000)) #
+
 print(next_bigger(318007070431)) # 318007071034
 print(next_bigger(69777535752)) # 69777537255
 print(next_bigger(8292804331163)) # 8292804331316
