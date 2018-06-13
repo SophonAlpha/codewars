@@ -132,7 +132,7 @@ def get_last_in_row_sequence(t, ar):
     # tile to target position
     sequence = sequence[:] + [t]
     # restore target row
-    sequence = sequence[:] + [ar[c_row - 1][c_col - 2]] + [ar[c_row - 1][c_col]] + target_row[-2::-1]
+    sequence = sequence[:] + [ar[c_row][c_col - 2]] + [ar[c_row - 1][c_col]] + target_row[-2::-1]
     return sequence
 
 def move_tile(tile_to_move, ar):
@@ -164,5 +164,12 @@ puzzle = [
     [ 8,16, 2,12,15],
     [ 1,24,10, 3, 4],
     [21,23,19, 0,14] ]
+puzzle = [
+    [ 7,18,22, 2, 5],
+    [12, 6, 3, 0, 9],
+    [ 1, 8,17, 4,15],
+    [19,21,14,10,20],
+    [16,23,13,11,24] ]
+
 
 print(slide_puzzle(puzzle))
