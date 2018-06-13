@@ -1,5 +1,4 @@
 import pprint
-from itertools import cycle
 
 def slide_puzzle(ar):
     sequence = None
@@ -26,7 +25,7 @@ def get_surrounding_tiles(t, ar):
     positions = [(-1, 0), (-1, 1), (0, 1), ( 1,  1), 
                  ( 1, 0), ( 1,-1), (0,-1), (-1, -1)]
     t_row, t_col = get_position(t, ar)
-    n = len(ar)
+    n = len(ar) - 1
     sequence = []
     for d_row, d_col in positions:
         check_row = t_row + d_row
@@ -67,41 +66,77 @@ def move_tile_to_target(t, ar):
         surrounding_tiles = get_surrounding_tiles(t, ar)
         if not(0 in surrounding_tiles):
             ar = move_empty_next_to_tile(t, ar)
-            surrounding_tiles = get_surrounding_tiles(t, ar)
-        sequence = get_sequence(surrounding_tiles,
-                                t_row, t_col,
-                                c_row, c_col)
-        sequence.append(t)
+        sequence = get_sequence(t, ar)
         for tile in sequence:
             ar = move_tile(tile, ar)
         c_row, c_col = get_position(t, ar)
     return ar
 
-def get_sequence(surrounding_tiles, t_row, t_col, c_row, c_col):
+def get_sequence(t, ar):
+    if is_last_in_row(t, ar):
+        sequence = get_last_in_row_sequence(t, ar)
+    else:
+        t_row, t_col = get_target_position(t, ar)
+        c_row, c_col = get_position(t, ar)
+        surrounding_tiles = get_surrounding_tiles(t, ar)
+        start = surrounding_tiles.index(0)
+        if t_row - c_row > 0: # move down
+            stop = 4
+        if t_row - c_row < 0: # move up
+            stop = 0
+        if t_col - c_col > 0: # move right
+            stop = 2
+        if t_col - c_col < 0: # move left
+            stop = 6
+        # mark with 'None' all tiles that are already on their target position
+        surrounding_tiles = [tile if (not(tile == None) and tile > t) or tile == 0 else None for tile in surrounding_tiles]
+        # build sequence of tiles to move
+        if start - stop > 0:
+            direction =  1 if abs(start - stop) > 3 and not(None in surrounding_tiles[start + 1:]) else -1
+        if start - stop < 0:
+            direction =  1 if abs(start - stop) < 5 and not(None in surrounding_tiles[start:stop + 1]) else -1
+        sequence = []
+        c = start
+        while True:
+            i = c % len(surrounding_tiles)
+            sequence.append(surrounding_tiles[i])
+            if i == stop:
+                break
+            else:
+                c = c + direction
+        sequence = sequence[1:] + [t]
+    return sequence
+
+def is_last_in_row(t, ar):
+    t_row, t_col = get_target_position(t, ar)
+    c_row, c_col = get_position(t, ar)
+    if c_col == len(ar) - 1 and c_row == t_row + 1:
+        return True
+    return False
+
+def get_last_in_row_sequence(t, ar):
+    c_row, c_col = get_position(t, ar)
+    surrounding_tiles = get_surrounding_tiles(t, ar)
+    if surrounding_tiles[0] == 0:
+        # empty tile is already at target position
+        sequence = [t]
+        return sequence
+    # add the tiles around the tile to be moved
     start = surrounding_tiles.index(0)
-    if t_row - c_row > 0: # move down
-        stop = 4
-    if t_row - c_row < 0: # move up
-        stop = 0
-    if t_col - c_col > 0: # move right
-        stop = 2
-    if t_col - c_col < 0: # move left
-        stop = 6
-    direction =  1 if abs(start - stop) > 3 and not(None in surrounding_tiles[start:]) else -1
-    sequence = []
-    c = start
-    while True:
-        i = c % len(surrounding_tiles)
-        sequence.append(surrounding_tiles[i])
-        if i == stop:
-            break
-        else:
-            c = c + direction
-    return sequence[1:] # drop the empty tile
+    sequence = surrounding_tiles[start + 1:6 + 1]
+    # add the tiles in the row below the target row from right to left
+    sequence = sequence[:] + ar[c_row][c_col - 2::-1]
+    # add the tiles in the target row from left to right
+    target_row = ar[c_row - 1]
+    sequence = sequence[:] + target_row
+    # tile to target position
+    sequence = sequence[:] + [t]
+    # restore target row
+    sequence = sequence[:] + [ar[c_row - 1][c_col - 2]] + [ar[c_row - 1][c_col]] + target_row[-2::-1]
+    return sequence
 
 def move_tile(tile_to_move, ar):
     empty_row, empty_col = get_position(0, ar)
-    a = type(tile_to_move)
     if isinstance(tile_to_move, tuple):
         tile_row, tile_col = tile_to_move
     else:
