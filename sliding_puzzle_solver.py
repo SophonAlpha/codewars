@@ -1,17 +1,18 @@
 import pprint
 
 def slide_puzzle(ar):
-    for i in range(0, len(ar) - 2):
+    n = len(ar)
+    for i in range(0, n - 2):
         print('row & column {}'.format(i))
         # sort the row
-        start = 1 + i * len(ar) + i
-        stop = (i + 1) * len(ar) + 1
+        start = 1 + i * n + i
+        stop = (i + 1) * n + 1
         row = [tile for tile in range(start, stop)]
         print(row)
         # sort the column
-        start = (i + 1) * len(ar) + ((i + 1) * 1)
-        stop = len(ar)**2
-        step = len(ar)
+        start = (i + 1) * n + ((i + 1) * 1)
+        stop = n**2
+        step = n
         col = [tile for tile in range(start ,stop, step)]
         print(col)
     return
