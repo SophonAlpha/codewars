@@ -2,20 +2,43 @@ import pprint
 
 def slide_puzzle(ar):
     n = len(ar)
-    for i in range(0, n - 2):
-        print('row & column {}'.format(i))
-        # sort the row
-        start = 1 + i * n + i
-        stop = (i + 1) * n + 1
-        row = [tile for tile in range(start, stop)]
-        print(row)
-        # sort the column
-        start = (i + 1) * n + ((i + 1) * 1)
-        stop = n**2
-        step = n
-        col = [tile for tile in range(start ,stop, step)]
-        print(col)
+    for i in range(0, n - 1):
+        row, col = get_row_column_tiles(i, n)
+        # move tiles in row, except the last two, to target position
+        for tile in row[:-2]:
+            target_row, target_col = get_target_position(tile, ar)
+            ar = move_tile_to_target(tile, target_row, target_col, ar)
+        # move last two tiles in row to intermediate position
+        ar = move_tile_to_target(row[-2:-1],     i, n - 1, ar)
+        ar = move_tile_to_target(row[-1:  ], i + 1, n - 1, ar)
+        pprint.pprint(ar)
+
+#        print(col[:-2])
+        tile = col[-2:-1]
+        target_row = n - 1
+        target_col = i
+#        print('{} --> {}, {}'.format(tile, target_row, target_col))
+        tile = col[-1:]
+        target_row = n - 1
+        target_col = i + 1
+#        print('{} --> {}, {}'.format(tile, target_row, target_col))
+        
+        
     return
+
+
+
+def get_row_column_tiles(i, n):
+    # sort the row
+    start = 1 + i * n + i
+    stop = (i + 1) * n + 1
+    row = [tile for tile in range(start, stop)]
+    # sort the column
+    start = (i + 1) * n + ((i + 1) * 1)
+    stop = n**2
+    step = n
+    col = [tile for tile in range(start ,stop, step)]
+    return row, col
 
 def slide_puzzle_v2(ar):
     sequence = None
@@ -76,8 +99,7 @@ def move_empty_next_to_tile(t, ar):
         tile_row, tile_col = get_position(t, ar)
     return ar
 
-def move_tile_to_target(t, ar):
-    t_row, t_col = get_target_position(t, ar)
+def move_tile_to_target(t, t_row, t_col, ar):
     c_row, c_col = get_position(t, ar)
     while not(c_row == t_row and c_col == t_col):
         surrounding_tiles = get_surrounding_tiles(t, ar)
