@@ -13,32 +13,42 @@ def slide_puzzle(ar):
             target_row, target_col = get_target_position(tile, ar)
             ar = move_tile_to_target(tile, target_row, target_col, ar)
             do_not_move[tile] = True
-        # move last two tiles in row to intermediate position
-        # first we move the last tile of the row to the lower right corner
+        # Move last two tiles in row to intermediate positions.
+        # First we move the last tile of the row to the lower right corner
         # as a precaution to avoid it getting "stuck" with the before last tile
         before_last_tile = row[-2:-1][0]
-        last_tile = row[-1:  ][0]
+        last_tile = row[-1:][0]
         ar = move_tile_to_target(last_tile, n - 1, n - 1, ar)
-        # the we move the before last tile to its intermediate position
+        # Then we move the before last tile to its intermediate position.
         ar = move_tile_to_target(before_last_tile,i, n - 1, ar)
         do_not_move[before_last_tile] = True
-        # then the last tile to its intermediate position
+        # Then the last tile to its intermediate position
         ar = move_tile_to_target(last_tile, i + 1, n - 1, ar)
         do_not_move[last_tile] = True
-        # "turn" last two tiles in row from intermediate to final positions
+        # "Turn" last two tiles in row from intermediate to final positions.
         ar = turn_last_two_tiles([before_last_tile, last_tile], ar)
         pprint.pprint(ar)
 
-#        print(col[:-2])
-        tile = col[-2:-1]
-        target_row = n - 1
-        target_col = i
-#        print('{} --> {}, {}'.format(tile, target_row, target_col))
-        tile = col[-1:]
-        target_row = n - 1
-        target_col = i + 1
-#        print('{} --> {}, {}'.format(tile, target_row, target_col))
-                
+        # move tiles in row, except the last two, to target position
+        for tile in col[:-2]:
+            target_row, target_col = get_target_position(tile, ar)
+            ar = move_tile_to_target(tile, target_row, target_col, ar)
+            do_not_move[tile] = True
+        # Move last two tiles in column to intermediate positions.
+        # First we move the last tile of the row to the lower right corner
+        # as a precaution to avoid it getting "stuck" with the before last tile
+        before_last_tile = col[-2:-1][0]
+        last_tile = col[-1:][0]
+        ar = move_tile_to_target(last_tile, n - 1, n - 1, ar)
+        # Then we move the before last tile to its intermediate position.
+        ar = move_tile_to_target(before_last_tile, n - 1, i, ar)
+        do_not_move[before_last_tile] = True
+        # Then the last tile to its intermediate position
+        ar = move_tile_to_target(last_tile, n - 1, i + 1, ar)
+        do_not_move[last_tile] = True
+        # "Turn" last two tiles in row from intermediate to final positions.
+        ar = turn_last_two_tiles([before_last_tile, last_tile], ar)
+        pprint.pprint(ar)
     return
 
 def turn_last_two_tiles(tiles, ar):
@@ -103,18 +113,18 @@ def move_empty_next_to_tile(t, ar):
     closest_tile_row, closest_tile_col = get_position(closest_tile(t, ar), ar)
     while abs((closest_tile_col - empty_col)) > 0 or \
           abs((closest_tile_row - empty_row)) > 0:
+        col_step = 1 if (closest_tile_col - empty_col) > 0 else -1
+        col_tile_to_move = empty_row, empty_col + col_step
+        row_step = 1 if (closest_tile_row - empty_row) > 0 else -1
+        row_tile_to_move = empty_row + row_step, empty_col
         # move along columns
-        if not(closest_tile_col - empty_col == 0):
-            col_step = 1 if (closest_tile_col - empty_col) > 1 else -1
-            tile_to_move = empty_row, empty_col + col_step
-            if not(do_not_move[ar[tile_to_move[0]][tile_to_move[1]]]):
-                ar = move_tile(tile_to_move, ar)
+        if not(closest_tile_col - empty_col == 0) and \
+           not(do_not_move[ar[col_tile_to_move[0]][col_tile_to_move[1]]]):
+            ar = move_tile(col_tile_to_move, ar)
         # move along rows
-        elif not(closest_tile_row - empty_row == 0):
-            row_step = 1 if (closest_tile_row - empty_row) > 1 else -1
-            tile_to_move = empty_row + row_step, empty_col
-            if not(do_not_move[ar[tile_to_move[0]][tile_to_move[1]]]):
-                ar = move_tile(tile_to_move, ar)
+        elif not(closest_tile_row - empty_row == 0) and \
+           not(do_not_move[ar[row_tile_to_move[0]][row_tile_to_move[1]]]):
+            ar = move_tile(row_tile_to_move, ar)
         # update after tile move
         empty_row, empty_col = get_position(0, ar)
         closest_tile_row, closest_tile_col = get_position(closest_tile(t, ar), ar)
@@ -126,7 +136,7 @@ def closest_tile(t, ar):
     closest_tile = 0
     distance = len(ar)**2
     for tile in surrounding_tiles:
-        if not(tile == None):
+        if not(tile == None) and not(do_not_move[tile]):
             tile_row, tile_col = get_position(tile, ar)
             d = abs(tile_row - empty_row) + abs(tile_col - empty_col)
             if distance > d:
@@ -147,9 +157,6 @@ def move_tile_to_target(t, t_row, t_col, ar):
     return ar
 
 def get_sequence(t, t_row, t_col, ar):
-#    if is_last_in_row(t, ar):
-#        sequence = get_last_in_row_sequence(t, ar)
-#    else:
     c_row, c_col = get_position(t, ar)
     surrounding_tiles = get_surrounding_tiles(t, ar)
     start = surrounding_tiles.index(0)
