@@ -1,6 +1,9 @@
 import pprint
 import math
 
+# A tile marked as 'untouchable' cannot be moved when the empty
+# tile moves around. However, a tile can still be moved directly when the
+# empty tile is right next to it.
 untouchable = {}
 
 def slide_puzzle(ar):
@@ -34,7 +37,7 @@ def slide_puzzle(ar):
         for tile in col[:-2]:
             target_row, target_col = get_target_position(tile, ar)
             ar = move_tile_to_target(tile, target_row, target_col, ar)
-            untouchable[tile] = True
+#            untouchable[tile] = True
         # Move last two tiles in column to intermediate positions.
         # First we move the last tile of the row to the lower right corner
         # as a precaution to avoid it getting "stuck" with the before last tile
@@ -43,10 +46,10 @@ def slide_puzzle(ar):
         ar = move_tile_to_target(last_tile, n - 1, n - 1, ar)
         # Then we move the before last tile to its intermediate position.
         ar = move_tile_to_target(before_last_tile, n - 1, i, ar)
-        untouchable[before_last_tile] = True
+#        untouchable[before_last_tile] = True
         # Then the last tile to its intermediate position
         ar = move_tile_to_target(last_tile, n - 1, i + 1, ar)
-        untouchable[last_tile] = True
+#        untouchable[last_tile] = True
         # "Turn" last two tiles in row from intermediate to final positions.
         ar = turn_last_two_tiles([before_last_tile, last_tile], ar)
         pprint.pprint(ar)
@@ -147,28 +150,22 @@ def closest_tile(t, ar):
 
 def move_tile_to_target(t, t_row, t_col, ar):
     c_row, c_col = get_position(t, ar)
-    global untouchable
     untouchable[t] = True
     while not(c_row == t_row and c_col == t_col):
         n_row, n_col = get_next_position(t, t_row, t_col, ar)
         ar = move_empty_to_position(n_row, n_col, ar)
         ar = move_tile(t, ar)
         c_row, c_col = get_position(t, ar)
-        
-        
-#        surrounding_tiles = get_surrounding_tiles(t, ar)
-#        if not(0 in surrounding_tiles):
-#            ar = move_empty_next_to_tile(t, ar)
-#        sequence = get_sequence(t, t_row, t_col, ar)
-#        for tile in sequence:
-#            ar = move_tile(tile, ar)
-#        c_row, c_col = get_position(t, ar)
     return ar
 
 def get_next_position(t, t_row, t_col, ar):
+    possible_positions = get_all_possible_positions(t, ar)
+    next_position = get_position_closest_to_target(possible_positions, t_row, t_col, ar)
+    return next_position
+
+def get_all_possible_positions(t, ar):
     n = len(ar)
     c_row, c_col = get_position(t, ar)
-    distance = n**2 # initialisation with high value
     directions = [(-1, 0), (0, 1), (1, 0), (0, -1)]
     possible_positions = []
     for d_row, d_col in directions:
@@ -177,14 +174,22 @@ def get_next_position(t, t_row, t_col, ar):
         if (0 <= n_row <= n - 1) and (0 <= n_col <= n - 1) and \
            not(untouchable[ar[n_row][n_col]]):
             possible_positions.append((n_row, n_col))
+    return possible_positions
+
+def get_position_closest_to_target(possible_positions, t_row, t_col, ar):
+    n = len(ar)
+    distance = n**2 # initialisation with high value
     for n_row, n_col in possible_positions:
         n_distance = math.sqrt(abs(t_row - n_row)**2 + abs(t_col - n_col)**2)
         if n_distance < distance:
             next_position = (n_row, n_col)
             distance = n_distance
     return next_position
-
+    
 def move_empty_to_position(t_row, t_col, ar):
+    sequence = Dijkstra_shortest_path_tree(0, t_row, t_col, ar)
+
+    
     c_row, c_col = get_position(0, ar)
     while not(c_row == t_row and c_col == t_col):
         next_position = get_next_position(0, t_row, t_col, ar)
@@ -206,6 +211,37 @@ def move_empty_to_position(t_row, t_col, ar):
 #        # update after tile move
 #        c_row, c_col = get_position(0, ar)
     return ar
+
+def Dijkstra_shortest_path_tree(t, t_row, t_col, ar):
+    n = len(ar)**2
+    infinity = 99999 # representation of infinite distance
+    unvisited = {tile: infinity for tile in range(1, n) 
+                 if not(untouchable[tile])}
+    unvisited[t] = 0
+    visited = {}
+    current_node = t
+    shortest_path = []
+
+    while not(get_position(current_node, ar) == (t_row, t_col)):
+        # calculate tentative distances for all neighbor nodes
+        neighbors = get_all_possible_positions(current_node, ar)
+        for neighbor_row, neighbor_col in neighbors:
+            neighbor_tile = ar[neighbor_row][neighbor_col]
+            tentative_distance = unvisited[current_node] + 1
+            if unvisited[neighbor_tile] > tentative_distance:
+                unvisited[neighbor_tile] = tentative_distance
+        visited[current_node] = unvisited[current_node]
+        shortest_path.append(current_node)
+        del unvisited[current_node]
+        # get next node with the smallest tentative distance
+        smallest_tentative_distance = infinity
+        for tile in unvisited:
+            if unvisited[tile] < smallest_tentative_distance:
+                current_node = tile
+                smallest_tentative_distance = unvisited[tile]
+        if smallest_tentative_distance == infinity:
+            return None # there is no connection from start to target tile
+    return shortest_path
 
 def get_sequence(t, t_row, t_col, ar):
     c_row, c_col = get_position(t, ar)
