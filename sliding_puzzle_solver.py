@@ -1,5 +1,6 @@
 import pprint
 import math
+import numpy as np
 
 # A tile marked as 'untouchable' cannot be moved when the empty
 # tile moves around. However, a tile can still be moved directly when the
@@ -187,7 +188,7 @@ def get_position_closest_to_target(possible_positions, t_row, t_col, ar):
     return next_position
     
 def move_empty_to_position(t_row, t_col, ar):
-    sequence = Dijkstra_shortest_path_tree(0, t_row, t_col, ar)
+    sequence = Dijkstra_shortest_path(0, t_row, t_col, ar)
 
     
     c_row, c_col = get_position(0, ar)
@@ -212,7 +213,7 @@ def move_empty_to_position(t_row, t_col, ar):
 #        c_row, c_col = get_position(0, ar)
     return ar
 
-def Dijkstra_shortest_path_tree(t, t_row, t_col, ar):
+def Dijkstra_shortest_path(t, t_row, t_col, ar):
     n = len(ar)**2
     infinity = 99999 # representation of infinite distance
     unvisited = {tile: infinity for tile in range(1, n) 
@@ -227,18 +228,19 @@ def Dijkstra_shortest_path_tree(t, t_row, t_col, ar):
         neighbors = get_all_possible_positions(current_node, ar)
         for neighbor_row, neighbor_col in neighbors:
             neighbor_tile = ar[neighbor_row][neighbor_col]
-            tentative_distance = unvisited[current_node] + 1
-            if unvisited[neighbor_tile] > tentative_distance:
-                unvisited[neighbor_tile] = tentative_distance
+            if neighbor_tile in unvisited.keys():
+                tentative_distance = unvisited[current_node] + 1
+                if unvisited[neighbor_tile] > tentative_distance:
+                    unvisited[neighbor_tile] = tentative_distance
         visited[current_node] = unvisited[current_node]
         shortest_path.append(current_node)
         del unvisited[current_node]
         # get next node with the smallest tentative distance
         smallest_tentative_distance = infinity
-        for tile in unvisited:
-            if unvisited[tile] < smallest_tentative_distance:
-                current_node = tile
-                smallest_tentative_distance = unvisited[tile]
+        tile = np.argmin(unvisited.values())
+        if unvisited[tile] < smallest_tentative_distance:
+            current_node = tile
+            smallest_tentative_distance = unvisited[tile]
         if smallest_tentative_distance == infinity:
             return None # there is no connection from start to target tile
     return shortest_path
