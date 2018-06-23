@@ -236,12 +236,8 @@ def Dijkstra_shortest_path(t, t_row, t_col, ar):
         shortest_path.append(current_node)
         del unvisited[current_node]
         # get next node with the smallest tentative distance
-        smallest_tentative_distance = infinity
-        tile = np.argmin(unvisited.values())
-        if unvisited[tile] < smallest_tentative_distance:
-            current_node = tile
-            smallest_tentative_distance = unvisited[tile]
-        if smallest_tentative_distance == infinity:
+        current_node = list(unvisited.keys())[np.argmin(list(unvisited.values()))]
+        if unvisited[current_node] == infinity:
             return None # there is no connection from start to target tile
     return shortest_path
 
