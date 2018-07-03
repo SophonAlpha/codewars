@@ -97,8 +97,7 @@ def get_target_position(t, ar):
     return row, col
 
 def get_surrounding_tiles(t, ar):
-    positions = [(-1, 0), (-1, 1), (0, 1), ( 1,  1), 
-                 ( 1, 0), ( 1,-1), (0,-1), (-1, -1)]
+    positions = [(-1, 0), (0, 1), ( 1, 0), (0,-1)]
     t_row, t_col = get_position(t, ar)
     n = len(ar) - 1
     sequence = []
@@ -214,14 +213,27 @@ def move_empty_to_position(t_row, t_col, ar):
     return ar
 
 def Dijkstra_shortest_path(t, t_row, t_col, ar):
+    # implemented this algorithm :
+    # https://brilliant.org/wiki/dijkstras-short-path-finder/
+    graph = build_graph(t, ar)
     n = len(ar)**2
-    infinity = 99999 # representation of infinite distance
-    unvisited = {tile: infinity for tile in range(1, n) 
-                 if not(untouchable[tile])}
-    unvisited[t] = 0
-    visited = {}
-    current_node = t
-    shortest_path = []
+    infinity = float('inf')
+    unvisited = [vertex for vertex in graph if not(untouchable[vertex])]
+    distances = {vertex: infinity for vertex in unvisited}
+    distances[t] = 0
+
+    while unvisited:
+        vertex = min(distances, key = distances.get)
+        del unvisited[vertex]
+        for neighbor in graph[vertex]:
+            alt = distances[vertex] + graph[vertex][neighbor]
+            if alt < distances[neighbor]:
+                distances[neighbor] = alt
+                
+        
+
+
+
 
     while not(get_position(current_node, ar) == (t_row, t_col)):
         # calculate tentative distances for all neighbor nodes
@@ -240,6 +252,15 @@ def Dijkstra_shortest_path(t, t_row, t_col, ar):
         if unvisited[current_node] == infinity:
             return None # there is no connection from start to target tile
     return shortest_path
+
+def build_graph(t, ar):
+    n = len(ar)**2
+    distance = 1 # distance for all tiles
+    graph = {}
+    for tile in range(0, n - 1):
+        surrounding_tiles = get_surrounding_tiles(tile, ar)
+        graph[tile] = {t:distance for t in surrounding_tiles if not(t == None)}
+    return graph
 
 def get_sequence(t, t_row, t_col, ar):
     c_row, c_col = get_position(t, ar)
