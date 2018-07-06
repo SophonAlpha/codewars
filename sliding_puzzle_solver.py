@@ -1,6 +1,5 @@
 import pprint
 import math
-import numpy as np
 
 # A tile marked as 'untouchable' cannot be moved when the empty
 # tile moves around. However, a tile can still be moved directly when the
@@ -17,7 +16,6 @@ def slide_puzzle(ar):
         for tile in row[:-2]:
             target_row, target_col = get_target_position(tile, ar)
             ar = move_tile_to_target(tile, target_row, target_col, ar)
-# TODO: remove 'untouchable' 
         # Move last two tiles in row to intermediate positions.
         # First we move the last tile of the row to the lower right corner
         # as a precaution to avoid it getting "stuck" with the before last tile
@@ -188,79 +186,55 @@ def get_position_closest_to_target(possible_positions, t_row, t_col, ar):
     
 def move_empty_to_position(t_row, t_col, ar):
     sequence = Dijkstra_shortest_path(0, t_row, t_col, ar)
-
-    
-    c_row, c_col = get_position(0, ar)
-    while not(c_row == t_row and c_col == t_col):
-        next_position = get_next_position(0, t_row, t_col, ar)
-        ar = move_tile(next_position, ar)
-        c_row, c_col = get_position(0, ar)
-        
-#        row_step = 1 if (row - empty_row) > 0 else -1
-#        row_tile_to_move = empty_row + row_step, empty_col
-#        col_step = 1 if (col - empty_col) > 0 else -1
-#        col_tile_to_move = empty_row, empty_col + col_step
-#        # move along columns
-#        if not(col - empty_col == 0) and \
-#           not(untouchable[ar[col_tile_to_move[0]][col_tile_to_move[1]]]):
-#            ar = move_tile(col_tile_to_move, ar)
-#        # move along rows
-#        elif not(row - empty_row == 0) and \
-#           not(untouchable[ar[row_tile_to_move[0]][row_tile_to_move[1]]]):
-#            ar = move_tile(row_tile_to_move, ar)
-#        # update after tile move
-#        c_row, c_col = get_position(0, ar)
+    for tile in sequence:
+        ar = move_tile(tile, ar)
     return ar
 
-def Dijkstra_shortest_path(t, t_row, t_col, ar):
-    # implemented this algorithm :
-    # https://brilliant.org/wiki/dijkstras-short-path-finder/
-    graph = build_graph(t, ar)
-    n = len(ar)**2
-    infinity = float('inf')
-    unvisited = [vertex for vertex in graph if not(untouchable[vertex])]
-    distances = {vertex: infinity for vertex in unvisited}
-    distances[t] = 0
-
-    while unvisited:
-        vertex = min(distances, key = distances.get)
-        del unvisited[vertex]
-        for neighbor in graph[vertex]:
-            alt = distances[vertex] + graph[vertex][neighbor]
-            if alt < distances[neighbor]:
-                distances[neighbor] = alt
-                
-        
-
-
-
-
-    while not(get_position(current_node, ar) == (t_row, t_col)):
-        # calculate tentative distances for all neighbor nodes
-        neighbors = get_all_possible_positions(current_node, ar)
-        for neighbor_row, neighbor_col in neighbors:
-            neighbor_tile = ar[neighbor_row][neighbor_col]
-            if neighbor_tile in unvisited.keys():
-                tentative_distance = unvisited[current_node] + 1
-                if unvisited[neighbor_tile] > tentative_distance:
-                    unvisited[neighbor_tile] = tentative_distance
-        visited[current_node] = unvisited[current_node]
-        shortest_path.append(current_node)
-        del unvisited[current_node]
-        # get next node with the smallest tentative distance
-        current_node = list(unvisited.keys())[np.argmin(list(unvisited.values()))]
-        if unvisited[current_node] == infinity:
-            return None # there is no connection from start to target tile
-    return shortest_path
+def Dijkstra_shortest_path(start_tile, target_row, target_col, ar):
+    graph = build_graph(start_tile, ar)
+    distances = calculate_distances(start_tile, graph)
+    tile_sequence = get_shortest_tile_sequence(distances, graph, start_tile,
+                                               target_row, target_col, ar)
+    tile_sequence.reverse()
+    return tile_sequence
 
 def build_graph(t, ar):
     n = len(ar)**2
     distance = 1 # distance for all tiles
     graph = {}
-    for tile in range(0, n - 1):
-        surrounding_tiles = get_surrounding_tiles(tile, ar)
-        graph[tile] = {t:distance for t in surrounding_tiles if not(t == None)}
+    for tile in range(0, n):
+        if not(untouchable[tile]):
+            surrounding_tiles = get_surrounding_tiles(tile, ar)
+            graph[tile] = {t:distance for t in surrounding_tiles \
+                           if not(t == None) and not(untouchable[t])}
     return graph
+
+def calculate_distances(start_tile, graph):
+    # based on this introduction to the Dijkstra algorithm:
+    # https://brilliant.org/wiki/dijkstras-short-path-finder/
+    infinity = float('inf')
+    unvisited = [vertex for vertex in graph if not(untouchable[vertex])]
+    distances = {vertex: infinity for vertex in unvisited}
+    distances[start_tile] = 0
+    # calculate distances from source
+    while unvisited:
+        unvisited_dist = {v:distances[v] for v in unvisited}
+        vertex = min(unvisited_dist, key = unvisited_dist.get)
+        unvisited.remove(vertex)
+        for neighbor in graph[vertex]:
+            alt = distances[vertex] + graph[vertex][neighbor]
+            if alt < distances[neighbor]:
+                distances[neighbor] = alt
+    return distances
+
+def get_shortest_tile_sequence(distances, graph, start_tile, target_row, target_col, ar):
+    tile = ar[target_row][target_col]
+    tile_sequence = []
+    while not(tile == start_tile):
+        neighbor_dist = {neighbor:distances[neighbor] for neighbor in graph[tile]}
+        tile_sequence.append(tile)
+        tile = min(neighbor_dist, key = neighbor_dist.get)
+    return tile_sequence
 
 def get_sequence(t, t_row, t_col, ar):
     c_row, c_col = get_position(t, ar)
