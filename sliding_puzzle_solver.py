@@ -19,14 +19,16 @@ def slide_puzzle(tile_array):
     global untouchable
     untouchable = {tile: False for tile in range(0, puzzle_size**2)}
     # solve rows and columns
-    for size in range(0, puzzle_size - 2):
+    for size in range(0, puzzle_size - 1):
         row_tiles, col_tiles = get_first_row_first_column_tiles(size, puzzle_size)
         tile_array = solve_tiles(row_tiles, tile_array, 'row', size, puzzle_size)
+        if is_puzzle_solved(tile_array):
+            break
         tile_array = solve_tiles(col_tiles, tile_array, 'col', size, puzzle_size)
-    # solve the remaining 2x2 tiles in the lower right corner
-    tile_array = solve_2x2(tile_array)
+        if is_puzzle_solved(tile_array):
+            break
     pprint.pprint(tile_array)
-    return
+    return True
 
 def solve_tiles(tiles, tile_array, direction, size, puzzle_size):
     intermediate_pos = {'row': [(size, puzzle_size - 1),
@@ -43,6 +45,7 @@ def solve_tiles(tiles, tile_array, direction, size, puzzle_size):
     before_last_tile = tiles[-2:-1][0]
     last_tile = tiles[-1:][0]
     tile_array = move_tile_to_target(last_tile, puzzle_size - 1, puzzle_size - 1, tile_array)
+    untouchable[last_tile] = False
     # Then we move the before last tile to its intermediate position.
     tile_array = move_tile_to_target(before_last_tile,
                                      intermediate_pos[direction][0][0],
@@ -57,27 +60,6 @@ def solve_tiles(tiles, tile_array, direction, size, puzzle_size):
     tile_array = turn_last_two_tiles([before_last_tile, last_tile], tile_array)
     return tile_array
 
-def solve_2x2(tile_array):
-    puzzle_size = len(tile_array)
-    # create a circular list of position deltas that starts at the empty tile
-    positions = [(0, 0), (-1, 0), (-1, -1), (0, -1)]
-    empty_tile_row, empty_tile_col = get_position(0, tile_array)    
-    d_row = empty_tile_row - (puzzle_size - 1)
-    d_col = empty_tile_col - (puzzle_size - 1)
-    start = positions.index((d_row, d_col))
-    positions = cycle(positions)
-    positions = islice(positions, start, None)
-    # move to next position
-    next(positions)
-    # move to each position and check if we are finished
-    for _ in range(3):
-        d_row, d_col = next(positions)
-        tile = tile_array[puzzle_size - 1 + d_row][puzzle_size - 1 + d_col]
-        tile_array = move_tile(tile, tile_array)
-        if is_puzzle_solved(tile_array):
-            break
-    return tile_array
-
 def is_puzzle_solved(tile_array):
     puzzle_size = len(tile_array)
     solved_puzzle = []
@@ -87,7 +69,6 @@ def is_puzzle_solved(tile_array):
         tile_number += puzzle_size
     solved_puzzle[puzzle_size -1][puzzle_size -1] = 0
     return tile_array == solved_puzzle
-        
 
 def turn_last_two_tiles(tiles, tile_array):
     for tile in tiles:
@@ -253,22 +234,55 @@ def move_tile(tile_to_move, tile_array):
     return tile_array
 
 PUZZLE = [
+    [4, 1, 5],
+    [3, 0, 8],
+    [7, 6, 2]]
+print(slide_puzzle(PUZZLE))
+PUZZLE = [
+    [11, 0, 7, 3],
+    [2, 1, 5, 4],
+    [13, 10, 6, 15],
+    [14, 12, 8, 9]]
+print(slide_puzzle(PUZZLE))
+PUZZLE = [
+    [6, 5, 12, 9],
+    [10, 8, 1, 2],
+    [14, 0, 4, 3],
+    [13, 7, 11, 15]]
+print(slide_puzzle(PUZZLE))
+PUZZLE = [
     [3, 7, 14, 15, 10],
     [1, 0, 5, 9, 4],
     [16, 2, 11, 12, 8],
     [17, 6, 13, 18, 20],
     [21, 22, 23, 19, 24]]
+print(slide_puzzle(PUZZLE))
 PUZZLE = [
     [17, 9, 6, 11, 5],
     [22, 13, 7, 18, 20],
     [8, 16, 2, 12, 15],
     [1, 24, 10, 3, 4],
     [21, 23, 19, 0, 14]]
+print(slide_puzzle(PUZZLE))
 PUZZLE = [
     [7, 18, 22, 2, 5],
     [12, 6, 3, 0, 9],
     [1, 8, 17, 4, 15],
     [19, 21, 14, 10, 20],
     [16, 23, 13, 11, 24]]
-
+print(slide_puzzle(PUZZLE))
+PUZZLE = [
+    [7, 18, 22, 2, 5],
+    [12, 6, 3, 0, 9],
+    [1, 8, 17, 4, 15],
+    [19, 21, 14, 10, 20],
+    [16, 23, 13, 11, 24]]
+print(slide_puzzle(PUZZLE))
+PUZZLE = [
+    [13, 1, 9, 14, 3, 12],
+    [2, 7, 10, 15, 4, 18],
+    [19, 21, 27, 17, 5, 6],
+    [33, 31, 16, 8, 22, 24],
+    [25, 0, 32, 35, 11, 34],
+    [20, 28, 26, 30, 29, 23]]
 print(slide_puzzle(PUZZLE))
