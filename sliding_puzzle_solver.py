@@ -1,5 +1,7 @@
 import pprint
 import math
+from itertools import cycle
+from itertools import islice
 
 # A tile marked as 'untouchable' cannot be moved when the empty
 # tile moves around. However, a tile can still be moved directly when the
@@ -56,8 +58,36 @@ def solve_tiles(tiles, tile_array, direction, size, puzzle_size):
     return tile_array
 
 def solve_2x2(tile_array):
-
+    puzzle_size = len(tile_array)
+    # create a circular list of position deltas that starts at the empty tile
+    positions = [(0, 0), (-1, 0), (-1, -1), (0, -1)]
+    empty_tile_row, empty_tile_col = get_position(0, tile_array)    
+    d_row = empty_tile_row - (puzzle_size - 1)
+    d_col = empty_tile_col - (puzzle_size - 1)
+    start = positions.index((d_row, d_col))
+    positions = cycle(positions)
+    positions = islice(positions, start, None)
+    # move to next position
+    next(positions)
+    # move to each position and check if we are finished
+    for _ in range(3):
+        d_row, d_col = next(positions)
+        tile = tile_array[puzzle_size - 1 + d_row][puzzle_size - 1 + d_col]
+        tile_array = move_tile(tile, tile_array)
+        if is_puzzle_solved(tile_array):
+            break
     return tile_array
+
+def is_puzzle_solved(tile_array):
+    puzzle_size = len(tile_array)
+    solved_puzzle = []
+    tile_number = 1
+    for _ in range(puzzle_size):
+        solved_puzzle.append([tile_number + i for i in range(puzzle_size)])
+        tile_number += puzzle_size
+    solved_puzzle[puzzle_size -1][puzzle_size -1] = 0
+    return tile_array == solved_puzzle
+        
 
 def turn_last_two_tiles(tiles, tile_array):
     for tile in tiles:
@@ -79,6 +109,9 @@ def get_first_row_first_column_tiles(size, puzzle_size):
     return row_tiles, col_tiles
 
 def get_position(tile, tile_array):
+    """
+    For a given tile, return the position as row and column in the puzzle.
+    """
     row, col = [(i, row.index(tile))
                 for i, row in enumerate(tile_array) if tile in row][0]
     return row, col
