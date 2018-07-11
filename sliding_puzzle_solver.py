@@ -1,3 +1,8 @@
+"""
+Solution for sliding puzzle codewars challenge:
+https://www.codewars.com/kata/5a20eeccee1aae3cbc000090
+"""
+
 import pprint
 import math
 
@@ -5,20 +10,33 @@ def slide_puzzle(tile_array):
     """
     main function, does setup and solves the puzzle
     """
-    puzzle = SlindingPuzzle(tile_array)
+    puzzle = SlidingPuzzle(tile_array)
     ret = puzzle.solve()
     return ret
 
-class SlindingPuzzle:
-    
+class SlidingPuzzle:
+    """
+    Class to represent the sliding puzzle object.
+    """
+
     def __init__(self, tile_array):
+        """
+        Setup of key class wide variables.
+        """
         self.tile_array = tile_array
         self.puzzle_size = len(tile_array)
+        # All tiles that are at their final correct position are marked as
+        # "untouchable". These tiles can then not be moved in subsequent tile
+        # moves.
         self.untouchable = {tile: False for tile in range(0, self.puzzle_size**2)}
         self.solved_puzzle = self.create_solved_puzzle()
         self.solution_seq = []
-        
+
     def create_solved_puzzle(self):
+        """
+        Generate a solved puzzle for a give puzzle size. This "solved puzzle"
+        array is used by the puzzle solving algorithm to check when it is done.
+        """
         solved_puzzle = []
         tile_number = 1
         for _ in range(self.puzzle_size):
@@ -34,18 +52,23 @@ class SlindingPuzzle:
         sliding-block-puzzles/3030-34998/forums/
         a-fool-proof-guide-to-solving-every-solvable-slidi-1802039/
         """
-        # solve rows and columns
         for size in range(0, self.puzzle_size - 1):
-            row_tiles, col_tiles = self.get_first_row_first_column_tiles(size)
+            row_tiles, col_tiles = self.get_row_column_tiles(size)
+            # First solve the row ...
             self.solve_tiles(row_tiles, 'row', size)
             if self.tile_array == self.solved_puzzle:
                 break
+            # ... the solve the column.
             self.solve_tiles(col_tiles, 'col', size)
             if self.tile_array == self.solved_puzzle:
                 break
         return self.solution_seq
 
     def solve_tiles(self, tiles, direction, size):
+        """
+        Takes a series of tiles, either a row or a column, and moves them to
+        right position.
+        """
         intermediate_pos = {'row': [(size, self.puzzle_size - 1),
                                     (size + 1, self.puzzle_size - 1)],
                             'col': [(self.puzzle_size - 1, size),
@@ -59,7 +82,8 @@ class SlindingPuzzle:
         # as a precaution to avoid blocking in the before last tile
         before_last_tile = tiles[-2:-1][0]
         last_tile = tiles[-1:][0]
-        self.move_tile_to_target(last_tile, self.puzzle_size - 1, self.puzzle_size - 1)
+        self.move_tile_to_target(last_tile,
+                                 self.puzzle_size - 1, self.puzzle_size - 1)
         self.untouchable[last_tile] = False
         # Then we move the before last tile to its intermediate position.
         self.move_tile_to_target(before_last_tile,
@@ -74,13 +98,21 @@ class SlindingPuzzle:
         return
 
     def turn_last_two_tiles(self, tiles):
+        """
+        Makes the turn into final position of the last two tiles in a row
+        or column.
+        """
         for tile in tiles:
             target_row, target_col = self.get_target_position(tile)
             self.move_tile_to_target(tile, target_row, target_col)
             self.untouchable[tile] = True
         return
 
-    def get_first_row_first_column_tiles(self, size):
+    def get_row_column_tiles(self, size):
+        """
+        Get the tiles for the top row and the left column that need to be
+        moved into their final position.
+        """
         # sort the row_tiles
         start = 1 + size * self.puzzle_size + size
         stop = (size + 1) * self.puzzle_size + 1
@@ -93,6 +125,10 @@ class SlindingPuzzle:
         return row_tiles, col_tiles
 
     def get_target_position(self, tile):
+        """
+        For a given tile return the position in the puzzle where the tile
+        should be.
+        """
         row = int(tile / self.puzzle_size)
         col = (tile % self.puzzle_size) - 1
         if col == -1:
@@ -101,6 +137,9 @@ class SlindingPuzzle:
         return row, col
 
     def move_tile_to_target(self, tile, t_row, t_col):
+        """
+        Move a tile to it's target position.
+        """
         c_row, c_col = self.get_position(tile)
         self.untouchable[tile] = True
         while not(c_row == t_row and c_col == t_col):
@@ -111,12 +150,20 @@ class SlindingPuzzle:
         return self.tile_array
 
     def get_next_position(self, tile, t_row, t_col):
+        """
+        This function provides the next position when moving a tile a step
+        closer to it's target position.
+        """
         possible_positions = self.get_all_possible_positions(tile)
         next_position = self.get_position_closest_to_target(possible_positions,
                                                             t_row, t_col)
         return next_position
 
     def get_all_possible_positions(self, tile):
+        """
+        For a given tile return all possible next positions to which a tile
+        can be moved.
+        """
         c_row, c_col = self.get_position(tile)
         directions = [(-1, 0), (0, 1), (1, 0), (0, -1)]
         possible_positions = []
@@ -130,6 +177,10 @@ class SlindingPuzzle:
         return possible_positions
 
     def get_position_closest_to_target(self, possible_positions, t_row, t_col):
+        """
+        From all possible next positions select the one that gets the tile
+        closer to the target position.
+        """
         distance = self.puzzle_size**2 # initialisation with high value
         for n_row, n_col in possible_positions:
             n_distance = math.sqrt(abs(t_row - n_row)**2 + abs(t_col - n_col)**2)
@@ -139,21 +190,35 @@ class SlindingPuzzle:
         return next_position
 
     def move_empty_to_position(self, t_row, t_col):
+        """
+        Move the empty tile to a target position on the shortest path.
+        """
         sequence = self.get_shortest_path(0, t_row, t_col)
         for tile in sequence:
             self.move_tile(tile)
         return
 
     def get_shortest_path(self, start_tile, target_row, target_col):
+        """
+        Calculate a sequence of tiles to be moved that get a tile to the target
+        position. Uses Dijkstra algorithm for shortest path calculation.
+        """
         graph = self.build_graph(start_tile)
         distances = self.calculate_distances(start_tile, graph)
-        tile_sequence = self.get_shortest_tile_sequence(distances,graph,
+        tile_sequence = self.get_shortest_tile_sequence(distances, graph,
                                                         start_tile,
                                                         target_row, target_col)
         tile_sequence.reverse()
         return tile_sequence
 
     def build_graph(self, start_tile):
+        """
+        Build a graph representation of the sliding puzzle. The tiles are nodes
+        and distance between tiles is always 1. Tiles marked as untouchable
+        cannot be moved and therefore are excluded when building the graph.
+        This way the algorithm calculates tiles moves around tiles that are
+        already at their final correct position.
+        """
         num_tiles = len(self.tile_array)**2
         distance = 1 # distance for all tiles
         graph = {}
@@ -165,6 +230,9 @@ class SlindingPuzzle:
         return graph
 
     def calculate_distances(self, start_tile, graph):
+        """
+        Perform the distance calculations required for the Dijkstra algorithm.
+        """
         # based on this introduction to the Dijkstra algorithm:
         # https://brilliant.org/wiki/dijkstras-short-path-finder/
         infinity = float('inf')
@@ -184,6 +252,11 @@ class SlindingPuzzle:
 
     def get_shortest_tile_sequence(self, distances, graph, start_tile,
                                    target_row, target_col):
+        """
+        After the graph has been build and the distances within the graph
+        have been calculated, this function works out the sequence of tiles
+        to be moved.
+        """
         tile = self.tile_array[target_row][target_col]
         tile_sequence = []
         while not tile == start_tile:
@@ -201,6 +274,9 @@ class SlindingPuzzle:
         return row, col
 
     def get_surrounding_tiles(self, tile):
+        """
+        Get all tiles around a given tile.
+        """
         positions = [(-1, 0), (0, 1), (1, 0), (0, -1)]
         t_row, t_col = self.get_position(tile)
         sequence = []
@@ -235,6 +311,12 @@ class SlindingPuzzle:
             print('Cannot move. Tile is not next to empty tile.')
         return
 
+PUZZLE = [
+    [1, 2, 3],
+    [4, 5, 6],
+    [8, 7, 0]]
+pprint.pprint(PUZZLE)
+print(slide_puzzle(PUZZLE))
 PUZZLE = [
     [4, 1, 5],
     [3, 0, 8],
