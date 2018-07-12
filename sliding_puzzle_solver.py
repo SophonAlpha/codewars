@@ -34,7 +34,7 @@ class SlidingPuzzle:
 
     def create_solved_puzzle(self):
         """
-        Generate a solved puzzle for a give puzzle size. This "solved puzzle"
+        Generate a solved puzzle for a given puzzle size. This "solved puzzle"
         array is used by the puzzle solving algorithm to check when it is done.
         """
         solved_puzzle = []
@@ -75,7 +75,7 @@ class SlidingPuzzle:
     def solve_tiles(self, tiles, direction, size):
         """
         Takes a series of tiles, either a row or a column, and moves them to
-        right position.
+        correct position.
         """
         intermediate_pos = {'row': [(size, self.puzzle_size - 1),
                                     (size + 1, self.puzzle_size - 1)],
@@ -85,9 +85,9 @@ class SlidingPuzzle:
         for tile in tiles[:-2]:
             target_row, target_col = self.get_target_position(tile)
             self.move_tile_to_target(tile, target_row, target_col)
-        # Move last two tiles in row_tiles to intermediate positions.
-        # First we move the last tile of the row_tiles to the lower right corner
-        # as a precaution to avoid blocking in the before last tile
+        # Move last two tiles in to intermediate positions.
+        # First we move the last tile to the lower right corner
+        # as a precaution to avoid blocking in the before_last_tile
         before_last_tile = tiles[-2:-1][0]
         last_tile = tiles[-1:][0]
         self.move_tile_to_target(last_tile,
@@ -159,7 +159,7 @@ class SlidingPuzzle:
 
     def get_next_position(self, tile, t_row, t_col):
         """
-        This function provides the next position when moving a tile a step
+        This function provides the next position when moving a tile one step
         closer to it's target position.
         """
         possible_positions = self.get_all_possible_positions(tile)
