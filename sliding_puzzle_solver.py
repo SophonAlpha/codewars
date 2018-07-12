@@ -55,11 +55,19 @@ class SlidingPuzzle:
         for size in range(0, self.puzzle_size - 1):
             row_tiles, col_tiles = self.get_row_column_tiles(size)
             # First solve the row ...
-            self.solve_tiles(row_tiles, 'row', size)
+            try:
+                self.solve_tiles(row_tiles, 'row', size)
+            except ValueError:
+                self.solution_seq = None
+                break
             if self.tile_array == self.solved_puzzle:
                 break
             # ... the solve the column.
-            self.solve_tiles(col_tiles, 'col', size)
+            try:
+                self.solve_tiles(col_tiles, 'col', size)
+            except ValueError:
+                self.solution_seq = None
+                break
             if self.tile_array == self.solved_puzzle:
                 break
         return self.solution_seq
