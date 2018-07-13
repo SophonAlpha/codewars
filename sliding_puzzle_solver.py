@@ -1,5 +1,5 @@
 """
-Solution for sliding puzzle codewars challenge:
+Solution for sliding puzzle codewars challenge (1 kyu):
 https://www.codewars.com/kata/5a20eeccee1aae3cbc000090
 """
 
