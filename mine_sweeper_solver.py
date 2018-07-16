@@ -10,14 +10,110 @@ http://minesweeperonline.com
 
 import random
 
+def solve_mine(map, n):
+    mine_field = MineSweeper(map, n)
+    mine_field.solve()
+    solved = mine_field.get_state()
+    return solved
+
+def open(row, col):
+    global arr_str
+    mine_field = [row.split() for row in arr_str.split('\n')]
+    try:
+        num_mines = int(mine_field[row][col])
+    except ValueError:
+        num_mines = mine_field[row][col]
+    return num_mines
+
 class MineSweeper:
     """
-    Mine sweeper class
+    Mine sweeper solver class.
     """
 
+    def __init__(self, field_map, num_mines):
+        self.mine_field = [row.split() for row in field_map.split('\n')]
+
+    def solve(self):
+        cells_to_open = self.get_open_cells()
+        opened_cells = []
+        while cells_to_open:
+            row, col = cells_to_open.pop(0)
+            num_mines = open(row, col)
+            opened_cells.append((row, col)) # TODO: fix duplicate entries
+            self.mine_field[row][col] = num_mines
+            surrounding_cells = self.get_surrounding_cells(row, col)
+            if num_mines == 0:
+                cells_to_open = cells_to_open + \
+                                [cell for cell in surrounding_cells 
+                                      if not cell in cells_to_open and \
+                                         not cell in opened_cells]
+            if num_mines > 0:
+                hidden_cells = [(row, col) 
+                                for row, col in surrounding_cells
+                                if self.mine_field[row][col] == '?']
+                mine_cells = [(row, col) 
+                              for row, col in surrounding_cells
+                              if self.mine_field[row][col] == 'x']
+                
+                if len(hidden_cells) <= num_mines:
+                    self.mark_mines(hidden_cells)
+                else:
+                    cells_to_open.append((row, col))
+        return
+
+    def get_open_cells(self):
+        num_rows = len(self.mine_field)
+        num_cols = len(self.mine_field[0])
+        open_cells = [(row, col) 
+                      for row in range(num_rows) 
+                      for col in range(num_cols)
+                      if not self.mine_field[row][col] == '?']
+        return open_cells
+
+    def get_surrounding_cells(self, cell_row, cell_col):
+        """
+        Return a list of coordinates of cells that surround a cell specified
+        by row and column.
+        """
+        positions = [(-1, 0), (-1, 1), (0, 1), (1, 1),
+                     (1, 0), (1, -1), (0, -1), (-1, -1)]
+        surrounding_cells = []
+        max_row = len(self.mine_field) - 1
+        max_col = len(self.mine_field[0]) - 1
+        for pos in positions:
+            row = cell_row + pos[0]
+            col = cell_col + pos[1]
+            if 0 <= row <= max_row and 0 <= col <= max_col:
+                surrounding_cells.append((row, col))
+        return surrounding_cells
+
+    def mark_mines(self, hidden_cells):
+        for row, col in hidden_cells:
+            self.mine_field[row][col] = 'x'
+        return
+
+    def get_state(self):
+        arr_str = []
+        for row in self.mine_field:
+            arr_str.append(' '.join([str(col) for col in row]))
+        return '\n'.join(arr_str)
+              
+            
+
+
+
+
+
+
+
+
+class MineField:
+    
     def __init__(self, mine_field=None):
         if mine_field is None:
             self.mine_field = self.generate_mine_field()
+        else:
+            self.mine_field = mine_field
 
     def generate_mine_field(self, dimensions=(9, 9), num_mines=10):
         """
@@ -144,6 +240,139 @@ class MineSweeper:
                    not (s_row, s_col) in cells_to_open and \
                    not (s_row, s_col) in cells_opened:
                     cells_to_open.append((s_row, s_col))
-        return        
+        return
+
+    def get(self):
+        """
+        Return current state of the mine field.
+        """
+
+gamemap = """
+? ? ? ? ? ?
+? ? ? ? ? ?
+? ? ? 0 ? ?
+? ? ? ? ? ?
+? ? ? ? ? ?
+0 0 0 ? ? ?
+""".strip()
+arr_str = """
+1 x 1 1 x 1
+2 2 2 1 2 2
+2 x 2 0 1 x
+2 x 2 1 2 2
+1 1 1 1 x 1
+0 0 0 1 1 1
+""".strip()
+
+solve_mine(gamemap, 6)
+
+
+
+gamemap = """
+0 ? ?
+0 ? ?
+""".strip()
+arr_str = """
+0 1 x
+0 1 1
+""".strip()
+
+gamemap = """
+? ? ? ? 0 0 0
+? ? ? ? 0 ? ?
+? ? ? 0 0 ? ?
+? ? ? 0 0 ? ?
+0 ? ? ? 0 0 0
+0 ? ? ? 0 0 0
+0 ? ? ? 0 ? ?
+0 0 0 0 0 ? ?
+0 0 0 0 0 ? ?
+""".strip()
+arr_str = """
+1 x x 1 0 0 0
+2 3 3 1 0 1 1
+1 x 1 0 0 1 x
+1 1 1 0 0 1 1
+0 1 1 1 0 0 0
+0 1 x 1 0 0 0
+0 1 1 1 0 1 1
+0 0 0 0 0 1 x
+0 0 0 0 0 1 1
+""".strip()
+
+gamemap = """
+? ? 0 ? ? ? 0 0 ? ? ? 0 0 0 0 ? ? ? 0
+? ? 0 ? ? ? 0 0 ? ? ? 0 0 0 0 ? ? ? ?
+? ? 0 ? ? ? ? ? ? ? ? 0 0 0 0 ? ? ? ?
+0 ? ? ? ? ? ? ? ? ? ? 0 0 0 0 0 ? ? ?
+0 ? ? ? ? ? ? ? ? ? 0 0 0 0 0 0 0 0 0
+0 ? ? ? 0 0 0 ? ? ? 0 0 0 0 0 0 0 0 0
+0 0 0 0 0 0 0 ? ? ? ? ? ? ? 0 0 0 0 0
+0 0 0 0 0 0 0 0 0 0 ? ? ? ? 0 0 0 0 0
+0 0 ? ? ? 0 ? ? ? 0 ? ? ? ? 0 0 0 0 0
+0 0 ? ? ? ? ? ? ? 0 0 0 0 0 0 ? ? ? 0
+0 0 ? ? ? ? ? ? ? ? ? 0 0 0 0 ? ? ? 0
+0 0 0 0 ? ? ? ? ? ? ? 0 0 0 0 ? ? ? 0
+0 0 0 0 0 ? ? ? ? ? ? 0 0 0 0 0 ? ? ?
+0 0 ? ? ? ? ? ? 0 0 0 0 0 0 0 0 ? ? ?
+0 0 ? ? ? ? ? ? ? 0 0 0 0 0 0 0 ? ? ?
+0 0 ? ? ? ? ? ? ? ? 0 0 0 0 0 0 0 ? ?
+0 0 0 0 0 0 ? ? ? ? 0 0 0 ? ? ? 0 ? ?
+0 0 0 ? ? ? ? ? ? ? 0 0 0 ? ? ? ? ? ?
+0 0 0 ? ? ? ? ? 0 0 0 ? ? ? ? ? ? ? ?
+0 0 0 ? ? ? ? ? 0 0 0 ? ? ? 0 ? ? ? ?
+0 0 0 0 ? ? ? ? ? ? ? ? ? ? 0 ? ? ? ?
+0 0 0 0 ? ? ? ? ? ? ? ? ? ? 0 ? ? ? ?
+0 0 0 0 ? ? ? ? ? ? ? ? ? ? 0 ? ? ? ?
+""".strip()
+arr_str = """
+1 1 0 1 1 1 0 0 1 1 1 0 0 0 0 1 1 1 0
+x 1 0 1 x 1 0 0 2 x 2 0 0 0 0 1 x 2 1
+1 1 0 2 3 3 1 1 3 x 2 0 0 0 0 1 2 x 1
+0 1 1 2 x x 1 2 x 3 1 0 0 0 0 0 1 1 1
+0 1 x 2 2 2 1 3 x 3 0 0 0 0 0 0 0 0 0
+0 1 1 1 0 0 0 2 x 2 0 0 0 0 0 0 0 0 0
+0 0 0 0 0 0 0 1 1 1 1 2 2 1 0 0 0 0 0
+0 0 0 0 0 0 0 0 0 0 1 x x 1 0 0 0 0 0
+0 0 1 1 1 0 1 1 1 0 1 2 2 1 0 0 0 0 0
+0 0 1 x 2 1 3 x 2 0 0 0 0 0 0 1 1 1 0
+0 0 1 1 2 x 3 x 3 1 1 0 0 0 0 1 x 1 0
+0 0 0 0 1 2 3 2 2 x 1 0 0 0 0 1 1 1 0
+0 0 0 0 0 1 x 1 1 1 1 0 0 0 0 0 1 1 1
+0 0 1 1 2 2 2 1 0 0 0 0 0 0 0 0 1 x 1
+0 0 1 x 2 x 2 1 1 0 0 0 0 0 0 0 1 1 1
+0 0 1 1 2 1 3 x 3 1 0 0 0 0 0 0 0 1 1
+0 0 0 0 0 0 2 x x 1 0 0 0 1 1 1 0 1 x
+0 0 0 1 1 1 1 2 2 1 0 0 0 1 x 1 1 2 2
+0 0 0 1 x 3 2 1 0 0 0 1 1 2 1 1 1 x 2
+0 0 0 1 2 x x 1 0 0 0 1 x 1 0 1 2 3 x
+0 0 0 0 1 2 2 1 1 1 1 1 1 1 0 1 x 3 2
+0 0 0 0 1 1 1 1 2 x 1 1 1 1 0 2 3 x 2
+0 0 0 0 1 x 1 1 x 2 1 1 x 1 0 1 x 3 x
+""".strip()
+
+gamemap = """
+0 0 0 0 0 0 0 0 ? ? ? ? ? 0 ? ? ? 0 ? ? ?
+0 0 0 0 0 0 0 0 ? ? ? ? ? 0 ? ? ? ? ? ? ?
+0 0 0 0 0 0 0 0 0 0 ? ? ? 0 ? ? ? ? ? ? ?
+0 0 0 0 0 ? ? ? 0 0 ? ? ? 0 ? ? ? ? ? ? 0
+? ? 0 0 0 ? ? ? 0 ? ? ? ? 0 0 ? ? ? ? ? ?
+? ? 0 0 0 ? ? ? 0 ? ? ? 0 0 0 ? ? ? ? ? ?
+? ? ? 0 0 0 0 0 0 ? ? ? 0 0 0 0 0 0 ? ? ?
+? ? ? 0 0 0 0 0 0 0 ? ? ? ? 0 0 ? ? ? 0 0
+? ? ? 0 0 0 0 0 0 0 ? ? ? ? 0 0 ? ? ? 0 0
+""".strip()
+arr_str = """
+0 0 0 0 0 0 0 0 1 x x 2 1 0 1 x 1 0 1 2 x
+0 0 0 0 0 0 0 0 1 2 3 x 1 0 2 2 2 1 2 x 2
+0 0 0 0 0 0 0 0 0 0 2 2 2 0 1 x 1 1 x 2 1
+0 0 0 0 0 1 1 1 0 0 1 x 1 0 1 2 2 2 1 1 0
+1 1 0 0 0 1 x 1 0 1 2 2 1 0 0 1 x 1 1 1 1
+x 1 0 0 0 1 1 1 0 1 x 1 0 0 0 1 1 1 1 x 1
+2 2 1 0 0 0 0 0 0 1 1 1 0 0 0 0 0 0 1 1 1
+1 x 1 0 0 0 0 0 0 0 1 2 2 1 0 0 1 1 1 0 0
+1 1 1 0 0 0 0 0 0 0 1 x x 1 0 0 1 x 1 0 0
+""".strip()
+
 
 MineSweeper()
