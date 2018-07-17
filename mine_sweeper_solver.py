@@ -34,11 +34,15 @@ class MineSweeper:
         self.mine_field = [row.split() for row in field_map.split('\n')]
         self.cells_to_open = [] # All cells that can be opened safely
         self.opened_cells = [] # Cells that have been opened and don't need to be visited again.
+        self.ref_cell = None
 
     def solve(self):
         self.cells_to_open = self.get_open_cells()
         self.opened_cells = []
         while self.cells_to_open:
+            if self.unsolvable_cells():
+                print('unsolvable cells!')
+                break
             row, col = self.cells_to_open.pop(0)
             num_mines = open(row, col)
             self.save_opened_cell((row, col))
@@ -51,9 +55,12 @@ class MineSweeper:
             elif num_mines - len(closed_cells) - len(mine_cells) == 0:
                 self.mark_mines(closed_cells)
             else:
-                self.cells_to_open.append((row, col))
+                self.queue_cells_to_open([(row, col)])
             print(self.get_state(), '\n') # TODO: remove debug statement
         return
+
+    def unsolvable_cells(self):
+        if self.ref_cell in self.cells_to_open:
 
     def save_opened_cell(self, position):
         if not position in self.opened_cells:
@@ -66,6 +73,9 @@ class MineSweeper:
         return cells
 
     def queue_cells_to_open(self, cells):
+        for cell in cells:
+            if cell in self.opened_cells:
+                self.opened_cells.remove(cell)
         self.cells_to_open = self.cells_to_open + \
                              [cell for cell in cells
                                    if not cell in self.cells_to_open and \
@@ -275,10 +285,6 @@ arr_str = """
 0 0 0 1 1 1
 """.strip()
 
-solve_mine(gamemap, 6)
-
-
-
 gamemap = """
 0 ? ?
 0 ? ?
@@ -361,6 +367,8 @@ x 1 0 1 x 1 0 0 2 x 2 0 0 0 0 1 x 2 1
 0 0 0 0 1 1 1 1 2 x 1 1 1 1 0 2 3 x 2
 0 0 0 0 1 x 1 1 x 2 1 1 x 1 0 1 x 3 x
 """.strip()
+
+solve_mine(gamemap, 6)
 
 gamemap = """
 0 0 0 0 0 0 0 0 ? ? ? ? ? 0 ? ? ? 0 ? ? ?
