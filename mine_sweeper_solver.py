@@ -32,33 +32,44 @@ class MineSweeper:
 
     def __init__(self, field_map, num_mines):
         self.mine_field = [row.split() for row in field_map.split('\n')]
+        self.cells_to_open = [] # All cells that can be opened safely
+        self.opened_cells = [] # Cells that have been opened and don't need to be visited again.
 
     def solve(self):
-        cells_to_open = self.get_open_cells()
-        opened_cells = []
-        while cells_to_open:
-            row, col = cells_to_open.pop(0)
+        self.cells_to_open = self.get_open_cells()
+        self.opened_cells = []
+        while self.cells_to_open:
+            row, col = self.cells_to_open.pop(0)
             num_mines = open(row, col)
-            opened_cells.append((row, col)) # TODO: fix duplicate entries
+            self.save_opened_cell((row, col))
             self.mine_field[row][col] = num_mines
             surrounding_cells = self.get_surrounding_cells(row, col)
-            if num_mines == 0:
-                cells_to_open = cells_to_open + \
-                                [cell for cell in surrounding_cells 
-                                      if not cell in cells_to_open and \
-                                         not cell in opened_cells]
-            if num_mines > 0:
-                hidden_cells = [(row, col) 
-                                for row, col in surrounding_cells
-                                if self.mine_field[row][col] == '?']
-                mine_cells = [(row, col) 
-                              for row, col in surrounding_cells
-                              if self.mine_field[row][col] == 'x']
-                
-                if len(hidden_cells) <= num_mines:
-                    self.mark_mines(hidden_cells)
-                else:
-                    cells_to_open.append((row, col))
+            closed_cells = self.get_cell_type(surrounding_cells, '?')
+            mine_cells = self.get_cell_type(surrounding_cells, 'x')
+            if num_mines == len(mine_cells):
+                self.queue_cells_to_open(closed_cells)
+            elif num_mines - len(closed_cells) - len(mine_cells) == 0:
+                self.mark_mines(closed_cells)
+            else:
+                self.cells_to_open.append((row, col))
+            print(self.get_state(), '\n') # TODO: remove debug statement
+        return
+
+    def save_opened_cell(self, position):
+        if not position in self.opened_cells:
+            self.opened_cells.append(position)
+        return
+    
+    def get_cell_type(self, surrounding_cells, cell_type):
+        cells = [(row, col) for row, col in surrounding_cells
+                 if self.mine_field[row][col] == cell_type]
+        return cells
+
+    def queue_cells_to_open(self, cells):
+        self.cells_to_open = self.cells_to_open + \
+                             [cell for cell in cells
+                                   if not cell in self.cells_to_open and \
+                                      not cell in self.opened_cells]
         return
 
     def get_open_cells(self):
