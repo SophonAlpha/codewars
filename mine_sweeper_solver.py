@@ -34,15 +34,16 @@ class MineSweeper:
         self.mine_field = [row.split() for row in field_map.split('\n')]
         self.cells_to_open = [] # All cells that can be opened safely
         self.opened_cells = [] # Cells that have been opened and don't need to be visited again.
-        self.ref_cell = None
+        self.prev_cell_set = None
+        self.repetitions = 0
 
     def solve(self):
         self.cells_to_open = self.get_open_cells()
         self.opened_cells = []
         while self.cells_to_open:
             if self.unsolvable_cells():
-                print('unsolvable cells!')
-                break
+                cell = self.get_lowest_probability_cell()
+                self.queue_cells_to_open([cell])
             row, col = self.cells_to_open.pop(0)
             num_mines = open(row, col)
             self.save_opened_cell((row, col))
@@ -59,8 +60,30 @@ class MineSweeper:
             print(self.get_state(), '\n') # TODO: remove debug statement
         return
 
+    def get_lowest_probability_cell(self):
+        prob = {}
+        for row, col in self.cells_to_open:
+            surrounding_cells = self.get_surrounding_cells(row, col)
+            closed_cells = self.get_cell_type(surrounding_cells, '?')
+            mine_cells = self.get_cell_type(surrounding_cells, 'x')
+            num_mines = open(row, col)
+            for closed_cell in closed_cells:
+                if closed_cell in prob.keys():
+                    prob[closed_cell] = prob[closed_cell] + \
+                                        (num_mines - len(mine_cells)) / len(closed_cells)
+                else:
+                    prob[closed_cell] = (num_mines - len(mine_cells)) / len(closed_cells)
+        min_prob_cell = min(prob, key=prob.get)
+        return min_prob_cell
+
     def unsolvable_cells(self):
-        if self.ref_cell in self.cells_to_open:
+        if set(self.cells_to_open) == self.prev_cell_set:
+            self.repetitions += 1
+        else:
+            self.prev_cell_set = set(self.cells_to_open)
+            self.repetitions = 0
+        ret = True if self.repetitions > len(self.cells_to_open) * 2 else False
+        return ret
 
     def save_opened_cell(self, position):
         if not position in self.opened_cells:
@@ -367,7 +390,6 @@ x 1 0 1 x 1 0 0 2 x 2 0 0 0 0 1 x 2 1
 0 0 0 0 1 1 1 1 2 x 1 1 1 1 0 2 3 x 2
 0 0 0 0 1 x 1 1 x 2 1 1 x 1 0 1 x 3 x
 """.strip()
-
 solve_mine(gamemap, 6)
 
 gamemap = """
