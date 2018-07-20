@@ -17,6 +17,8 @@ def open(row, col):
         num_mines = mine_field[row][col]
     return num_mines
 
+import itertools
+
 def solve_mine(map, n):
     mine_field = MineSweeper(map, n)
     mine_field.solve()
@@ -42,25 +44,24 @@ class MineSweeper:
     def solve(self):
         """
         Main solver function. Solves by using two strategies:
-        I)  Deduction: Identify and open cells were it can be clearly deducted
-            from surrounding cells values that a cell is safe to open.
-        II) Probability: If the deduction approach gets stuck, meaning no
-            progress in opening cells, switch to a probability approach. In this
-            approach we calculate we calculate the probability of a mine being
-            at a cell.
+        I)  Deduction: Identify and open cells were it can be deducted
+            from surrounding cell values that a cell is safe to open.
+        II) Combination: If the deduction approach gets stuck, meaning no
+            progress in opening more cells, switch to a combination approach. In this
+            approach we calculate all possible combinations for the positions of
+            the remaining mines in the remaining closed cells.
         """
         self.cells_to_process = self.get_open_cells()
         self.processed_cells = []
         while self.cells_to_process:
             if self.no_progress():
-                # Probability: switch to probability approach after the deduction
+                # Combination: switch to combination approach after the deduction
                 # approach ran out of opening cells safely.
-                cells = self.eval_all_combinations()
-                cells = self.get_lowest_probability_cell()
-                if len(cells) <= self.mines_left:
-                    self.queue_cells_to_process(cells)
+                mine_combinations = self.eval_all_combinations()
+                if len(mine_combinations) == 1:
+                    self.mark_mines(list(mine_combinations[0]))
                 else:
-                    # Position of mine cannot be decided, stop and return
+                    # No single solution. Stop and return.
                     self.mine_field = ['?']
                     break
             row, col = self.cells_to_process.pop(0)
@@ -68,17 +69,17 @@ class MineSweeper:
             self.save_opened_cell((row, col))
             self.mine_field[row][col] = num_mines
             surrounding_cells = self.get_surrounding_cells(row, col)
-            closed_cells = self.get_cell_type(surrounding_cells, '?')
-            mine_cells = self.get_cell_type(surrounding_cells, 'x')
+            closed_cells = self.filter_cells(surrounding_cells, '?')
+            mine_cells = self.filter_cells(surrounding_cells, 'x')
             if num_mines == len(mine_cells):
                 # Deduction: all mines surrounding a cell have been found. It is
-                # safe to open all remaining closed cells.
+                # safe to open all surrounding closed cells.
                 self.queue_cells_to_process(closed_cells)
             elif num_mines - len(closed_cells) - len(mine_cells) == 0:
-                # Deduction: all closed cells contain mines. Mark them accordingly
+                # Deduction: all closed cells contain mines. Mark them accordingly.
                 self.mark_mines(closed_cells)
             else:
-                # Cannot yet safely open a cell. Put it back at the end of the
+                # Cannot yet safely open the cell. Put it back at the end of the
                 # processing queue.
                 self.queue_cells_to_process([(row, col)])
         return
@@ -97,27 +98,32 @@ class MineSweeper:
         ret = True if self.repetitions > len(self.cells_to_process) * 2 else False
         return ret
 
-    
-
-    def get_lowest_probability_cell(self):
+    def eval_all_combinations(self):
         """
-        Identify the cells with the lowest probability for containing a mine.
+        Test all combinations of remaining mines in the remaining closed cells.
+        Return all possible solutions.
         """
-        prob = {}
-        for row, col in self.cells_to_process:
-            surrounding_cells = self.get_surrounding_cells(row, col)
-            closed_cells = self.get_cell_type(surrounding_cells, '?')
-            mine_cells = self.get_cell_type(surrounding_cells, 'x')
-            num_mines = open(row, col)
-            for closed_cell in closed_cells:
-                if closed_cell in prob.keys():
-                    prob[closed_cell] = prob[closed_cell] + \
-                                        (num_mines - len(mine_cells)) / len(closed_cells)
+        mine_combinations = []
+        all_closed_cells = self.get_closed_cells()
+        combinations = list(itertools.combinations(all_closed_cells,
+                                                   r=self.mines_left))
+        for combination in combinations:
+            combination_fit = False
+            for row, col in self.cells_to_process:
+                surrounding_cells = self.get_surrounding_cells(row, col)
+                closed_cells = self.filter_cells(surrounding_cells, '?')
+                mine_cells = self.filter_cells(surrounding_cells, 'x')
+                num_mines = open(row, col)
+                remaining_mines = num_mines - len(mine_cells)
+                possible_cells = set(combination) & set(closed_cells)
+                if len(possible_cells) == remaining_mines:
+                    combination_fit = True
                 else:
-                    prob[closed_cell] = (num_mines - len(mine_cells)) / len(closed_cells)
-        min_prob = min(prob.values())
-        min_prob_cells = [k for k, v in prob.items() if v == min_prob]
-        return min_prob_cells
+                    combination_fit = False
+                    break
+            if combination_fit:
+                mine_combinations.append(combination)
+        return mine_combinations
 
     def save_opened_cell(self, position):
         """
@@ -127,11 +133,11 @@ class MineSweeper:
             self.processed_cells.append(position)
         return
 
-    def get_cell_type(self, surrounding_cells, cell_type):
+    def filter_cells(self, cells, cell_type):
         """
-        Return all cells of same type.
+        Return all cells of same type in given list of cells.
         """
-        cells = [(row, col) for row, col in surrounding_cells
+        cells = [(row, col) for row, col in cells
                  if self.mine_field[row][col] == cell_type]
         return cells
 
@@ -159,6 +165,18 @@ class MineSweeper:
                       for col in range(num_cols)
                       if not self.mine_field[row][col] == '?']
         return open_cells
+    
+    def get_closed_cells(self):
+        """
+        Get all closed cells.
+        """
+        num_rows = len(self.mine_field)
+        num_cols = len(self.mine_field[0])
+        closed_cells = [(row, col)
+                      for row in range(num_rows)
+                      for col in range(num_cols)
+                      if self.mine_field[row][col] == '?']
+        return closed_cells
 
     def get_surrounding_cells(self, cell_row, cell_col):
         """
@@ -177,11 +195,11 @@ class MineSweeper:
                 surrounding_cells.append((row, col))
         return surrounding_cells
 
-    def mark_mines(self, closed_cells):
+    def mark_mines(self, cells):
         """
         Mark cells as containing a mine.
         """
-        for row, col in closed_cells:
+        for row, col in cells:
             self.mine_field[row][col] = 'x'
             self.mines_left -= 1
         return
@@ -195,6 +213,47 @@ class MineSweeper:
         for row in self.mine_field:
             result.append(' '.join([str(col) for col in row]))
         return '\n'.join(result)
+
+gamemap = """
+0 0 0 0 0 0 0 0 0 0 0 0 ? ? ? 0 0 0 0 0 0 0 0 ? ? ? ? ? ? 0
+0 0 0 0 0 0 0 0 0 0 0 0 ? ? ? 0 ? ? ? 0 0 0 0 ? ? ? ? ? ? 0
+? ? ? 0 0 0 0 ? ? ? 0 0 0 0 ? ? ? ? ? 0 0 0 0 ? ? ? ? ? ? 0
+? ? ? ? ? ? 0 ? ? ? ? ? 0 0 ? ? ? ? ? 0 0 0 0 ? ? ? 0 0 0 0
+? ? ? ? ? ? 0 ? ? ? ? ? 0 0 ? ? ? ? 0 0 0 0 0 ? ? ? 0 0 ? ?
+0 ? ? ? ? ? 0 0 0 ? ? ? 0 ? ? ? ? ? 0 0 0 0 0 ? ? ? 0 0 ? ?
+0 ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? 0 0 0 ? ? ? ? ? ? ?
+0 0 0 ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? 0 ? ? ? 0 0 ? ? ? 0
+0 ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? 0 ? ? ? 0 0 ? ? ? 0
+? ? ? ? 0 ? ? ? ? 0 0 0 ? ? ? ? ? ? ? 0 0 ? ? ? 0 0 ? ? ? 0
+? ? ? ? 0 ? ? ? ? ? 0 0 ? ? ? ? ? ? ? 0 0 0 ? ? ? 0 0 0 0 0
+? ? ? ? ? ? ? ? ? ? 0 0 ? ? ? ? ? ? ? 0 0 0 ? ? ? ? 0 0 0 0
+? ? ? ? ? ? ? ? ? ? 0 0 0 0 ? ? ? ? ? 0 0 0 ? ? ? ? 0 0 0 0
+? ? ? ? ? ? ? 0 0 ? ? ? 0 0 ? ? ? 0 0 0 0 0 ? ? ? ? 0 0 0 0
+? ? ? ? 0 0 0 0 0 ? ? ? 0 0 ? ? ? 0 0 0 0 0 ? ? ? 0 0 0 0 0
+""".strip()
+result = """
+0 0 0 0 0 0 0 0 0 0 0 0 1 x 1 0 0 0 0 0 0 0 0 1 1 1 1 1 1 0
+0 0 0 0 0 0 0 0 0 0 0 0 1 1 1 0 1 1 1 0 0 0 0 2 x 2 1 x 1 0
+1 1 1 0 0 0 0 1 1 1 0 0 0 0 1 1 2 x 1 0 0 0 0 2 x 2 1 1 1 0
+1 x 1 1 1 1 0 1 x 2 1 1 0 0 1 x 2 1 1 0 0 0 0 1 1 1 0 0 0 0
+1 2 2 3 x 2 0 1 1 2 x 1 0 0 1 2 2 1 0 0 0 0 0 1 1 1 0 0 1 1
+0 1 x 3 x 2 0 0 0 1 1 1 0 1 2 3 x 1 0 0 0 0 0 1 x 1 0 0 1 x
+0 1 1 3 3 3 2 1 1 1 1 2 1 2 x x 2 2 1 1 0 0 0 1 1 1 1 1 2 1
+0 0 0 1 x x 2 x 1 1 x 2 x 2 3 3 3 2 x 1 0 1 1 1 0 0 2 x 2 0
+0 1 1 2 2 2 3 2 2 1 1 2 1 1 1 x 2 x 2 1 0 1 x 1 0 0 2 x 2 0
+1 2 x 1 0 1 2 x 1 0 0 0 1 1 2 2 3 2 1 0 0 1 1 1 0 0 1 1 1 0
+1 x 2 1 0 1 x 3 2 1 0 0 1 x 1 1 x 2 1 0 0 0 1 1 1 0 0 0 0 0
+1 1 2 1 2 2 2 2 x 1 0 0 1 1 1 1 2 x 1 0 0 0 1 x 2 1 0 0 0 0
+1 1 2 x 2 x 1 1 1 1 0 0 0 0 1 1 2 1 1 0 0 0 1 2 x 1 0 0 0 0
+1 x 3 2 2 1 1 0 0 1 1 1 0 0 1 x 1 0 0 0 0 0 1 2 2 1 0 0 0 0
+1 2 x 1 0 0 0 0 0 1 x 1 0 0 1 1 1 0 0 0 0 0 1 x 1 0 0 0 0 0
+""".strip()
+print(gamemap)
+solution = solve_mine(gamemap, result.count('x'))
+if solution == result:
+    print('Solved!')
+else:
+    print('Not solved!')
 
 gamemap = """
 ? ? ? ? ? ?
