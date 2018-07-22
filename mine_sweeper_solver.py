@@ -55,15 +55,23 @@ class MineSweeper:
         self.processed_cells = []
         while self.cells_to_process:
             if self.no_progress():
-                # Combination: switch to combination approach after the deduction
-                # approach ran out of opening cells safely.
-                mine_combinations = self.eval_all_combinations()
-                if len(mine_combinations) == 1:
-                    self.mark_mines(list(mine_combinations[0]))
-                else:
-                    # No single solution. Stop and return.
+                self.eval_neighbour_cell_sets()
+                if set(self.cells_to_process) == self.prev_cell_set:
+                    # no further cell found. No single solution. Stop and return.
                     self.mine_field = ['?']
-                    break
+                    break 
+
+                
+#                 # Combination: switch to combination approach after the deduction
+#                 # approach ran out of opening cells safely.
+#                 mine_combinations = self.eval_all_combinations()
+#                 if len(mine_combinations) == 1:
+#                     self.mark_mines(list(mine_combinations[0]))
+#                 else:
+#                     # No single solution. Stop and return.
+#                     self.mine_field = ['?']
+#                     break
+
             row, col = self.cells_to_process.pop(0)
             num_mines = open(row, col)
             self.save_opened_cell((row, col))
@@ -97,6 +105,28 @@ class MineSweeper:
             self.repetitions = 0
         ret = True if self.repetitions > len(self.cells_to_process) * 2 else False
         return ret
+
+    def eval_neighbour_cell_sets(self):
+        for row, col in self.cells_to_process:
+            surrounding_cells = self.get_surrounding_cells(row, col)
+            closed_cells = self.filter_cells(surrounding_cells, '?')
+            mine_cells = self.filter_cells(surrounding_cells, 'x')
+            numbered_cells = list(set(surrounding_cells).differnce(closed_cells))
+            numbered_cells = list(set(surrounding_cells).differnce(mine_cells))            
+            num_mines = open(row, col)
+            mines_outstanding = num_mines - len(mine_cells)
+            for n_row, n_col in numbered_cells:
+                n_surrounding_cells = self.get_surrounding_cells(n_row, n_col)
+                n_closed_cells = self.filter_cells(n_surrounding_cells, '?')
+                n_mine_cells = self.filter_cells(n_surrounding_cells, 'x')
+                n_num_mines = open(n_row, n_col)
+                n_mines_outstanding = n_num_mines - len(n_mine_cells)
+                if set(n_closed_cells).issubset(set(closed_cells)) and \
+                   mines_outstanding < len(closed_cells) and \
+                   n_mines_outstanding < len(n_closed_cells):
+                    # Neighbours closed cells are completely included 
+                
+            
 
     def eval_all_combinations(self):
         """
