@@ -43,35 +43,24 @@ class MineSweeper:
 
     def solve(self):
         """
-        Main solver function. Solves by using two strategies:
-        I)  Deduction: Identify and open cells were it can be deducted
-            from surrounding cell values that a cell is safe to open.
-        II) Combination: If the deduction approach gets stuck, meaning no
-            progress in opening more cells, switch to a combination approach. In this
-            approach we calculate all possible combinations for the positions of
-            the remaining mines in the remaining closed cells.
+        Main solver function.
         """
         self.cells_to_process = self.get_open_cells()
         self.processed_cells = []
         while self.cells_to_process:
             if self.no_progress():
-                self.eval_neighbour_cell_sets()
+                safe_cells = self.eval_neighbour_cell_sets()
+                self.queue_cells_to_process(safe_cells)
                 if set(self.cells_to_process) == self.prev_cell_set:
-                    # no further cell found. No single solution. Stop and return.
-                    self.mine_field = ['?']
-                    break 
-
-                
-#                 # Combination: switch to combination approach after the deduction
-#                 # approach ran out of opening cells safely.
-#                 mine_combinations = self.eval_all_combinations()
-#                 if len(mine_combinations) == 1:
-#                     self.mark_mines(list(mine_combinations[0]))
-#                 else:
-#                     # No single solution. Stop and return.
-#                     self.mine_field = ['?']
-#                     break
-
+                    # Combination: switch to combination approach after the
+                    # deduction approach ran out of opening cells safely.
+                    mine_combinations = self.eval_all_combinations()
+                    if len(mine_combinations) == 1:
+                        self.mark_mines(list(mine_combinations[0]))
+                    else:
+                        # No single solution. Stop and return.
+                        self.mine_field = ['?']
+                        break
             row, col = self.cells_to_process.pop(0)
             num_mines = open(row, col)
             self.save_opened_cell((row, col))
@@ -107,26 +96,34 @@ class MineSweeper:
         return ret
 
     def eval_neighbour_cell_sets(self):
+        safe_cells = []
         for row, col in self.cells_to_process:
-            surrounding_cells = self.get_surrounding_cells(row, col)
-            closed_cells = self.filter_cells(surrounding_cells, '?')
-            mine_cells = self.filter_cells(surrounding_cells, 'x')
-            numbered_cells = list(set(surrounding_cells).differnce(closed_cells))
-            numbered_cells = list(set(surrounding_cells).differnce(mine_cells))            
+            surrounding_cells, closed_cells, mine_cells, \
+            numbered_cells = self.get_cells(row, col)
             num_mines = open(row, col)
             mines_outstanding = num_mines - len(mine_cells)
             for n_row, n_col in numbered_cells:
-                n_surrounding_cells = self.get_surrounding_cells(n_row, n_col)
-                n_closed_cells = self.filter_cells(n_surrounding_cells, '?')
-                n_mine_cells = self.filter_cells(n_surrounding_cells, 'x')
+                n_surrounding_cells, n_closed_cells, n_mine_cells, \
+                n_numbered_cells = self.get_cells(n_row, n_col)
                 n_num_mines = open(n_row, n_col)
                 n_mines_outstanding = n_num_mines - len(n_mine_cells)
                 if set(n_closed_cells).issubset(set(closed_cells)) and \
-                   mines_outstanding < len(closed_cells) and \
-                   n_mines_outstanding < len(n_closed_cells):
-                    # Neighbours closed cells are completely included 
-                
-            
+                   n_mines_outstanding > 0 and mines_outstanding > 0:
+                    # Neighbours closed cells are completely included
+                    safe_cells = safe_cells + \
+                                 list(set(closed_cells).difference(set(n_closed_cells)))
+        return safe_cells
+
+    def get_cells(self, row, col):
+        """
+        For a cell given as input get lists of all cell types.
+        """
+        surrounding_cells = self.get_surrounding_cells(row, col)
+        closed_cells = self.filter_cells(surrounding_cells, '?')
+        mine_cells = self.filter_cells(surrounding_cells, 'x')
+        numbered_cells = list(set(surrounding_cells).difference(closed_cells))
+        numbered_cells = list(set(numbered_cells).difference(mine_cells))
+        return surrounding_cells, closed_cells, mine_cells, numbered_cells
 
     def eval_all_combinations(self):
         """
@@ -278,7 +275,308 @@ result = """
 1 x 3 2 2 1 1 0 0 1 1 1 0 0 1 x 1 0 0 0 0 0 1 2 2 1 0 0 0 0
 1 2 x 1 0 0 0 0 0 1 x 1 0 0 1 1 1 0 0 0 0 0 1 x 1 0 0 0 0 0
 """.strip()
-print(gamemap)
+print('1\n', gamemap)
+solution = solve_mine(gamemap, result.count('x'))
+if solution == result:
+    print('Solved!')
+else:
+    print('Not solved!')
+
+gamemap = """
+0 0 0 ? ? ? ? ? ? 0 0 0 0 0 ? ? ? 0 0 ? ? ? ? ? ? ? ?
+? ? 0 ? ? ? ? ? ? 0 0 0 0 0 ? ? ? ? ? ? ? ? ? ? ? ? ?
+? ? ? ? 0 0 0 0 0 0 ? ? ? 0 ? ? ? ? ? ? 0 ? ? ? ? ? ?
+? ? ? ? 0 0 0 0 0 0 ? ? ? 0 0 0 0 ? ? ? 0 ? ? ? ? ? ?
+0 ? ? ? 0 0 0 0 0 0 ? ? ? 0 0 0 0 0 0 0 0 ? ? ? ? ? ?
+0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 ? ? ? ? 0
+""".strip()
+result = """
+0 0 0 1 x 1 1 x 1 0 0 0 0 0 1 1 1 0 0 1 x 3 x 3 1 2 1
+1 1 0 1 1 1 1 1 1 0 0 0 0 0 1 x 1 1 1 2 1 3 x 3 x 2 x
+x 2 1 1 0 0 0 0 0 0 1 1 1 0 1 1 1 1 x 1 0 2 2 3 1 3 2
+1 2 x 1 0 0 0 0 0 0 1 x 1 0 0 0 0 1 1 1 0 1 x 2 1 2 x
+0 1 1 1 0 0 0 0 0 0 1 1 1 0 0 0 0 0 0 0 0 1 2 3 x 2 1
+0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 x 2 1 0
+""".strip()
+print('2\n', gamemap)
+solution = solve_mine(gamemap, result.count('x'))
+if solution == result:
+    print('Solved!')
+else:
+    print('Not solved!')
+
+gamemap = """
+0 0 0 0 0 0 0 ? ? ?
+? ? ? ? ? ? 0 ? ? ?
+? ? ? ? ? ? 0 ? ? ?
+? ? ? ? ? ? 0 ? ? ?
+0 0 ? ? ? ? ? ? 0 0
+0 0 ? ? ? ? ? ? ? ?
+0 0 ? ? ? ? ? ? ? ?
+0 0 0 0 ? ? ? ? ? ?
+0 0 0 0 ? ? ? ? ? ?
+0 0 0 ? ? ? ? 0 0 0
+0 0 0 ? ? ? ? 0 0 0
+0 0 0 ? ? ? ? 0 0 0
+0 0 0 0 0 0 0 0 0 0
+0 0 0 0 0 0 0 0 0 0
+? ? 0 ? ? ? 0 0 0 0
+? ? 0 ? ? ? 0 0 0 0
+? ? ? ? ? ? ? ? ? 0
+? ? ? ? ? ? ? ? ? ?
+? ? ? ? ? ? ? ? ? ?
+0 0 ? ? ? 0 0 ? ? ?
+0 0 ? ? ? ? ? ? ? ?
+0 0 ? ? ? ? ? ? ? ?
+0 0 0 0 0 ? ? ? ? ?
+""".strip()
+result = """
+0 0 0 0 0 0 0 1 1 1
+1 1 1 1 1 1 0 2 x 2
+1 x 2 2 x 1 0 2 x 2
+1 1 2 x 2 1 0 1 1 1
+0 0 2 2 2 1 1 1 0 0
+0 0 1 x 1 1 x 2 1 1
+0 0 1 1 2 2 2 3 x 2
+0 0 0 0 1 x 1 2 x 2
+0 0 0 0 1 1 1 1 1 1
+0 0 0 1 2 2 1 0 0 0
+0 0 0 1 x x 1 0 0 0
+0 0 0 1 2 2 1 0 0 0
+0 0 0 0 0 0 0 0 0 0
+0 0 0 0 0 0 0 0 0 0
+1 1 0 1 1 1 0 0 0 0
+x 1 0 1 x 1 0 0 0 0
+2 3 1 3 2 2 1 1 1 0
+x 2 x 2 x 1 1 x 2 1
+1 2 1 2 1 1 1 2 x 1
+0 0 1 1 1 0 0 1 1 1
+0 0 1 x 1 1 1 2 2 2
+0 0 1 1 1 1 x 2 x x
+0 0 0 0 0 1 1 2 2 2
+""".strip()
+print('3\n', gamemap)
+solution = solve_mine(gamemap, result.count('x'))
+if solution == result:
+    print('Solved!')
+else:
+    print('Not solved!')
+
+gamemap = """
+0 0 0 0 ? ? ? ? ? ?
+0 0 0 ? ? ? ? ? ? ?
+0 ? ? ? ? ? ? ? ? ?
+? ? ? ? ? ? ? ? ? 0
+? ? ? ? 0 0 0 0 0 0
+? ? ? 0 0 0 0 0 0 0
+""".strip()
+result = """
+0 0 0 0 1 1 1 1 1 1
+0 0 0 1 2 x 2 2 x 1
+0 1 1 2 x 2 2 x 2 1
+1 2 x 2 1 1 1 1 1 0
+1 x 2 1 0 0 0 0 0 0
+1 1 1 0 0 0 0 0 0 0
+""".strip()
+print('4\n', gamemap)
+solution = solve_mine(gamemap, result.count('x'))
+if solution == result:
+    print('Solved!')
+else:
+    print('Not solved!')
+
+gamemap = """
+? ? ? 0 0 ? ? ? ? ? ? 0 0 ? ? ? ?
+? ? ? 0 0 ? ? ? ? ? ? 0 0 ? ? ? ?
+0 0 0 0 0 ? ? ? ? 0 0 0 0 0 ? ? ?
+0 0 0 0 0 0 ? ? ? 0 0 0 0 0 ? ? ?
+0 0 0 0 0 0 0 0 0 0 0 0 0 0 ? ? ?
+? ? ? 0 0 0 0 0 0 0 0 0 0 ? ? ? ?
+? ? ? 0 0 0 0 0 0 0 0 0 0 ? ? ? ?
+""".strip()
+result = """
+1 x 1 0 0 2 x 2 1 x 1 0 0 1 x x 1
+1 1 1 0 0 2 x 3 2 1 1 0 0 1 3 4 3
+0 0 0 0 0 1 2 x 1 0 0 0 0 0 1 x x
+0 0 0 0 0 0 1 1 1 0 0 0 0 0 1 2 2
+0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 1 1
+1 1 1 0 0 0 0 0 0 0 0 0 0 1 2 x 1
+1 x 1 0 0 0 0 0 0 0 0 0 0 1 x 2 1
+""".strip()
+print('5\n', gamemap)
+solution = solve_mine(gamemap, result.count('x'))
+if solution == result:
+    print('Solved!')
+else:
+    print('Not solved!')
+
+gamemap = """
+0 ? ? ? ? ? 0 0 0 ? ? ? ? ? ? ? ? 0 0 0
+0 ? ? ? ? ? 0 0 0 ? ? ? ? ? ? ? ? 0 0 0
+0 ? ? ? ? ? 0 0 0 ? ? ? ? ? ? ? 0 0 ? ?
+0 0 0 ? ? ? 0 0 0 0 ? ? ? ? ? ? 0 0 ? ?
+0 0 0 ? ? ? 0 0 0 0 0 0 0 0 0 0 0 ? ? ?
+0 ? ? ? ? ? 0 0 0 0 0 0 0 0 0 0 0 ? ? ?
+0 ? ? ? 0 ? ? ? 0 0 0 0 0 ? ? ? 0 ? ? ?
+0 ? ? ? 0 ? ? ? ? ? ? 0 0 ? ? ? ? ? 0 0
+0 ? ? ? 0 ? ? ? ? ? ? 0 0 ? ? ? ? ? 0 0
+0 ? ? ? 0 0 0 ? ? ? ? 0 0 0 0 ? ? ? 0 0
+0 ? ? ? 0 0 0 0 0 0 0 0 0 0 0 ? ? ? ? 0
+0 ? ? ? 0 0 0 0 0 ? ? ? 0 0 0 ? ? ? ? 0
+0 ? ? ? 0 0 0 0 0 ? ? ? ? ? 0 ? ? ? ? 0
+? ? ? ? 0 0 0 0 0 ? ? ? ? ? 0 ? ? ? ? 0
+? ? 0 0 0 0 0 0 0 0 0 ? ? ? 0 ? ? ? ? ?
+? ? ? ? 0 0 0 0 0 0 0 0 0 0 0 ? ? ? ? ?
+? ? ? ? 0 0 ? ? ? ? ? 0 ? ? ? 0 0 ? ? ?
+? ? ? ? ? ? ? ? ? ? ? 0 ? ? ? 0 0 0 0 0
+? ? ? ? ? ? ? ? ? ? ? 0 ? ? ? ? 0 0 0 0
+0 ? ? ? ? ? ? ? ? 0 0 0 ? ? ? ? 0 0 0 0
+0 0 0 0 ? ? ? ? ? 0 0 0 ? ? ? ? 0 0 0 0
+0 0 0 0 ? ? ? 0 0 0 0 0 ? ? ? ? 0 0 0 0
+0 0 0 0 0 0 0 ? ? ? ? 0 ? ? ? ? 0 0 0 0
+? ? ? ? ? 0 0 ? ? ? ? ? ? ? ? ? ? ? ? 0
+? ? ? ? ? 0 0 ? ? ? ? ? ? 0 ? ? ? ? ? ?
+? ? ? ? ? 0 0 0 0 0 ? ? ? ? ? ? ? ? ? ?
+? ? ? ? ? ? 0 0 0 0 0 ? ? ? 0 0 0 ? ? ?
+? ? ? ? ? ? 0 0 0 0 0 ? ? ? 0 0 0 ? ? ?
+? ? ? ? ? ? 0 0 0 0 0 0 0 0 0 0 0 ? ? ?
+""".strip()
+result = """
+0 1 1 2 1 1 0 0 0 1 1 2 2 2 2 x 1 0 0 0
+0 1 x 2 x 1 0 0 0 1 x 3 x x 3 2 1 0 0 0
+0 1 1 2 1 1 0 0 0 1 2 x 3 3 x 1 0 0 1 1
+0 0 0 1 1 1 0 0 0 0 1 1 1 1 1 1 0 0 1 x
+0 0 0 1 x 1 0 0 0 0 0 0 0 0 0 0 0 1 2 2
+0 1 1 2 1 1 0 0 0 0 0 0 0 0 0 0 0 1 x 1
+0 1 x 1 0 1 1 1 0 0 0 0 0 1 1 1 0 1 1 1
+0 1 1 1 0 1 x 2 2 2 1 0 0 1 x 2 1 1 0 0
+0 1 1 1 0 1 1 2 x x 1 0 0 1 1 2 x 1 0 0
+0 1 x 1 0 0 0 1 2 2 1 0 0 0 0 2 2 2 0 0
+0 1 1 1 0 0 0 0 0 0 0 0 0 0 0 1 x 2 1 0
+0 1 1 1 0 0 0 0 0 1 1 1 0 0 0 1 2 x 1 0
+0 1 x 1 0 0 0 0 0 1 x 2 1 1 0 1 3 3 2 0
+1 2 1 1 0 0 0 0 0 1 1 2 x 1 0 2 x x 1 0
+x 1 0 0 0 0 0 0 0 0 0 1 1 1 0 2 x 4 3 2
+1 2 1 1 0 0 0 0 0 0 0 0 0 0 0 1 1 2 x x
+1 2 x 1 0 0 1 2 3 2 1 0 1 1 1 0 0 1 2 2
+1 x 3 3 1 1 1 x x x 1 0 2 x 2 0 0 0 0 0
+1 2 x 2 x 1 2 3 4 2 1 0 2 x 3 1 0 0 0 0
+0 1 1 2 2 2 2 x 1 0 0 0 1 2 x 1 0 0 0 0
+0 0 0 0 1 x 2 1 1 0 0 0 1 2 2 1 0 0 0 0
+0 0 0 0 1 1 1 0 0 0 0 0 1 x 2 1 0 0 0 0
+0 0 0 0 0 0 0 1 2 2 1 0 1 2 x 1 0 0 0 0
+1 1 1 1 1 0 0 1 x x 2 1 1 1 2 2 2 1 1 0
+x 2 3 x 2 0 0 1 2 2 2 x 1 0 1 x 2 x 2 1
+2 x 3 x 2 0 0 0 0 0 1 2 2 1 1 1 2 1 2 x
+2 3 3 3 2 1 0 0 0 0 0 1 x 1 0 0 0 1 2 2
+x 2 x 2 x 1 0 0 0 0 0 1 1 1 0 0 0 1 x 1
+1 2 1 2 1 1 0 0 0 0 0 0 0 0 0 0 0 1 1 1
+""".strip()
+print('6\n', gamemap)
+solution = solve_mine(gamemap, result.count('x'))
+if solution == result:
+    print('Solved!')
+else:
+    print('Not solved!')
+
+gamemap = """
+?
+""".strip()
+result = """
+0
+""".strip()
+print('7\n', gamemap)
+solution = solve_mine(gamemap, result.count('x'))
+if solution == result:
+    print('Solved!')
+else:
+    print('Not solved!')
+
+gamemap = """
+?
+""".strip()
+result = """
+x
+""".strip()
+print('8\n', gamemap)
+solution = solve_mine(gamemap, result.count('x'))
+if solution == result:
+    print('Solved!')
+else:
+    print('Not solved!')
+
+original_map  = """
+x x x
+x 8 x
+x x x
+""".strip()
+gamemap = """
+? ? ?
+? ? ?
+? ? ?
+""".strip()
+result = """
+?
+""".strip()
+print('9\n', gamemap)
+solution = solve_mine(gamemap, original_map.count('x'))
+if solution == result:
+    print('Solved!')
+else:
+    print('Not solved!')
+
+gamemap = """
+0 0 0 0 0 0 0 0 0 0 0
+0 0 0 ? ? ? ? ? ? 0 0
+0 0 ? ? ? ? ? ? ? 0 0
+0 0 ? ? ? ? ? ? ? 0 0
+0 0 ? ? ? ? ? ? ? 0 0
+0 0 ? ? ? ? ? ? ? 0 0
+0 0 ? ? ? ? ? ? ? 0 0
+0 0 ? ? ? ? ? ? 0 0 0
+0 0 0 0 0 0 0 0 0 0 0
+""".strip()
+result = """
+0 0 0 0 0 0 0 0 0 0 0
+0 0 0 1 2 3 3 2 1 0 0
+0 0 1 3 x x x x 1 0 0
+0 0 2 x x x x 5 2 0 0
+0 0 3 x x x x x 2 0 0
+0 0 3 x x x x x 2 0 0
+0 0 2 x x x x 3 1 0 0
+0 0 1 2 3 3 2 1 0 0 0
+0 0 0 0 0 0 0 0 0 0 0
+""".strip()
+print('10\n', gamemap)
+solution = solve_mine(gamemap, result.count('x'))
+if solution == result:
+    print('Solved!')
+else:
+    print('Not solved!')
+
+gamemap = """
+0 0 0 0 0 0 0 0 0 0 0
+0 0 0 ? ? ? ? ? ? 0 0
+0 0 ? ? ? ? ? ? ? 0 0
+0 0 ? ? ? ? ? ? ? 0 0
+0 0 ? ? ? ? ? ? ? 0 0
+0 0 ? ? ? ? ? ? ? 0 0
+0 0 ? ? ? ? ? ? ? 0 0
+0 0 ? ? ? ? ? ? 0 0 0
+0 0 0 0 0 0 0 0 0 0 0
+""".strip()
+result = """
+0 0 0 0 0 0 0 0 0 0 0
+0 0 0 1 2 3 3 2 1 0 0
+0 0 1 3 x x x x 1 0 0
+0 0 2 x x 6 x 5 2 0 0
+0 0 3 x 4 4 x x 2 0 0
+0 0 3 x 5 5 x x 2 0 0
+0 0 2 x x x x 3 1 0 0
+0 0 1 2 3 3 2 1 0 0 0
+0 0 0 0 0 0 0 0 0 0 0
+""".strip()
+print('11\n', gamemap)
 solution = solve_mine(gamemap, result.count('x'))
 if solution == result:
     print('Solved!')
@@ -301,23 +599,26 @@ result = """
 1 1 1 1 x 1
 0 0 0 1 1 1
 """.strip()
-print(gamemap)
+print('12\n', gamemap)
 solution = solve_mine(gamemap, result.count('x'))
 if solution == result:
     print('Solved!')
 else:
     print('Not solved!')
 
+original_map = """
+0 1 x
+0 1 1
+""".strip()
 gamemap = """
 0 ? ?
 0 ? ?
 """.strip()
 result = """
-0 1 x
-0 1 1
+?
 """.strip()
-print(gamemap)
-solution = solve_mine(gamemap, result.count('x'))
+print('13\n', gamemap)
+solution = solve_mine(gamemap, original_map.count('x'))
 if solution == result:
     print('Solved!')
 else:
@@ -345,7 +646,7 @@ result = """
 0 0 0 0 0 1 x
 0 0 0 0 0 1 1
 """.strip()
-print(gamemap)
+print('14\n', gamemap)
 solution = solve_mine(gamemap, result.count('x'))
 if solution == result:
     print('Solved!')
@@ -402,7 +703,7 @@ x 1 0 1 x 1 0 0 2 x 2 0 0 0 0 1 x 2 1
 0 0 0 0 1 1 1 1 2 x 1 1 1 1 0 2 3 x 2
 0 0 0 0 1 x 1 1 x 2 1 1 x 1 0 1 x 3 x
 """.strip()
-print(gamemap)
+print('15\n', gamemap)
 solution = solve_mine(gamemap, result.count('x'))
 if solution == result:
     print('Solved!')
@@ -431,7 +732,7 @@ x 1 0 0 0 1 1 1 0 1 x 1 0 0 0 1 1 1 1 x 1
 1 x 1 0 0 0 0 0 0 0 1 2 2 1 0 0 1 1 1 0 0
 1 1 1 0 0 0 0 0 0 0 1 x x 1 0 0 1 x 1 0 0
 """.strip()
-print(gamemap)
+print('16\n', gamemap)
 solution = solve_mine(gamemap, result.count('x'))
 if solution == result:
     print('Solved!')
