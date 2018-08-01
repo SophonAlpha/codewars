@@ -22,11 +22,11 @@ import itertools
 
 def solve_mine(map, n):
     mine_field = MineSweeper(map, n)
-    field_size = len(mine_field.mine_field) * len(mine_field.mine_field[0]) # TODO: debug code
-    print('number of cells: {}'.format(field_size)) # TODO: debug code
+#     field_size = len(mine_field.mine_field) * len(mine_field.mine_field[0]) # TODO: debug code
+#     print('number of cells: {}'.format(field_size)) # TODO: debug code
     mine_field.solve()
     solved = mine_field.get_state()
-    print('number of loop steps: {}'.format(mine_field.loop_counter))
+#     print('number of loop steps: {}'.format(mine_field.loop_counter)) # TODO: debug code
     return solved
 
 class MineSweeper:
@@ -43,6 +43,7 @@ class MineSweeper:
         self.cells_to_process = [] # A queue of cells that can be opened safely.
         self.mine_cells = [] # A list of all mine cells.
         self.processed_cells = {} # Cells that have been opened.
+        self.unsolvable = False
 
     def solve(self):
         """
@@ -51,43 +52,56 @@ class MineSweeper:
         TODO: implement mines must be in intersection:
         TODO: detect areas and the minimum number of mines in each area
         """
-        self.initialise_queue()
-        self.loop_counter = 0 # TODO: debug statement
-        while self.cells_to_process:
-            self.loop_counter += 1 # TODO: debug statement
-            row, col = self.get_next_cell()
-            if not self.mark_mine((row, col)):
-                self.obvious_cells(row, col)
-            if not self.get_all_closed_cells():
+#         self.initialise_queue()
+#         while self.cells_to_process:
+        done = False
+        while not self.is_done():
+#             row, col = self.get_next_cell()
+#             if not self.mark_mine((row, col)):
+            self.special_cases()
+            if not self.is_done():
+                self.obvious_cells()
+#             if not self.get_all_closed_cells():
                 # Done. All cells are open.
-                break
+#                 break
 #             if not cells_found:
 #                 cells_found = self.mines_in_intersection(row, col)
-            if not self.queue_progress():
+            if not self.is_done():
                 self.safe_neighbour_difference()
-            if not self.queue_progress():
+            if not self.is_done():
                 self.safe_combination_difference()
-            if not self.queue_progress():
-                # No solution. Stop here.
-                self.mine_field = ['?']
-                break
-        self.mines_surrounding_closed_cells()
+#             if not self.queue_progress():
+#                 # No solution. Stop here.
+#                 self.mine_field = ['?']
+#                 break
+            if not self.is_done():
+                self.mines_surrounding_closed_cells()
         return
 
+    def is_done(self):
+        return not self.get_all_closed_cells() or self.unsolvable
+
     def initialise_queue(self):
+        # The standard case: start with all open cells.
+        self.queue_cells(self.get_open_cells(), 'safe')
+        return
+
+    def special_cases(self):
         field_size = len(self.mine_field) * len(self.mine_field[0])
         if self.mines_left == 1 and field_size == 1:
             # Special case: one mine and a mine field with only one cell.
-            self.queue_cells([(0, 0)], 'mine')
+#             self.queue_cells([(0, 0)], 'mine')
+            self.mark_mine((0, 0))
         if self.mines_left > 0 and field_size > 1 and not self.get_open_cells():
             # Special case: no open cells and at least one mine.
             self.mine_field = ['?']
+            self.unsolvable = True
         if self.mines_left == 0:
             # Special case: no mines.
-            self.queue_cells(self.get_all_closed_cells(), 'safe')
-        else:
-            # The standard case: start with all open cells.
-            self.queue_cells(self.get_open_cells(), 'safe')
+            for row, col in self.get_all_closed_cells():
+                num_mines = open(row, col)
+                self.mine_field[row][col] = num_mines
+#             self.queue_cells(self.get_all_closed_cells(), 'safe')
         return
 
     def get_next_cell(self):
@@ -121,7 +135,7 @@ class MineSweeper:
                            for cell in self.cells_to_process]
         return ret
 
-    def obvious_cells(self, row, col):
+    def obvious_cells(self):
         """
         Implements rule:
         
@@ -132,21 +146,28 @@ class MineSweeper:
         cells are safe to open.
         """
         # TODO: refactor opening process, common code
-        num_mines = open(row, col)
-        self.mine_field[row][col] = num_mines
-        _, closed_cells, mine_cells, _ = self.get_cells(row, col)
-        if num_mines == len(mine_cells):
-            # Safe cells deduction: all mines surrounding the cell have been 
-            # found. It is safe to open all surrounding closed cells.
-            self.queue_cells(closed_cells, 'safe')
-        elif num_mines - len(closed_cells) - len(mine_cells) == 0:
-            # Mine cells deduction: all closed cells contain mines. Mark them 
-            # accordingly.
-            self.queue_cells(closed_cells, 'mine')
-        else:
-            # Nothing could be done. Put the cell back at the end of the
-            # processing queue.
-            self.queue_cells([(row, col)], 'safe')
+        self.initialise_queue()
+        done = False
+        while not done:
+            row, col = self.get_next_cell()
+            num_mines = open(row, col)
+            self.mine_field[row][col] = num_mines
+            _, closed_cells, mine_cells, _ = self.get_cells(row, col)
+            if num_mines == len(mine_cells):
+                # Safe cells deduction: all mines surrounding the cell have been 
+                # found. It is safe to open all surrounding closed cells.
+                self.queue_cells(closed_cells, 'safe')
+            elif num_mines - len(closed_cells) - len(mine_cells) == 0:
+                # Mine cells deduction: all closed cells contain mines. Mark them 
+                # accordingly.
+#                 self.queue_cells(closed_cells, 'mine')
+                self.mark_mine((row, col))
+            else:
+                # Nothing could be done. Put the cell back at the end of the
+                # processing queue.
+                self.queue_cells([(row, col)], 'safe')
+            if not self.queue_progress():
+                done = True
         return
 
     def mines_in_intersection(self, row, col):
@@ -186,6 +207,7 @@ class MineSweeper:
         strict subset of current cell closed cells.
         """
         safe_cells = []
+        self.initialise_queue()
         for row, col in self.cells_to_process:
             _, closed_cells, mine_cells, numbered_cells = self.get_cells(row, col)
             num_mines = open(row, col)
@@ -202,9 +224,9 @@ class MineSweeper:
                     # The neighbour cell's closed cells are completely included
                     diff_cells = diff_cells + n_closed_cells
             if diff_cells:
-                safe_cells = safe_cells + \
-                             list(set(closed_cells).difference(set(diff_cells)))
-        self.queue_cells(safe_cells, 'safe')
+                for cell in list(set(closed_cells).difference(set(diff_cells))):
+                    num_mines = open(row, col)
+                    self.mine_field[row][col] = num_mines
         return
 
     def safe_combination_difference(self):
@@ -257,13 +279,43 @@ class MineSweeper:
         Test all combinations of remaining mines in the remaining closed cells.
         Return all possible solutions.
         """
+        all_numbered_cells = self.get_all_numbered_cells()
+        adj_closed_cells = []
+        for row, col in all_numbered_cells:
+            _, closed_cells, _, _ = self.get_cells(row, col)
+            if closed_cells:
+                adj_closed_cells += closed_cells
+        adj_closed_cells = list(set(adj_closed_cells))
+        combinations = []
+        for num in range(1,self.mines_left + 1):
+            combinations += list(itertools.combinations(adj_closed_cells,
+                                                            r=num))
+        mine_combinations = self.test_combinations(combinations, adj_closed_cells)
+
+#         mine_combinations = []
+#         for combination in combinations:
+#             combination_fit = False
+#             for row, col in self.cells_to_process:
+#                 surrounding_cells = self.get_surrounding_cells(row, col)
+#                 closed_cells = self.filter_cells(surrounding_cells, '?')
+#                 mine_cells = self.filter_cells(surrounding_cells, 'x')
+#                 num_mines = open(row, col)
+#                 remaining_mines = num_mines - len(mine_cells)
+#                 possible_cells = set(combination) & set(closed_cells)
+#                 if len(possible_cells) == remaining_mines:
+#                     combination_fit = True
+#                 else:
+#                     combination_fit = False
+#                     break
+#             if combination_fit:
+#                 mine_combinations.append(combination)
+        return mine_combinations
+
+    def test_combinations(self, combinations, cells):
         mine_combinations = []
-        all_closed_cells = self.get_all_closed_cells()
-        combinations = list(itertools.combinations(all_closed_cells,
-                                                   r=self.mines_left))
         for combination in combinations:
             combination_fit = False
-            for row, col in self.cells_to_process:
+            for row, col in cells:
                 surrounding_cells = self.get_surrounding_cells(row, col)
                 closed_cells = self.filter_cells(surrounding_cells, '?')
                 mine_cells = self.filter_cells(surrounding_cells, 'x')
@@ -299,6 +351,16 @@ class MineSweeper:
                       if not self.mine_field[row][col] == '?']
         return open_cells
     
+    def get_all_numbered_cells(self):
+        num_rows = len(self.mine_field)
+        num_cols = len(self.mine_field[0])
+        numbered_cells = [(row, col)
+                          for row in range(num_rows)
+                          for col in range(num_cols)
+                          if self.mine_field[row][col] != '?' or \
+                             self.mine_field[row][col] != 'x']
+        return numbered_cells
+    
     def get_all_closed_cells(self):
         """
         Get all closed cells.
@@ -310,6 +372,17 @@ class MineSweeper:
                         for col in range(num_cols)
                         if self.mine_field[row][col] == '?']
         return closed_cells
+
+    def get_adjacent_closed_cells(self, cells):
+        """
+        Get all closed cells that are adjacent to a list of cells given as
+        input.
+        """
+        adjacent_closed_cells = []
+        for row, col in self.cells_to_process:
+            _, closed_cells, _, _ = self.get_cells(row, col)
+            adjacent_closed_cells += closed_cells
+        return list(set(adjacent_closed_cells))
 
     def get_surrounding_cells(self, cell_row, cell_col):
         """
