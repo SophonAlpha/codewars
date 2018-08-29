@@ -10,30 +10,77 @@ useful reading for this kata:
 
 import re
 
-def tokenize(expression):
-    if expression == "":
-        return []
-
-    regex = re.compile(r"""\s*                       # any white spaces
-                           (=>|                      # the function operator
-                            [-+*\/\%=\(\)]|          # all the math operators
-                            [A-Za-z_][A-Za-z0-9_]*|  # names (variables and functions)
-                            [0-9]*\.?[0-9]+)         # numbers
-                           \s*                       # any white spaces""", re.VERBOSE)
-    tokens = regex.findall(expression)
-    return [s for s in tokens if not s.isspace()]
+class Interpreter:
+    def __init__(self):
+        self.vars = {}
+        self.functions = {}
+        self.lex = Lexer()
+        self.current_token = None
         
+    def error(self):
+        raise Exception('invalid syntax')
+
+    def input(self, expression):
+        self.lex.set_expression(expression)
+        self.current_token = self.lex.get_next_token()
+        result = self.expr()
+        return result
+
+    def eat(self, token_type):
+        if self.current_token.type == token_type:
+            self.current_token = self.lex.get_next_token()
+        else:
+            self.error()
+
+    def expr(self):
+        result = self.term()
+        while self.current_token.type in ('plus', 'minus'):
+            token = self.current_token
+            if token.type == 'plus':
+                self.eat('plus')
+                result = result + self.term()
+            elif token.type == 'minus':
+                self.eat('minus')
+                result = result - self.term() 
+            else:
+                #TODO: error handling
+                pass
+        return result
+
+    def term(self):
+        result = self.factor()
+        while self.current_token.type in ('mul', 'div'):
+            token = self.current_token
+            if token.type == 'mul':
+                self.eat('mul')
+                result = result * self.factor()
+            elif token.type == 'div':
+                self.eat('div')
+                result = result / self.factor()
+            else:
+                #TODO: error handling
+                pass
+        return result
+
+    def factor(self):
+        token = self.current_token
+        self.eat('number')
+        return float(token.value)
+
 class Lexer:
-    def __init__(self, text):
-        self.text = text
-        self.position = 0
+    def __init__(self):
         self.rules = [
-            ("string",  r"\s*[A-Za-z_][A-Za-z0-9_]*\s*"),
+            ('fn_keyword', r'\s*fn\s*'),
+            ("string", r"\s*[A-Za-z_][A-Za-z0-9_]*\s*"),
             ("fn_operator", r"\s*=>\s*"),
-            ("assignment",  r"\s*=\s*"),
-            ("operator", r"\s*[-+*\/\%]\s*"),
-            ("open_bracket", r"\s*\(\s*"),
-            ("close_bracket", r"\s*\)\s*"),
+            ("assignment", r"\s*=\s*"),
+            ("minus", r"\s*-\s*"),
+            ("plus", r"\s*\+\s*"),
+            ("mul", r"\s*\*\s*"),
+            ("div", r"\s*\/\s*"),
+            ("mod", r"\s*\%\s*"),
+            ("l_bracket", r"\s*\(\s*"),
+            ("r_bracket", r"\s*\)\s*"),
             ("number", r"\s*[0-9]*\.?[0-9]+\s*")
             ]
         parts = []
@@ -41,36 +88,37 @@ class Lexer:
             parts.append("(?P<{}>{})".format(name, rule))
         self.regexec = re.compile("|".join(parts))
 
-    def __iter__(self):
-        return self
+    def set_expression(self, expression):
+        self.scanner = Scanner(self, expression)
 
-    def __next__(self):
-        if self.position >= len(self.text):
-            raise StopIteration
-        match = self.regexec.match(self.text, self.position)
+    def get_next_token(self):
+        return self.scanner.next()
+
+class Scanner:
+    def __init__(self, lexer, expression):
+        self.expression = expression
+        self.position = 0
+        self.lexer = lexer
+
+    def next(self):
+        if self.position >= len(self.expression):
+            return "end of expression"
+        match = self.lexer.regexec.match(self.expression, self.position)
         self.position = match.end()
         token_type = match.lastgroup
         value = match.group(match.lastgroup).strip()
-        return token_type, value
+        return Token(token_type, value)
 
-class Interpreter:
-    def __init__(self):
-        self.vars = {}
-        self.functions = {}
+class Token:
+    def __init__(self, token_type, token_value):
+        self.type = token_type
+        self.value = token_value
 
-    def input(self, expression):
-        tokens = tokenize(expression)
-        print(tokens)
-
-lex = Lexer("fn avg x y => (x + y) / 2")
-for token in lex:
-    print(token)
+interpreter = Interpreter()
+print(interpreter.input("14 + 2 * 3 - 6 / 2"))
 
 
-
-# interpreter = Interpreter()
-# 
-# print(interpreter.input("fn avg x y => (x + y) / 2"))
+print(interpreter.input("fn avg x y => (x + y) / 2"))
 # 
 # # Basic arithmetic
 # assert interpreter.input("1 + 1"), 2
