@@ -14,9 +14,9 @@ class Interpreter:
     """
     Implements EBNF:
     
-    expr   := term ((PLUS | MINUS) term)*
-    term   := factor ((MUL | DIV) factor)*
-    factor := NUMBER | L_PAREN epr R_PAREN
+    expr   ::= term ((PLUS | MINUS) term)*
+    term   ::= factor ((MUL | DIV) factor)*
+    factor ::= NUMBER | L_PAREN epr R_PAREN
     """
 
     def __init__(self):
@@ -50,14 +50,11 @@ class Interpreter:
             elif token.type == 'minus':
                 self.eat('minus')
                 result = result - self.term()
-            else:
-                #TODO: error handling
-                pass
         return result
 
     def term(self):
         result = self.factor()
-        while self.current_token.type in ('mul', 'div'):
+        while self.current_token.type in ('mul', 'div', 'mod'):
             token = self.current_token
             if token.type == 'mul':
                 self.eat('mul')
@@ -65,9 +62,9 @@ class Interpreter:
             elif token.type == 'div':
                 self.eat('div')
                 result = result / self.factor()
-            else:
-                #TODO: error handling
-                pass
+            elif token.type == 'mod':
+                self.eat('mod')
+                result = result % self.factor()
         return result
 
     def factor(self):
@@ -129,6 +126,9 @@ class Token:
         self.value = token_value
 
 interpreter = Interpreter()
+print(interpreter.input('7 % 2')) # = 1
+print(interpreter.input('7%2')) # = 1
+print(interpreter.input('8 % 3')) # = 2
 print(interpreter.input('14 + 2 * 3 - 6 / 2')) # = 17
 print(interpreter.input('14.34 + 2.237 * 3.901 - 6.018 / 2.0893644')) # = 20.186235220186006
 print(interpreter.input('7 + 3 * (10 / (12 / (3 + 1) - 1))')) # = 22
