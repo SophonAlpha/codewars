@@ -13,10 +13,14 @@ import re
 class Interpreter:
     """
     Implements EBNF:
-    
-    expr   ::= term ((PLUS | MINUS) term)*
-    term   ::= factor ((MUL | DIV) factor)*
-    factor ::= NUMBER | L_PAREN epr R_PAREN
+
+    expression     ::= assignment | additive
+    additive       ::= multiplicative ((PLUS | MINUS) multiplicative)*
+    multiplicative ::= factor ((MUL | DIV | MOD) factor)*
+    factor         ::= NUMBER | IDENTIFIER | L_PAREN additive R_PAREN
+
+    assignment     ::= IDENTIFIER '=' additive
+
     """
 
     def __init__(self):
@@ -31,7 +35,7 @@ class Interpreter:
     def input(self, expression):
         self.lex.set_expression(expression)
         self.current_token = self.lex.get_next_token()
-        result = self.expr()
+        result = self.expression()
         return result
 
     def eat(self, token_type):
@@ -40,19 +44,33 @@ class Interpreter:
         else:
             self.error()
 
-    def expr(self):
-        result = self.term()
+    def expression(self):
+        cur_token = self.current_token
+        next_token = self.lex.peek()
+        if cur_token.type == 'identifier' and next_token.type == 'assignment':
+            var_name = cur_token.value
+            self.eat('identifier')
+            self.eat('assignment')
+            var_value = self.expression()
+            self.create_var(var_name, var_value)
+            result = None
+        elif cur_token.type in ('number', 'identifier', 'l_paren'):
+            result = self.additive()
+        return result
+
+    def additive(self):
+        result = self.multiplicative()
         while self.current_token.type in ('plus', 'minus'):
             token = self.current_token
             if token.type == 'plus':
                 self.eat('plus')
-                result = result + self.term()
+                result = result + self.multiplicative()
             elif token.type == 'minus':
                 self.eat('minus')
-                result = result - self.term()
+                result = result - self.multiplicative()
         return result
 
-    def term(self):
+    def multiplicative(self):
         result = self.factor()
         while self.current_token.type in ('mul', 'div', 'mod'):
             token = self.current_token
@@ -72,17 +90,23 @@ class Interpreter:
         if token.type == 'number':
             self.eat('number')
             return float(token.value)
+        elif token.type == 'identifier':
+            self.eat('identifier')
+            return self.vars[token.value]
         elif token.type == 'l_paren':
             self.eat('l_paren')
-            result = self.expr()
+            result = self.additive()
             self.eat('r_paren')
             return result
+        
+    def create_var(self, var_name, var_value):
+        self.vars[var_name] = var_value
 
 class Lexer:
     def __init__(self):
         self.rules = [
             ('fn_keyword', r'\s*fn\s*'),
-            ('string', r'\s*[A-Za-z_][A-Za-z0-9_]*\s*'),
+            ('identifier', r'\s*[A-Za-z_][A-Za-z0-9_]*\s*'),
             ('fn_operator', r'\s*=>\s*'),
             ('assignment', r'\s*=\s*'),
             ('minus', r'\s*-\s*'),
@@ -105,6 +129,9 @@ class Lexer:
     def get_next_token(self):
         return self.scanner.next()
 
+    def peek(self):
+        return self.scanner.peek()
+
 class Scanner:
     def __init__(self, lexer, expression):
         self.expression = expression
@@ -120,12 +147,23 @@ class Scanner:
         value = match.group(match.lastgroup).strip()
         return Token(token_type, value)
 
+    def peek(self):
+        if self.position >= len(self.expression):
+            return Token("end of expression", None)
+        match = self.lexer.regexec.match(self.expression, self.position)
+        token_type = match.lastgroup
+        value = match.group(match.lastgroup).strip()
+        return Token(token_type, value)
+
 class Token:
     def __init__(self, token_type, token_value):
         self.type = token_type
         self.value = token_value
 
 interpreter = Interpreter()
+print(interpreter.input('a = 12'))
+print(interpreter.input('b = 8'))
+print(interpreter.input('a + b'))
 print(interpreter.input('7 % 2')) # = 1
 print(interpreter.input('7%2')) # = 1
 print(interpreter.input('8 % 3')) # = 2
