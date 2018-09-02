@@ -14,11 +14,12 @@ class Interpreter:
     """
     Implements EBNF:
 
+    input          ::= function | expression
+
     expression     ::= assignment | additive
     additive       ::= multiplicative ((PLUS | MINUS) multiplicative)*
     multiplicative ::= factor ((MUL | DIV | MOD) factor)*
-    factor         ::= NUMBER | IDENTIFIER | L_PAREN additive R_PAREN
-
+    factor         ::= NUMBER | assignment | IDENTIFIER | L_PAREN additive R_PAREN | function-call
     assignment     ::= IDENTIFIER '=' additive
 
     """
@@ -45,16 +46,17 @@ class Interpreter:
             self.error()
 
     def expression(self):
-        cur_token = self.current_token
+        current_token = self.current_token
         next_token = self.lex.peek()
-        if cur_token.type == 'identifier' and next_token.type == 'assignment':
-            var_name = cur_token.value
+        if current_token.type == 'identifier' and next_token.type == 'assignment':
+            # TODO: move variable creation to separate function
+            var_name = current_token.value
             self.eat('identifier')
             self.eat('assignment')
             var_value = self.expression()
-            self.create_var(var_name, var_value)
-            result = None
-        elif cur_token.type in ('number', 'identifier', 'l_paren'):
+            result = self.create_var(var_name, var_value)
+            return result
+        elif current_token.type in ('number', 'identifier', 'l_paren'):
             result = self.additive()
         return result
 
@@ -86,14 +88,22 @@ class Interpreter:
         return result
 
     def factor(self):
-        token = self.current_token
-        if token.type == 'number':
+        current_token = self.current_token
+        next_token = self.lex.peek()
+        if current_token.type == 'number':
             self.eat('number')
-            return float(token.value)
-        elif token.type == 'identifier':
+            return float(current_token.value)
+        elif current_token.type == 'identifier' and next_token.type == 'assignment':
+            var_name = current_token.value
             self.eat('identifier')
-            return self.vars[token.value]
-        elif token.type == 'l_paren':
+            self.eat('assignment')
+            var_value = self.expression()
+            result = self.create_var(var_name, var_value)
+            return result
+        elif current_token.type == 'identifier':
+            self.eat('identifier')
+            return self.vars[current_token.value]
+        elif current_token.type == 'l_paren':
             self.eat('l_paren')
             result = self.additive()
             self.eat('r_paren')
@@ -101,6 +111,7 @@ class Interpreter:
         
     def create_var(self, var_name, var_value):
         self.vars[var_name] = var_value
+        return var_value
 
 class Lexer:
     def __init__(self):
@@ -164,6 +175,13 @@ interpreter = Interpreter()
 print(interpreter.input('a = 12'))
 print(interpreter.input('b = 8'))
 print(interpreter.input('a + b'))
+print(interpreter.input('first_var = 14 + 2 * 3 - 6 / 2')) # = 17
+print(interpreter.input('second_var = 7 + 3 * (10 / (12 / (3 + 1) - 1))')) # = 22
+print(interpreter.input('7 + 3 * (10 / (12 / (3 + first_var) - 1)) / (2 + 3) - 5 - second_var + (8)')) # = -27
+print(interpreter.input('a = b = 12')) # = 12
+print(interpreter.input('x = 13 + (y = 3)')) # = 16
+
+
 print(interpreter.input('7 % 2')) # = 1
 print(interpreter.input('7%2')) # = 1
 print(interpreter.input('8 % 3')) # = 2
