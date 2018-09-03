@@ -14,14 +14,15 @@ class Interpreter:
     """
     Implements EBNF:
 
-    input          ::= function | expression
-
-    expression     ::= assignment | additive
+    expression     ::= function | assignment | additive
     additive       ::= multiplicative ((PLUS | MINUS) multiplicative)*
     multiplicative ::= factor ((MUL | DIV | MOD) factor)*
     factor         ::= NUMBER | assignment | IDENTIFIER | L_PAREN additive R_PAREN | function-call
     assignment     ::= IDENTIFIER '=' additive
-
+    function       ::= fn-keyword fn-name { identifier } fn-operator expression
+    fn-name        ::= identifier
+    fn-operator    ::= '=>'
+    fn-keyword     ::= 'fn'
     """
 
     def __init__(self):
@@ -48,7 +49,9 @@ class Interpreter:
     def expression(self):
         current_token = self.current_token
         next_token = self.lex.peek()
-        if current_token.type == 'identifier' and next_token.type == 'assignment':
+        if current_token.type == 'fn_keyword':
+            return = self.function()
+        elif current_token.type == 'identifier' and next_token.type == 'assignment':
             # TODO: move variable creation to separate function
             var_name = current_token.value
             self.eat('identifier')
@@ -108,7 +111,23 @@ class Interpreter:
             result = self.additive()
             self.eat('r_paren')
             return result
+
+    def function(self):
+        """
+        function ::= fn-keyword fn-name { identifier } fn-operator expression
+        """
+        self.eat('fn_keyword')
+        fn_name = self.current_token
+        self.eat('identifier')
+        self.eat('fn_operator')
+        fn_vars = {}
+        while self.current_token.type == 'identifier':
+            fn_vars[self.current_token] = None
+        self.eat('fn_operator')
         
+        
+            
+
     def create_var(self, var_name, var_value):
         self.vars[var_name] = var_value
         return var_value
