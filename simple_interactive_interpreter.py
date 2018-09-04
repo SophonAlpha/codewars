@@ -2,13 +2,35 @@
 Simple Interactive Interpreter kata:
 https://www.codewars.com/kata/simple-interactive-interpreter
 
-useful reading for this kata:
-    https://ruslanspivak.com/lsbasi-part1/
-    http://web.archive.org/web/20140328000415/http://www.evanfosmark.com:80/2009/02/sexy-lexing-with-python/
-    https://tomassetti.me/parsing-in-python/
+good introduction to building an interpreter, was very helpful learning for this kata:
+https://ruslanspivak.com/lsbasi-part1/
 """
 
 import re
+import collections
+
+class Symbol():
+    def __init__(self, name, type=None):
+        self.name = name
+        self.type = type
+
+class BuiltinTypeSymbol(Symbol):
+    def __init__(self, name):
+        super(BuiltinTypeSymbol, self).__init__(name)
+
+class VarSymbol(Symbol):
+    def __init__(self, name, type):
+        super(VarSymbol, self).__init__(name, type)
+
+class SymbolTable():
+    def __init__(self):
+        self._symbols = collections.OrderedDict()
+    
+    def define(self, symbol):
+        self._symbols[symbol.name] = symbol
+    
+    def lookup(self, name):
+        return self._symbols[name]
 
 class Interpreter:
     """
