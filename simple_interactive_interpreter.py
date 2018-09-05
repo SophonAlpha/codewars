@@ -72,7 +72,7 @@ class Interpreter:
         current_token = self.current_token
         next_token = self.lex.peek()
         if current_token.type == 'fn_keyword':
-            return = self.function()
+            return self.function()
         elif current_token.type == 'identifier' and next_token.type == 'assignment':
             # TODO: move variable creation to separate function
             var_name = current_token.value
@@ -86,38 +86,35 @@ class Interpreter:
         return result
 
     def additive(self):
-        result = self.multiplicative()
+        node = self.multiplicative()
         while self.current_token.type in ('plus', 'minus'):
             token = self.current_token
             if token.type == 'plus':
                 self.eat('plus')
-                result = result + self.multiplicative()
             elif token.type == 'minus':
                 self.eat('minus')
-                result = result - self.multiplicative()
-        return result
+            node = BinOp(left=node, op=token, right=self.multiplicative())
+        return node
 
     def multiplicative(self):
-        result = self.factor()
+        node = self.factor()
         while self.current_token.type in ('mul', 'div', 'mod'):
             token = self.current_token
             if token.type == 'mul':
                 self.eat('mul')
-                result = result * self.factor()
             elif token.type == 'div':
                 self.eat('div')
-                result = result / self.factor()
             elif token.type == 'mod':
                 self.eat('mod')
-                result = result % self.factor()
-        return result
+            node = BinOp(left=node, op=token, right=self.factor())
+        return node
 
     def factor(self):
         current_token = self.current_token
         next_token = self.lex.peek()
         if current_token.type == 'number':
             self.eat('number')
-            return float(current_token.value)
+            return Num(current_token)
         elif current_token.type == 'identifier' and next_token.type == 'assignment':
             var_name = current_token.value
             self.eat('identifier')
@@ -130,9 +127,9 @@ class Interpreter:
             return self.vars[current_token.value]
         elif current_token.type == 'l_paren':
             self.eat('l_paren')
-            result = self.additive()
+            node = self.additive()
             self.eat('r_paren')
-            return result
+            return node
 
     def function(self):
         """
@@ -146,13 +143,24 @@ class Interpreter:
         while self.current_token.type == 'identifier':
             fn_vars[self.current_token] = None
         self.eat('fn_operator')
-        
-        
-            
 
     def create_var(self, var_name, var_value):
         self.vars[var_name] = var_value
         return var_value
+
+class AST():
+    pass
+
+class BinOp(AST):
+    def __init__(self, left, op, right):
+        self.left = left
+        self.token = self.op = op
+        self.right = right
+
+class Num(AST):
+    def __init__(self, token):
+        self.token = token
+        self.value = token.value
 
 class Lexer:
     def __init__(self):
@@ -213,7 +221,7 @@ class Token:
         self.value = token_value
 
 interpreter = Interpreter()
-print(interpreter.input('a = 12'))
+print(interpreter.input('7 + 3'))
 print(interpreter.input('b = 8'))
 print(interpreter.input('a + b'))
 print(interpreter.input('first_var = 14 + 2 * 3 - 6 / 2')) # = 17
