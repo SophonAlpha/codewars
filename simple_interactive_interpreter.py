@@ -13,36 +13,13 @@ https://ruslanspivak.com/lsbasi-part1/
     factor         ::= (PLUS | MINUS) factor | NUMBER | assignment | IDENTIFIER | L_PAREN additive R_PAREN | function-call
     assignment     ::= IDENTIFIER '=' additive
     function       ::= fn-keyword fn-name { identifier } fn-operator expression
-    fn-name        ::= identifier
+    fn-name        ::= IDENTIFIER
     fn-operator    ::= '=>'
     fn-keyword     ::= 'fn'
 """
 
 import re
 import collections
-
-class Symbol():
-    def __init__(self, name, type=None):
-        self.name = name
-        self.type = type
-
-class BuiltinTypeSymbol(Symbol):
-    def __init__(self, name):
-        super(BuiltinTypeSymbol, self).__init__(name)
-
-class VarSymbol(Symbol):
-    def __init__(self, name, type):
-        super(VarSymbol, self).__init__(name, type)
-
-class SymbolTable():
-    def __init__(self):
-        self._symbols = collections.OrderedDict()
-    
-    def define(self, symbol):
-        self._symbols[symbol.name] = symbol
-    
-    def lookup(self, name):
-        return self._symbols[name]
 
 #-------------------------------------------------------------------------------
 # Lexer
@@ -87,7 +64,15 @@ class Lexer:
         self.position = match.end()
         token_type = match.lastgroup
         value = match.group(match.lastgroup).strip()
+        value = value if token_type != 'number' else self.handle_number(value)
         return Token(token_type, value)
+    
+    def handle_number(self, value):
+        try:
+            value = int(value)
+        except ValueError:
+            value = float(value)
+        return value
 
     def peek(self):
         if self.position >= len(self.expression):
@@ -113,10 +98,21 @@ class BinOp(AST):
 class Num(AST):
     def __init__(self, token):
         self.token = token
-        self.value = float(token.value)
+        self.value = token.value
         
 class UnaryOp(AST):
-    def __init__(self, op, right):
+    def __init__(self, op, expr):
+        self.token = self.op = op
+        self.right = expr
+
+class Identifier(AST):
+    def __init__(self, token):
+        self.token = token
+        self.value = token.value
+
+class Assign(AST):
+    def __init__(self, left, op, right):
+        self.left = left
         self.token = self.op = op
         self.right = right
 
@@ -133,27 +129,23 @@ class Parser():
             self.current_token = self.lexer.get_next_token()
         else:
             self.error()
+            
+    def set_expression(self, expression):
+        self.lexer.set_expression(expression)
+        self.current_token = self.lexer.get_next_token()
 
     def expression(self):
         """
         expression ::= function | assignment | additive
         """
-        self.current_token = self.lexer.get_next_token() # read the very first token
         current_token = self.current_token
         next_token = self.lexer.peek()
         if current_token.type == 'fn_keyword':
             return self.function()
         elif current_token.type == 'identifier' and next_token.type == 'assignment':
-            # TODO: move variable creation to separate function
-            var_name = current_token.value
-            self.eat('identifier')
-            self.eat('assignment')
-            var_value = self.expression()
-            result = self.create_var(var_name, var_value)
-            return result
+            return self.assignment()
         elif current_token.type in ('number', 'identifier', 'l_paren'):
-            result = self.additive()
-        return result
+            return self.additive()
 
     def additive(self):
         """
@@ -194,23 +186,17 @@ class Parser():
         next_token = self.lexer.peek()
         if current_token.type == 'plus':
             self.eat('plus')
-            node = UnaryOp(op=current_token, right=self.factor())
+            node = UnaryOp(op=current_token, expr=self.factor())
         elif current_token.type == 'minus':
             self.eat('minus')
-            node = UnaryOp(op=current_token, right=self.factor())
+            node = UnaryOp(op=current_token, expr=self.factor())
         elif current_token.type == 'number':
             self.eat('number')
             node = Num(current_token)
         elif current_token.type == 'identifier' and next_token.type == 'assignment':
-            var_name = current_token.value
-            self.eat('identifier')
-            self.eat('assignment')
-            var_value = self.expression()
-            result = self.create_var(var_name, var_value)
-            return result
+            return self.assignment()
         elif current_token.type == 'identifier':
-            self.eat('identifier')
-#             return self.vars[current_token.value]
+            return self.identifier()
         elif current_token.type == 'l_paren':
             self.eat('l_paren')
             node = self.additive()
@@ -230,9 +216,18 @@ class Parser():
             fn_vars[self.current_token] = None
         self.eat('fn_operator')
 
-    def create_var(self, var_name, var_value):
-#         self.vars[var_name] = var_value
-        return var_value
+    def assignment(self):
+        node = Identifier(self.current_token)
+        self.eat('identifier')
+        op = self.current_token
+        self.eat('assignment')
+        node = Assign(left=node, op=op, right=self.expression())
+        return node
+
+    def identifier(self):
+        node = Identifier(self.current_token)
+        self.eat('identifier')
+        return node
 
 #-------------------------------------------------------------------------------
 # Interpreter
@@ -249,11 +244,13 @@ class NodeVisitor():
 
 class Interpreter(NodeVisitor):
     def __init__(self):
+        self.vars = {}
+        self.functions = {}
         self.lexer = Lexer()
         self.parser = Parser(self.lexer)
 
     def input(self, expression):
-        self.lexer.set_expression(expression)
+        self.parser.set_expression(expression)
         tree = self.parser.expression()
         result = self.visit(tree)
         return result
@@ -272,18 +269,91 @@ class Interpreter(NodeVisitor):
 
     def visit_Num(self, node):
         return node.value
-    
+
     def visit_UnaryOp(self, node):
         if node.op.type == 'plus':
-            return +self.visit(node.right)
+            return +self.visit(node.expr)
         elif node.op.type == 'minus':
-            return -self.visit(node.right)
+            return -self.visit(node.expr)
+
+    def visit_Identifier(self, node):
+        var_name = node.value
+        var_value = self.vars.get(var_name)
+        if var_value == None:
+            raise NameError('Unknown identifier \'{}\''.format(var_name))
+        else:
+            return var_value
+
+    def visit_Assign(self, node):
+        var_name = node.left.value
+        var_value = self.visit(node.right)
+        self.vars[var_name] = var_value
+        return var_value
+
+#-------------------------------------------------------------------------------
+# Symbol Table
+#-------------------------------------------------------------------------------
+
+class Symbol():
+    def __init__(self, name, type=None):
+        self.name = name
+        self.type = type
+
+class BuiltinTypeSymbol(Symbol):
+    def __init__(self, name):
+        super(BuiltinTypeSymbol, self).__init__(name)
+
+class VarSymbol(Symbol):
+    def __init__(self, name, type):
+        super(VarSymbol, self).__init__(name, type)
+
+class SymbolTable():
+    def __init__(self):
+        self._symbols = collections.OrderedDict()
+    
+    def define(self, symbol):
+        self._symbols[symbol.name] = symbol
+    
+    def lookup(self, name):
+        return self._symbols.get(name)
+
+class SymbolTableBuilder(NodeVisitor):
+    def __init__(self):
+        self.symtab = SymbolTable()
+
+    def visit_BinOp(self, node):
+        self.visit(node.left)
+        self.visit(node.right)
+
+    def visit_Num(self, node):
+        pass
+
+    def visit_UnaryOp(self, node):
+        self.visit(node.expr)
+
+    def visit_Identifier(self, node):
+        var_name = node.value
+        var_value = self.vars.get(var_name)
+        if var_value == None:
+            raise NameError('Unknown identifier \'{}\''.format(var_name))
+        else:
+            return var_value
+
+    def visit_Assign(self, node):
+        var_name = node.left.value
+        var_value = self.visit(node.right)
+        self.vars[var_name] = var_value
+        return var_value
 
 #-------------------------------------------------------------------------------
 # Main
 #-------------------------------------------------------------------------------
 
 interpreter = Interpreter()
+
+print(interpreter.input('x = y = 7')) # 7
+print(interpreter.input('x')) # 7
+print(interpreter.input('y')) # 7
 
 print(interpreter.input('5 - - - 2')) # 3
 
