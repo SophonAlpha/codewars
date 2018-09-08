@@ -11,11 +11,20 @@ https://ruslanspivak.com/lsbasi-part1/
     Implements EBNF:
 
     expression     ::= function | assignment | additive
+
+    function       ::= fn-keyword fn-name { var-name } fn-operator additive
+
+    assignment     ::= var-name '=' additive
+
     additive       ::= multiplicative ((PLUS | MINUS) multiplicative)*
     multiplicative ::= factor ((MUL | DIV | MOD) factor)*
-    factor         ::= (PLUS | MINUS) factor | NUMBER | assignment | IDENTIFIER | L_PAREN additive R_PAREN | function-call
-    assignment     ::= IDENTIFIER '=' additive
-    function       ::= fn-keyword fn-name { identifier } fn-operator expression
+    factor         ::= (PLUS | MINUS) factor | NUMBER | 
+                       assignment | IDENTIFIER | 
+                       L_PAREN additive R_PAREN | function-call
+
+    function-call  ::= fn-name { expression }
+
+    var-name       ::= IDENTIFIER
     fn-name        ::= IDENTIFIER
     fn-operator    ::= '=>'
     fn-keyword     ::= 'fn'
@@ -109,10 +118,22 @@ class UnaryOp(AST):
         self.token = self.op = op
         self.right = expr
 
-class Identifier(AST):
+class VarName(AST):
     def __init__(self, token):
         self.token = token
         self.value = token.value
+
+class FuncName(AST):
+    def __init__(self, token):
+        self.token = token
+        self.value = token.value
+
+class Function(AST):
+    def __init__(self, op, fn_name, fn_vars, expr):
+        self.token = self.op = op
+        self.fn_name = fn_name
+        self.fn_vars = fn_vars
+        self.expr = expr
 
 class Assign(AST):
     def __init__(self, left, op, right):
@@ -209,27 +230,30 @@ class Parser():
 
     def function(self):
         """
-        function ::= fn-keyword fn-name { identifier } fn-operator expression
+        function ::= fn-keyword fn-name { var-name } fn-operator additive
         """
+        op = self.current_token
         self.eat('fn_keyword')
-        fn_name = self.current_token
+        node = FuncName(self.current_token)
         self.eat('identifier')
-        self.eat('fn_operator')
-        fn_vars = {}
+        fn_vars = []
         while self.current_token.type == 'identifier':
-            fn_vars[self.current_token] = None
+            fn_vars.append(self.current_token.value)
+            self.eat('identifier')
         self.eat('fn_operator')
+        node = Function(op, fn_name=node, fn_vars=fn_vars, expr=self.additive())
+        return node
 
     def assignment(self):
-        node = Identifier(self.current_token)
+        node = VarName(self.current_token)
         self.eat('identifier')
         op = self.current_token
         self.eat('assignment')
-        node = Assign(left=node, op=op, right=self.expression())
+        node = Assign(left=node, op=op, right=self.additive())
         return node
 
     def identifier(self):
-        node = Identifier(self.current_token)
+        node = VarName(self.current_token)
         self.eat('identifier')
         return node
 
@@ -252,10 +276,12 @@ class Interpreter(NodeVisitor):
         self.functions = {}
         self.lexer = Lexer()
         self.parser = Parser(self.lexer)
+        self.symtabbuilder = SymbolTableBuilder()
 
     def input(self, expression):
         self.parser.set_expression(expression)
         tree = self.parser.expression()
+        self.symtabbuilder.visit(tree) 
         result = self.visit(tree)
         return result
     
@@ -281,6 +307,7 @@ class Interpreter(NodeVisitor):
             return -self.visit(node.expr)
 
     def visit_Identifier(self, node):
+        # TODO: differentiate between variable and function identifiers
         var_name = node.value
         var_value = self.vars.get(var_name)
         if var_value == None:
@@ -293,6 +320,15 @@ class Interpreter(NodeVisitor):
         var_value = self.visit(node.right)
         self.vars[var_name] = var_value
         return var_value
+    
+    def visit_Function(self, node):
+        pass
+
+    def visit_VarName(self, node):
+        pass
+
+    def visit_FuncName(self, node):
+        pass
 
 #-------------------------------------------------------------------------------
 # Symbol Table
@@ -308,7 +344,7 @@ class BuiltinTypeSymbol(Symbol):
         super(BuiltinTypeSymbol, self).__init__(name)
 
 class VarSymbol(Symbol):
-    def __init__(self, name, type):
+    def __init__(self, name, type=None):
         super(VarSymbol, self).__init__(name, type)
 
 class SymbolTable():
@@ -335,19 +371,27 @@ class SymbolTableBuilder(NodeVisitor):
     def visit_UnaryOp(self, node):
         self.visit(node.expr)
 
-    def visit_Identifier(self, node):
-        var_name = node.value
-        var_value = self.vars.get(var_name)
-        if var_value == None:
-            raise NameError('Unknown identifier \'{}\''.format(var_name))
-        else:
-            return var_value
-
     def visit_Assign(self, node):
         var_name = node.left.value
-        var_value = self.visit(node.right)
-        self.vars[var_name] = var_value
-        return var_value
+        var_symbol = VarSymbol(var_name)
+        self.symtab.define(var_symbol)
+        self.visit(node.right)
+    
+    def visit_Identifier(self, node):
+        # TODO: differentiate between variable and function identifiers
+        var_name = node.value
+        var_symbol = self.symtab.lookup(var_name)
+        if var_symbol == None:
+            raise NameError('Unknown identifier \'{}\''.format(var_name))
+
+    def visit_Function(self, node):
+        pass
+
+    def visit_VarName(self, node):
+        pass
+
+    def visit_FuncName(self, node):
+        pass
 
 #-------------------------------------------------------------------------------
 # Main
@@ -355,9 +399,12 @@ class SymbolTableBuilder(NodeVisitor):
 
 interpreter = Interpreter()
 
-print(interpreter.input('x = y = 7')) # 7
+print(interpreter.input('fn avg => (x + y) / 2')) # None
+
+print(interpreter.input('x = 7')) # 7
+print(interpreter.input('y = 2.7')) # 2.7
 print(interpreter.input('x')) # 7
-print(interpreter.input('y')) # 7
+print(interpreter.input('y')) # 2.7
 
 print(interpreter.input('5 - - - 2')) # 3
 
