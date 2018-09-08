@@ -1,8 +1,11 @@
 """
-Simple Interactive Interpreter kata:
+
+My solution for Simple Interactive Interpreter kata:
 https://www.codewars.com/kata/simple-interactive-interpreter
 
-good introduction to building an interpreter, was very helpful learning for this kata:
+Level: 1 kyu
+
+Good introduction to building an interpreter, was very helpful learning for this kata:
 https://ruslanspivak.com/lsbasi-part1/
 
     Implements EBNF:
@@ -16,6 +19,7 @@ https://ruslanspivak.com/lsbasi-part1/
     fn-name        ::= IDENTIFIER
     fn-operator    ::= '=>'
     fn-keyword     ::= 'fn'
+
 """
 
 import re
