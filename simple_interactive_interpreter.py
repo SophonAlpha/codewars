@@ -326,7 +326,7 @@ class Interpreter(NodeVisitor):
     
     def visit_Function(self, node):
         # TODO: remove op, seems to be not needed
-        
+        self.functions[node.fn_name] = node
         pass
 
     def visit_VarName(self, node):
