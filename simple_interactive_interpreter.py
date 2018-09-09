@@ -22,7 +22,7 @@ https://ruslanspivak.com/lsbasi-part1/
                        assignment | IDENTIFIER | 
                        L_PAREN additive R_PAREN | function-call
 
-    function-call  ::= fn-name { expression }
+    function-call  ::= fn-name { additive }
 
     var-name       ::= IDENTIFIER
     fn-name        ::= IDENTIFIER
@@ -256,6 +256,9 @@ class Parser():
         node = VarName(self.current_token)
         self.eat('identifier')
         return node
+    
+    def function_call(self):
+        pass
 
 #-------------------------------------------------------------------------------
 # Interpreter
@@ -281,7 +284,7 @@ class Interpreter(NodeVisitor):
     def input(self, expression):
         self.parser.set_expression(expression)
         tree = self.parser.expression()
-        self.symtabbuilder.visit(tree) 
+#         self.symtabbuilder.visit(tree) 
         result = self.visit(tree)
         return result
     
@@ -322,6 +325,8 @@ class Interpreter(NodeVisitor):
         return var_value
     
     def visit_Function(self, node):
+        # TODO: remove op, seems to be not needed
+        
         pass
 
     def visit_VarName(self, node):
@@ -399,7 +404,7 @@ class SymbolTableBuilder(NodeVisitor):
 
 interpreter = Interpreter()
 
-print(interpreter.input('fn avg => (x + y) / 2')) # None
+print(interpreter.input('fn avg x y => (x + y) / 2')) # None
 
 print(interpreter.input('x = 7')) # 7
 print(interpreter.input('y = 2.7')) # 2.7
