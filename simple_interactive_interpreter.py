@@ -118,6 +118,11 @@ class UnaryOp(AST):
         self.token = self.op = op
         self.right = expr
 
+class Identifier(AST):
+    def __init__(self, token):
+        self.token = token
+        self.value = token.value
+
 class VarName(AST):
     def __init__(self, token):
         self.token = token
@@ -127,12 +132,18 @@ class FuncName(AST):
     def __init__(self, token):
         self.token = token
         self.value = token.value
+        
+class FuncCall():
+    def __init__(self, fn_name, fn_params):
+        self.fn_name = fn_name
+        self.fn_params = {var: None for var in fn_params}
 
 class Function(AST):
     def __init__(self, op, fn_name, fn_vars, expr):
         self.token = self.op = op
         self.fn_name = fn_name
-        self.fn_vars = fn_vars
+        self.fn_vars = collections.OrderedDict()
+        self.fn_vars = {var: None for var in fn_vars}
         self.expr = expr
 
 class Assign(AST):
@@ -145,6 +156,8 @@ class Parser():
     def __init__(self, lexer):
         self.lexer = lexer
         self.current_token = None
+        self.functions = [] # keep track of functions, needed to differentiate
+                            # between variables and function calls
 
     def error(self):
         raise Exception('invalid syntax')
@@ -234,7 +247,8 @@ class Parser():
         """
         op = self.current_token
         self.eat('fn_keyword')
-        node = FuncName(self.current_token)
+        node = Identifier(self.current_token)
+        self.functions.append(node.value)
         self.eat('identifier')
         fn_vars = []
         while self.current_token.type == 'identifier':
@@ -245,7 +259,7 @@ class Parser():
         return node
 
     def assignment(self):
-        node = VarName(self.current_token)
+        node = Identifier(self.current_token)
         self.eat('identifier')
         op = self.current_token
         self.eat('assignment')
@@ -253,12 +267,23 @@ class Parser():
         return node
 
     def identifier(self):
-        node = VarName(self.current_token)
-        self.eat('identifier')
+        # TODO: Check how others figured out during parsing whether an 
+        #       identifier is a variable or a function call.
+        if self.current_token.value in self.functions:
+            node = self.function_call()
+        else:
+            node = VarName(self.current_token)
+            self.eat('identifier')
         return node
     
     def function_call(self):
-        pass
+        node = FuncName(self.current_token)
+        self.eat('identifier')
+        fn_params = []
+        while self.current_token.type in ('number', 'identifier', 'l_paren'):
+            fn_params.append(self.additive())
+        node = FuncCall(fn_name=node, fn_params=fn_params)
+        return node
 
 #-------------------------------------------------------------------------------
 # Interpreter
@@ -275,7 +300,7 @@ class NodeVisitor():
 
 class Interpreter(NodeVisitor):
     def __init__(self):
-        self.vars = {}
+        self.vars = collections.OrderedDict()
         self.functions = {}
         self.lexer = Lexer()
         self.parser = Parser(self.lexer)
@@ -326,11 +351,19 @@ class Interpreter(NodeVisitor):
     
     def visit_Function(self, node):
         # TODO: remove op, seems to be not needed
-        self.functions[node.fn_name] = node
-        pass
+        self.functions[node.fn_name.value] = node
+
+    def visit_FuncCall(self, node):
+        param_values = []
+        for param in node.fn_params:
+            param_values.append(self.visit(param))
+        vars = collections.OrderedDict(zip(function.fn_vars.keys(), param_values))
+        # TODO: introduce scoped variables
+        function = self.functions[node.fn_name.value]
+        return self.visit(function.expr)
 
     def visit_VarName(self, node):
-        pass
+        return(self.vars[node.value])
 
     def visit_FuncName(self, node):
         pass
@@ -405,9 +438,10 @@ class SymbolTableBuilder(NodeVisitor):
 interpreter = Interpreter()
 
 print(interpreter.input('fn avg x y => (x + y) / 2')) # None
+print(interpreter.input('a = 7')) # 7
+print(interpreter.input('b = 3')) # 3
+print(interpreter.input('avg a b')) # 5
 
-print(interpreter.input('x = 7')) # 7
-print(interpreter.input('y = 2.7')) # 2.7
 print(interpreter.input('x')) # 7
 print(interpreter.input('y')) # 2.7
 
