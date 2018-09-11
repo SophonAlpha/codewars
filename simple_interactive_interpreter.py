@@ -12,9 +12,9 @@ https://ruslanspivak.com/lsbasi-part1/
 
     expression     ::= function | assignment | additive
 
-    function       ::= fn-keyword fn-name { var-name } fn-operator additive
+    function       ::= fn-keyword fn-name { var_table-name } fn-operator additive
 
-    assignment     ::= var-name '=' additive
+    assignment     ::= var_table-name '=' additive
 
     additive       ::= multiplicative ((PLUS | MINUS) multiplicative)*
     multiplicative ::= factor ((MUL | DIV | MOD) factor)*
@@ -24,7 +24,7 @@ https://ruslanspivak.com/lsbasi-part1/
 
     function-call  ::= fn-name { additive }
 
-    var-name       ::= IDENTIFIER
+    var_table-name       ::= IDENTIFIER
     fn-name        ::= IDENTIFIER
     fn-operator    ::= '=>'
     fn-keyword     ::= 'fn'
@@ -140,7 +140,7 @@ class FuncCall():
 
 class Function(AST):
     def __init__(self, op, fn_name, fn_vars, expr):
-        self.token = self.op = op
+        self.token = op
         self.fn_name = fn_name
         self.fn_vars = collections.OrderedDict()
         self.fn_vars = {var: None for var in fn_vars}
@@ -243,7 +243,7 @@ class Parser():
 
     def function(self):
         """
-        function ::= fn-keyword fn-name { var-name } fn-operator additive
+        function ::= fn-keyword fn-name { var_table-name } fn-operator additive
         """
         op = self.current_token
         self.eat('fn_keyword')
@@ -286,7 +286,7 @@ class Parser():
         return node
 
 #-------------------------------------------------------------------------------
-# Interpreter
+# AST walker
 #-------------------------------------------------------------------------------
 
 class NodeVisitor():
@@ -298,18 +298,47 @@ class NodeVisitor():
     def generic_visit(self, node):
         raise Exception('No visit_{} method'.format(type(node).__name__))
 
+#-------------------------------------------------------------------------------
+# Semantic Analyser
+#-------------------------------------------------------------------------------
+
+# TODO: add semantic analyser
+
+#-------------------------------------------------------------------------------
+# Interpreter
+#-------------------------------------------------------------------------------
+
+class Variable():
+    def __init__(self, name, value):
+        self.name = name
+        self.value = value
+
+class ScopedVarTable():
+    def __init__(self, scope_name, enclosing_scope=None):
+        self.vars = collections.OrderedDict()
+        self.scope_name = scope_name
+        self.enclosing_scope = enclosing_scope
+        
+    def insert(self, var):
+        self.vars[var.name] = var
+    
+    def lookup(self, var_name):
+        var = self.vars.get(var_name)
+        if var == None:
+            raise Exception('ERROR: Invalid identifier. No variable with name \'{}\' was found.'.format(var_name))
+        return self.vars.get(var_name)
+
 class Interpreter(NodeVisitor):
     def __init__(self):
-        self.vars = collections.OrderedDict()
+        self.var_table = ScopedVarTable('global')
+        self.current_scope = self.var_table
         self.functions = {}
         self.lexer = Lexer()
         self.parser = Parser(self.lexer)
-        self.symtabbuilder = SymbolTableBuilder()
 
     def input(self, expression):
         self.parser.set_expression(expression)
         tree = self.parser.expression()
-#         self.symtabbuilder.visit(tree) 
         result = self.visit(tree)
         return result
     
@@ -335,101 +364,40 @@ class Interpreter(NodeVisitor):
             return -self.visit(node.expr)
 
     def visit_Identifier(self, node):
-        # TODO: differentiate between variable and function identifiers
         var_name = node.value
-        var_value = self.vars.get(var_name)
+        var_value = self.current_scope.lookup(var_name)
         if var_value == None:
             raise NameError('Unknown identifier \'{}\''.format(var_name))
         else:
             return var_value
 
-    def visit_Assign(self, node):
-        var_name = node.left.value
-        var_value = self.visit(node.right)
-        self.vars[var_name] = var_value
-        return var_value
-    
-    def visit_Function(self, node):
-        # TODO: remove op, seems to be not needed
-        self.functions[node.fn_name.value] = node
+    def visit_VarName(self, node):
+        var = self.current_scope.lookup(node.value)
+        return var.value
 
     def visit_FuncCall(self, node):
         param_values = []
         for param in node.fn_params:
-            param_values.append(self.visit(param))
-        vars = collections.OrderedDict(zip(function.fn_vars.keys(), param_values))
-        # TODO: introduce scoped variables
+            value = self.visit(param)
+            param_values.append(value)
         function = self.functions[node.fn_name.value]
-        return self.visit(function.expr)
-
-    def visit_VarName(self, node):
-        return(self.vars[node.value])
-
-    def visit_FuncName(self, node):
-        pass
-
-#-------------------------------------------------------------------------------
-# Symbol Table
-#-------------------------------------------------------------------------------
-
-class Symbol():
-    def __init__(self, name, type=None):
-        self.name = name
-        self.type = type
-
-class BuiltinTypeSymbol(Symbol):
-    def __init__(self, name):
-        super(BuiltinTypeSymbol, self).__init__(name)
-
-class VarSymbol(Symbol):
-    def __init__(self, name, type=None):
-        super(VarSymbol, self).__init__(name, type)
-
-class SymbolTable():
-    def __init__(self):
-        self._symbols = collections.OrderedDict()
-    
-    def define(self, symbol):
-        self._symbols[symbol.name] = symbol
-    
-    def lookup(self, name):
-        return self._symbols.get(name)
-
-class SymbolTableBuilder(NodeVisitor):
-    def __init__(self):
-        self.symtab = SymbolTable()
-
-    def visit_BinOp(self, node):
-        self.visit(node.left)
-        self.visit(node.right)
-
-    def visit_Num(self, node):
-        pass
-
-    def visit_UnaryOp(self, node):
-        self.visit(node.expr)
-
-    def visit_Assign(self, node):
-        var_name = node.left.value
-        var_symbol = VarSymbol(var_name)
-        self.symtab.define(var_symbol)
-        self.visit(node.right)
-    
-    def visit_Identifier(self, node):
-        # TODO: differentiate between variable and function identifiers
-        var_name = node.value
-        var_symbol = self.symtab.lookup(var_name)
-        if var_symbol == None:
-            raise NameError('Unknown identifier \'{}\''.format(var_name))
+        func_var_table = ScopedVarTable(function.fn_name.value)
+        func_var_table.enclosing_scope = self.current_scope
+        vars = collections.OrderedDict(zip(function.fn_vars.keys(), param_values))
+        for name in vars:
+            func_var_table.insert(Variable(name=name, value=vars[name]))
+        self.current_scope = func_var_table
+        result = self.visit(function.expr)
+        self.current_scope = func_var_table.enclosing_scope
+        return result
 
     def visit_Function(self, node):
-        pass
+        self.functions[node.fn_name.value] = node
 
-    def visit_VarName(self, node):
-        pass
-
-    def visit_FuncName(self, node):
-        pass
+    def visit_Assign(self, node):
+        var = Variable(name=node.left.value, value=self.visit(node.right))
+        self.current_scope.insert(var)
+        return var.name
 
 #-------------------------------------------------------------------------------
 # Main
@@ -437,6 +405,7 @@ class SymbolTableBuilder(NodeVisitor):
 
 interpreter = Interpreter()
 
+print(interpreter.input('fn add x y => x + z')) # ERROR
 print(interpreter.input('fn avg x y => (x + y) / 2')) # None
 print(interpreter.input('a = 7')) # 7
 print(interpreter.input('b = 3')) # 3
@@ -471,7 +440,6 @@ print(interpreter.input('7 + 3 * (10 / (12 / (3 + 1) - 1))')) # = 22
 print(interpreter.input('7 + 3 * (10 / (12 / (3 + 1) - 1)) / (2 + 3) - 5 - 3 + (8)')) # = 10
 print(interpreter.input('7 + (((3 + 2)))')) # = 12
 
-print(interpreter.input("fn avg x y => (x + y) / 2"))
 #
 # # Basic arithmetic
 # assert interpreter.input("1 + 1"), 2
