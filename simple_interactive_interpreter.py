@@ -286,7 +286,7 @@ class Parser():
         return node
 
 #-------------------------------------------------------------------------------
-# AST walker
+# abstract syntax tree walker
 #-------------------------------------------------------------------------------
 
 class NodeVisitor():
@@ -299,13 +299,7 @@ class NodeVisitor():
         raise Exception('No visit_{} method'.format(type(node).__name__))
 
 #-------------------------------------------------------------------------------
-# Semantic Analyser
-#-------------------------------------------------------------------------------
-
-# TODO: add semantic analyser
-
-#-------------------------------------------------------------------------------
-# Interpreter
+# Variable Table, Semantic Analyser
 #-------------------------------------------------------------------------------
 
 class Variable():
@@ -328,6 +322,41 @@ class ScopedVarTable():
             raise Exception('ERROR: Invalid identifier. No variable with name \'{}\' was found.'.format(var_name))
         return self.vars.get(var_name)
 
+class SemanticAnalyser(NodeVisitor):
+    def __init__(self):
+        self.var_table = ScopedVarTable('global')
+        self.current_scope = self.var_table
+        self.functions = {}
+
+    def visit_BinOp(self, node):
+        self.visit(node.left)
+        self.visit(node.right)
+
+    def visit_Num(self, node):
+        pass
+
+    def visit_UnaryOp(self, node):
+        self.visit(node.expr)
+
+    def visit_VarName(self, node):
+        self.current_scope.lookup(node.value)
+
+    def visit_FuncCall(self, node):
+        # TODO: anything to do here?
+        pass
+
+    def visit_Function(self, node):
+        self.functions[node.fn_name.value] = node
+        # TODO: verify parameter variables matching variables within the expression part
+
+    def visit_Assign(self, node):
+        var = Variable(name=node.left.value, value=self.visit(node.right))
+        self.current_scope.insert(var)
+
+#-------------------------------------------------------------------------------
+# Interpreter
+#-------------------------------------------------------------------------------
+
 class Interpreter(NodeVisitor):
     def __init__(self):
         self.var_table = ScopedVarTable('global')
@@ -335,10 +364,12 @@ class Interpreter(NodeVisitor):
         self.functions = {}
         self.lexer = Lexer()
         self.parser = Parser(self.lexer)
+        self.semantic_analyser = SemanticAnalyser()
 
     def input(self, expression):
         self.parser.set_expression(expression)
         tree = self.parser.expression()
+        self.semantic_analyser.visit(tree)
         result = self.visit(tree)
         return result
     
@@ -362,14 +393,6 @@ class Interpreter(NodeVisitor):
             return +self.visit(node.expr)
         elif node.op.type == 'minus':
             return -self.visit(node.expr)
-
-    def visit_Identifier(self, node):
-        var_name = node.value
-        var_value = self.current_scope.lookup(var_name)
-        if var_value == None:
-            raise NameError('Unknown identifier \'{}\''.format(var_name))
-        else:
-            return var_value
 
     def visit_VarName(self, node):
         var = self.current_scope.lookup(node.value)
