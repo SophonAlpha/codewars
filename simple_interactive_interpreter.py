@@ -8,27 +8,6 @@ Level: 1 kyu
 Good introduction to building an interpreter, was very helpful learning for this kata:
 https://ruslanspivak.com/lsbasi-part1/
 
-    Implements EBNF:
-
-    expression     ::= function | assignment | additive
-
-    function       ::= fn-keyword fn-name { var_table-name } fn-operator additive
-
-    assignment     ::= var_table-name '=' additive
-
-    additive       ::= multiplicative ((PLUS | MINUS) multiplicative)*
-    multiplicative ::= factor ((MUL | DIV | MOD) factor)*
-    factor         ::= (PLUS | MINUS) factor | NUMBER | 
-                       assignment | IDENTIFIER | 
-                       L_PAREN additive R_PAREN | function-call
-
-    function-call  ::= fn-name { additive }
-
-    var_table-name       ::= IDENTIFIER
-    fn-name        ::= IDENTIFIER
-    fn-operator    ::= '=>'
-    fn-keyword     ::= 'fn'
-
 """
 
 import re
@@ -142,8 +121,7 @@ class Function(AST):
     def __init__(self, op, fn_name, fn_vars, expr):
         self.token = op
         self.fn_name = fn_name
-        self.fn_vars = collections.OrderedDict()
-        self.fn_vars = {var: None for var in fn_vars}
+        self.fn_vars = collections.OrderedDict({var: None for var in fn_vars})
         self.expr = expr
 
 class Assign(AST):
@@ -153,10 +131,33 @@ class Assign(AST):
         self.right = right
 
 class Parser():
+    """
+    Implements EBNF:
+
+    expression     ::= function | assignment | additive
+
+    function       ::= fn-keyword fn-name { var-table-name } fn-operator additive
+
+    assignment     ::= var-table-name '=' additive
+
+    additive       ::= multiplicative ((PLUS | MINUS) multiplicative)*
+    multiplicative ::= factor ((MUL | DIV | MOD) factor)*
+    factor         ::= (PLUS | MINUS) factor | NUMBER | 
+                       assignment | IDENTIFIER | 
+                       L_PAREN additive R_PAREN | function-call
+
+    function-call  ::= fn-name { additive }
+
+    var-table-name ::= IDENTIFIER
+    fn-name        ::= IDENTIFIER
+    fn-operator    ::= '=>'
+    fn-keyword     ::= 'fn'
+
+    """
     def __init__(self, lexer):
         self.lexer = lexer
         self.current_token = None
-        self.functions = [] # keep track of functions, needed to differentiate
+        self.functions = [] # keep track of functions, required to differentiate
                             # between variables and function calls
 
     def error(self):
@@ -217,7 +218,8 @@ class Parser():
 
     def factor(self):
         """
-        factor ::= (PLUS | MINUS) factor | NUMBER | assignment | IDENTIFIER | 
+        factor ::= (PLUS | MINUS) factor | NUMBER | 
+                   assignment | IDENTIFIER | 
                    L_PAREN additive R_PAREN | function-call
         """
         current_token = self.current_token
@@ -259,6 +261,9 @@ class Parser():
         return node
 
     def assignment(self):
+        """
+        assignment ::= var-table-name '=' additive
+        """
         node = Identifier(self.current_token)
         self.eat('identifier')
         op = self.current_token
@@ -267,6 +272,11 @@ class Parser():
         return node
 
     def identifier(self):
+        """
+        IDENTIFIER
+        
+        Checks whether 'identifier' points to a variable or function name.
+        """
         # TODO: Check how others figured out during parsing whether an 
         #       identifier is a variable or a function call.
         if self.current_token.value in self.functions:
@@ -277,6 +287,9 @@ class Parser():
         return node
     
     def function_call(self):
+        """
+        function-call ::= fn-name { additive }
+        """
         node = FuncName(self.current_token)
         self.eat('identifier')
         fn_params = []
@@ -299,7 +312,7 @@ class NodeVisitor():
         raise Exception('No visit_{} method'.format(type(node).__name__))
 
 #-------------------------------------------------------------------------------
-# Variable Table, Semantic Analyser
+# Interpreter
 #-------------------------------------------------------------------------------
 
 class Variable():
@@ -318,44 +331,13 @@ class ScopedVarTable():
     
     def lookup(self, var_name):
         var = self.vars.get(var_name)
-        if var == None:
+        if var == None and not self.vars and not self.scope_name == 'global':
+            raise Exception('ERROR: Unknown identifier \'{}\''.format(var_name))
+        elif var == None and self.vars and not self.scope_name == 'global':
+            raise Exception('ERROR: Invalid identifier \'{}\' in function body.'.format(var_name))
+        if var == None and self.scope_name == 'global':
             raise Exception('ERROR: Invalid identifier. No variable with name \'{}\' was found.'.format(var_name))
-        return self.vars.get(var_name)
-
-class SemanticAnalyser(NodeVisitor):
-    def __init__(self):
-        self.var_table = ScopedVarTable('global')
-        self.current_scope = self.var_table
-        self.functions = {}
-
-    def visit_BinOp(self, node):
-        self.visit(node.left)
-        self.visit(node.right)
-
-    def visit_Num(self, node):
-        pass
-
-    def visit_UnaryOp(self, node):
-        self.visit(node.expr)
-
-    def visit_VarName(self, node):
-        self.current_scope.lookup(node.value)
-
-    def visit_FuncCall(self, node):
-        # TODO: anything to do here?
-        pass
-
-    def visit_Function(self, node):
-        self.functions[node.fn_name.value] = node
-        # TODO: verify parameter variables matching variables within the expression part
-
-    def visit_Assign(self, node):
-        var = Variable(name=node.left.value, value=self.visit(node.right))
-        self.current_scope.insert(var)
-
-#-------------------------------------------------------------------------------
-# Interpreter
-#-------------------------------------------------------------------------------
+        return var
 
 class Interpreter(NodeVisitor):
     def __init__(self):
@@ -364,12 +346,10 @@ class Interpreter(NodeVisitor):
         self.functions = {}
         self.lexer = Lexer()
         self.parser = Parser(self.lexer)
-        self.semantic_analyser = SemanticAnalyser()
 
     def input(self, expression):
         self.parser.set_expression(expression)
         tree = self.parser.expression()
-        self.semantic_analyser.visit(tree)
         result = self.visit(tree)
         return result
     
@@ -404,18 +384,25 @@ class Interpreter(NodeVisitor):
             value = self.visit(param)
             param_values.append(value)
         function = self.functions[node.fn_name.value]
-        func_var_table = ScopedVarTable(function.fn_name.value)
+        func_var_table = ScopedVarTable(function.fn_name.value,
+                                        enclosing_scope=self.current_scope)
         func_var_table.enclosing_scope = self.current_scope
         vars = collections.OrderedDict(zip(function.fn_vars.keys(), param_values))
         for name in vars:
             func_var_table.insert(Variable(name=name, value=vars[name]))
         self.current_scope = func_var_table
         result = self.visit(function.expr)
-        self.current_scope = func_var_table.enclosing_scope
+        self.current_scope = self.current_scope.enclosing_scope
         return result
 
     def visit_Function(self, node):
         self.functions[node.fn_name.value] = node
+        func_var_table = ScopedVarTable(node.fn_name.value,
+                                        enclosing_scope=self.current_scope)
+        func_var_table.vars = node.fn_vars
+        self.current_scope = func_var_table
+        self.visit(node.expr)
+        self.current_scope = self.current_scope.enclosing_scope
 
     def visit_Assign(self, node):
         var = Variable(name=node.left.value, value=self.visit(node.right))
@@ -428,7 +415,10 @@ class Interpreter(NodeVisitor):
 
 interpreter = Interpreter()
 
-print(interpreter.input('fn add x y => x + z')) # ERROR
+# print(interpreter.input('fn add => x + z')) # ERROR: Unknown identifier 'x'
+# print(interpreter.input('fn add x y => x + z')) # ERROR: Invalid identifier 'z' in function body.
+# print(interpreter.input('y + 7')) # ERROR: Invalid identifier. No variable with name 'y' was found.
+
 print(interpreter.input('fn avg x y => (x + y) / 2')) # None
 print(interpreter.input('a = 7')) # 7
 print(interpreter.input('b = 3')) # 3
