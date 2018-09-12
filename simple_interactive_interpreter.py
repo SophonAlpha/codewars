@@ -312,7 +312,7 @@ class NodeVisitor():
         raise Exception('No visit_{} method'.format(type(node).__name__))
 
 #-------------------------------------------------------------------------------
-# Interpreter
+# Variable Table, Semantic Analyser
 #-------------------------------------------------------------------------------
 
 class Variable():
@@ -331,13 +331,56 @@ class ScopedVarTable():
     
     def lookup(self, var_name):
         var = self.vars.get(var_name)
-        if var == None and not self.vars and not self.scope_name == 'global':
+        if not self.vars and \
+           not self.scope_name == 'global':
+            # No function parameter variables defined but variables in
+            # function body
             raise Exception('ERROR: Unknown identifier \'{}\''.format(var_name))
-        elif var == None and self.vars and not self.scope_name == 'global':
+        elif self.vars and \
+             not var_name in self.vars.keys() and \
+             not self.scope_name == 'global':
+            # Function parameter variables do not match variables used in 
+            # function body.
             raise Exception('ERROR: Invalid identifier \'{}\' in function body.'.format(var_name))
-        if var == None and self.scope_name == 'global':
+        if not self.vars and self.scope_name == 'global':
+            # No variables defined.
             raise Exception('ERROR: Invalid identifier. No variable with name \'{}\' was found.'.format(var_name))
         return var
+
+class SemanticAnalyser(NodeVisitor):
+    def __init__(self):
+        self.var_table = ScopedVarTable('global')
+        self.current_scope = self.var_table
+        self.functions = {}
+
+    def visit_BinOp(self, node):
+        self.visit(node.left)
+        self.visit(node.right)
+
+    def visit_Num(self, node):
+        pass
+
+    def visit_UnaryOp(self, node):
+        self.visit(node.expr)
+
+    def visit_VarName(self, node):
+        self.current_scope.lookup(node.value)
+
+    def visit_FuncCall(self, node):
+        # TODO: anything to do here?
+        pass
+
+    def visit_Function(self, node):
+        self.functions[node.fn_name.value] = node
+        # TODO: verify parameter variables matching variables within the expression part
+
+    def visit_Assign(self, node):
+        var = Variable(name=node.left.value, value=self.visit(node.right))
+        self.current_scope.insert(var)
+
+#-------------------------------------------------------------------------------
+# Interpreter
+#-------------------------------------------------------------------------------
 
 class Interpreter(NodeVisitor):
     def __init__(self):
@@ -387,9 +430,9 @@ class Interpreter(NodeVisitor):
         func_var_table = ScopedVarTable(function.fn_name.value,
                                         enclosing_scope=self.current_scope)
         func_var_table.enclosing_scope = self.current_scope
-        vars = collections.OrderedDict(zip(function.fn_vars.keys(), param_values))
-        for name in vars:
-            func_var_table.insert(Variable(name=name, value=vars[name]))
+        variables = collections.OrderedDict(zip(function.fn_vars.keys(), param_values))
+        for name in variables:
+            func_var_table.insert(Variable(name=name, value=variables[name]))
         self.current_scope = func_var_table
         result = self.visit(function.expr)
         self.current_scope = self.current_scope.enclosing_scope
@@ -416,14 +459,17 @@ class Interpreter(NodeVisitor):
 interpreter = Interpreter()
 
 # print(interpreter.input('fn add => x + z')) # ERROR: Unknown identifier 'x'
-# print(interpreter.input('fn add x y => x + z')) # ERROR: Invalid identifier 'z' in function body.
-# print(interpreter.input('y + 7')) # ERROR: Invalid identifier. No variable with name 'y' was found.
+print(interpreter.input('fn add x y => x + z')) # ERROR: Invalid identifier 'z' in function body.
+print(interpreter.input('y + 7')) # ERROR: Invalid identifier. No variable with name 'y' was found.
 
 print(interpreter.input('fn avg x y => (x + y) / 2')) # None
 print(interpreter.input('a = 7')) # 7
 print(interpreter.input('b = 3')) # 3
 print(interpreter.input('avg a b')) # 5
 
+
+print(interpreter.input('x=7')) # 7
+print(interpreter.input('y=2.7')) # 2.7
 print(interpreter.input('x')) # 7
 print(interpreter.input('y')) # 2.7
 
