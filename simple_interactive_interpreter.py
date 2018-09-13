@@ -157,7 +157,7 @@ class Parser():
     def __init__(self, lexer):
         self.lexer = lexer
         self.current_token = None
-        self.functions = [] # keep track of functions, required to differentiate
+        self.functions = {} # keep track of functions, required to differentiate
                             # between variables and function calls
 
     def error(self):
@@ -257,7 +257,6 @@ class Parser():
         op = self.current_token
         self.eat('fn_keyword')
         node = Identifier(self.current_token)
-        self.functions.append(node.value)
         self.eat('identifier')
         fn_vars = []
         while self.current_token.type == 'identifier':
@@ -269,6 +268,7 @@ class Parser():
             self.eat('identifier')
         self.eat('fn_operator')
         node = Function(op, fn_name=node, fn_vars=fn_vars, expr=self.additive())
+        self.functions[node.fn_name.value] = node
         return node
 
     def assignment(self):
@@ -288,7 +288,7 @@ class Parser():
         
         Checks whether 'identifier' points to a variable or function name.
         """
-        if self.current_token.value in self.functions:
+        if self.current_token.value in self.functions.keys():
             node = self.function_call()
         else:
             node = VarName(self.current_token)
@@ -300,10 +300,14 @@ class Parser():
         function-call ::= fn-name { additive }
         """
         node = FuncName(self.current_token)
+        function = self.functions[node.value]
         self.eat('identifier')
         fn_params = []
-        while self.current_token.type in ('number', 'identifier', 'l_paren'):
-            fn_params.append(self.additive())
+        for _ in function.fn_vars:
+            if self.current_token.type in ('number', 'identifier', 'l_paren'):
+                fn_params.append(self.additive())
+#         while self.current_token.type in ('number', 'identifier', 'l_paren'):
+#             fn_params.append(self.additive())
         node = FuncCall(fn_name=node, fn_params=fn_params)
         return node
 
@@ -494,7 +498,7 @@ interpreter = Interpreter()
 #print(interpreter.input('fn add x x => x + x')) # ERROR
 print(interpreter.input('fn echo x => x')) # None
 print(interpreter.input('fn avg x y => (x + y) / 2')) # None
-print(interpreter.input('avg echo 4 echo 2')) # None
+print(interpreter.input('avg echo 4 echo 2')) # 3
 
 print(interpreter.input('')) # 
 print(interpreter.input(' ')) #
