@@ -306,8 +306,6 @@ class Parser():
         for _ in function.fn_vars:
             if self.current_token.type in ('number', 'identifier', 'l_paren'):
                 fn_params.append(self.additive())
-#         while self.current_token.type in ('number', 'identifier', 'l_paren'):
-#             fn_params.append(self.additive())
         node = FuncCall(fn_name=node, fn_params=fn_params)
         return node
 
