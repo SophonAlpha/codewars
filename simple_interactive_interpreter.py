@@ -46,7 +46,7 @@ class Lexer:
         self.position = 0
 
     def set_expression(self, expression):
-        self.expression = expression
+        self.expression = expression.strip()
         self.position = 0
 
     def get_next_token(self):
@@ -172,6 +172,13 @@ class Parser():
     def set_expression(self, expression):
         self.lexer.set_expression(expression)
         self.current_token = self.lexer.get_next_token()
+        
+    def parse(self):
+        node = self.expression()
+        if self.current_token.type != 'end of expression':
+            # some other stuff is in the input string
+            raise Exception('ERROR: Invalid input.')
+        return node
 
     def expression(self):
         """
@@ -254,7 +261,11 @@ class Parser():
         self.eat('identifier')
         fn_vars = []
         while self.current_token.type == 'identifier':
-            fn_vars.append(self.current_token.value)
+            var_name = self.current_token.value
+            if var_name in fn_vars:
+                # variable already in function declaration
+                raise Exception('ERROR: Duplicate variable \'{}\' in function declaration.'.format(var_name))
+            fn_vars.append(var_name)
             self.eat('identifier')
         self.eat('fn_operator')
         node = Function(op, fn_name=node, fn_vars=fn_vars, expr=self.additive())
@@ -277,8 +288,6 @@ class Parser():
         
         Checks whether 'identifier' points to a variable or function name.
         """
-        # TODO: Check how others figured out during parsing whether an 
-        #       identifier is a variable or a function call.
         if self.current_token.value in self.functions:
             node = self.function_call()
         else:
@@ -310,6 +319,9 @@ class NodeVisitor():
     
     def generic_visit(self, node):
         raise Exception('No visit_{} method'.format(type(node).__name__))
+    
+    def visit_NoneType(self, node):
+        return ''
 
 #-------------------------------------------------------------------------------
 # Variable Table, Semantic Analyser
@@ -346,6 +358,9 @@ class ScopedVarTable():
             # No variables defined.
             raise Exception('ERROR: Invalid identifier. No variable with name \'{}\' was found.'.format(var_name))
         return var
+    
+    def exists(self, var_name):
+        return var_name in self.vars.keys()
 
 class SemanticAnalyser(NodeVisitor):
     def __init__(self):
@@ -361,21 +376,40 @@ class SemanticAnalyser(NodeVisitor):
         pass
 
     def visit_UnaryOp(self, node):
-        self.visit(node.expr)
+        self.visit(node.right)
 
     def visit_VarName(self, node):
         self.current_scope.lookup(node.value)
 
     def visit_FuncCall(self, node):
-        # TODO: anything to do here?
-        pass
+        param_values = []
+        for param in node.fn_params:
+            value = self.visit(param)
+            param_values.append(value)
+        function = self.functions[node.fn_name.value]
+        if len(param_values) != len(function.fn_vars):
+            raise Exception('ERROR: Function \'{}\' expects \'{}\' parameters. \'{}\' given.'.format(function.fn_name.value,
+                                                                                                     len(function.fn_vars),
+                                                                                                     len(param_values)))
 
     def visit_Function(self, node):
-        self.functions[node.fn_name.value] = node
-        # TODO: verify parameter variables matching variables within the expression part
+        func_name = node.fn_name.value
+        if self.current_scope.exists(func_name):
+            raise Exception('ERROR: Function name \'{}\' already defined as variable name.'.format(func_name))
+        self.functions[func_name] = node
+        func_var_table = ScopedVarTable(node.fn_name.value,
+                                        enclosing_scope=self.current_scope)
+        func_var_table.vars = node.fn_vars
+        self.current_scope = func_var_table
+        self.visit(node.expr)
+        self.current_scope = self.current_scope.enclosing_scope
 
     def visit_Assign(self, node):
-        var = Variable(name=node.left.value, value=self.visit(node.right))
+        var_name = node.left.value
+        if var_name in self.functions.keys():
+            raise Exception('ERROR: Variable name \'{}\' already defined as function name.'.format(var_name))
+        var_value = self.visit(node.right)
+        var = Variable(name=var_name, value=var_value)
         self.current_scope.insert(var)
 
 #-------------------------------------------------------------------------------
@@ -389,10 +423,12 @@ class Interpreter(NodeVisitor):
         self.functions = {}
         self.lexer = Lexer()
         self.parser = Parser(self.lexer)
+        self.semantic_analyser = SemanticAnalyser()
 
     def input(self, expression):
         self.parser.set_expression(expression)
-        tree = self.parser.expression()
+        tree = self.parser.parse()
+        self.semantic_analyser.visit(tree)
         result = self.visit(tree)
         return result
     
@@ -413,9 +449,9 @@ class Interpreter(NodeVisitor):
 
     def visit_UnaryOp(self, node):
         if node.op.type == 'plus':
-            return +self.visit(node.expr)
+            return +self.visit(node.right)
         elif node.op.type == 'minus':
-            return -self.visit(node.expr)
+            return -self.visit(node.right)
 
     def visit_VarName(self, node):
         var = self.current_scope.lookup(node.value)
@@ -440,17 +476,12 @@ class Interpreter(NodeVisitor):
 
     def visit_Function(self, node):
         self.functions[node.fn_name.value] = node
-        func_var_table = ScopedVarTable(node.fn_name.value,
-                                        enclosing_scope=self.current_scope)
-        func_var_table.vars = node.fn_vars
-        self.current_scope = func_var_table
-        self.visit(node.expr)
-        self.current_scope = self.current_scope.enclosing_scope
+        return ''
 
     def visit_Assign(self, node):
         var = Variable(name=node.left.value, value=self.visit(node.right))
         self.current_scope.insert(var)
-        return var.name
+        return var.value
 
 #-------------------------------------------------------------------------------
 # Main
@@ -458,9 +489,26 @@ class Interpreter(NodeVisitor):
 
 interpreter = Interpreter()
 
-# print(interpreter.input('fn add => x + z')) # ERROR: Unknown identifier 'x'
-print(interpreter.input('fn add x y => x + z')) # ERROR: Invalid identifier 'z' in function body.
-print(interpreter.input('y + 7')) # ERROR: Invalid identifier. No variable with name 'y' was found.
+#print(interpreter.input('1 2')) # ERROR
+#print(interpreter.input('1two')) # ERROR
+#print(interpreter.input('fn add x x => x + x')) # ERROR
+print(interpreter.input('fn echo x => x')) # None
+print(interpreter.input('fn avg x y => (x + y) / 2')) # None
+print(interpreter.input('avg echo 4 echo 2')) # None
+
+print(interpreter.input('')) # 
+print(interpreter.input(' ')) #
+
+#print(interpreter.input('fn add => x + z')) # ERROR: Unknown identifier 'x'
+#print(interpreter.input('fn add x y => x + z')) # ERROR: Invalid identifier 'z' in function body.
+#print(interpreter.input('y + 7')) # ERROR: Invalid identifier. No variable with name 'y' was found.
+
+print(interpreter.input('fn add x y => x + y')) # None
+#print(interpreter.input('add 5')) # ERROR: Function 'add' expects '2' parameters. '1' given.
+#print(interpreter.input('add = 2')) # ERROR: Variable name 'add' already defined as function name.
+
+print(interpreter.input('bub = 7')) # 7
+print(interpreter.input('fn bub x y => x + y')) # ERROR: Function name 'bub' already defined as variable name.
 
 print(interpreter.input('fn avg x y => (x + y) / 2')) # None
 print(interpreter.input('a = 7')) # 7
