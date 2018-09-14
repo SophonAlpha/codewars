@@ -5,7 +5,7 @@ from solutions.simple_interactive_interpreter import Interpreter
 class Tests(unittest.TestCase):
     def setUp(self):
         self.interpreter = Interpreter()
-    
+
     def test_empty_input(self):
         for i in ['', ' ']:
             with self.subTest(msg=i):
