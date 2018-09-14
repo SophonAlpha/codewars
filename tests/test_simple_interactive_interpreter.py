@@ -12,9 +12,12 @@ class Tests(unittest.TestCase):
                 self.assertEqual(self.interpreter.input(i), '')
 
     def test_ERROR_malformed_input_string(self):
-        for i in ['1 2', '1two']:
+        self.interpreter.input('fn add x y => x + y')
+        for i in ['1 2',
+                  '1two',
+                  'add 3 7 11']:
             with self.subTest(msg=i):
-                self.assertRaisesRegex(Exception, r'ERROR: Invalid i.',
+                self.assertRaisesRegex(Exception, r'ERROR: Invalid input.',
                                        self.interpreter.input, i)
 
     def test_ERROR_function_duplicate_params(self):
@@ -76,54 +79,33 @@ class Tests(unittest.TestCase):
         self.interpreter.input('fn avg x y => (x + y) / 2')
         self.assertEqual(self.interpreter.input('avg echo 4 echo 2'), 3)
 
-# 
-# print(interpreter.i('5 - - - 2')) # 3
-# 
-# print(interpreter.i('2 * 7 + 3')) # 17
-# print(interpreter.i('2 * (7 + 3)')) # 20
-# print(interpreter.i('7 + 3 * (10 / (12 / (3 + 1) - 1))')) # 22
-# print(interpreter.i('7 + 3 * (10 / (12 / (3 + 1) - 1)) / (2 + 3) - 5 - 3 + (8)')) # 10
-# print(interpreter.i('7 + (((3 + 2)))')) # 12
-# print(interpreter.i('7 + 3')) # 10
-# 
-# print(interpreter.i('b = 8'))
-# print(interpreter.i('a + b'))
-# print(interpreter.i('first_var = 14 + 2 * 3 - 6 / 2')) # = 17
-# print(interpreter.i('second_var = 7 + 3 * (10 / (12 / (3 + 1) - 1))')) # = 22
-# print(interpreter.i('7 + 3 * (10 / (12 / (3 + first_var) - 1)) / (2 + 3) - 5 - second_var + (8)')) # = -27
-# print(interpreter.i('a = b = 12')) # = 12
-# print(interpreter.i('x = 13 + (y = 3)')) # = 16
-# 
-# print(interpreter.i('7 % 2')) # = 1
-# print(interpreter.i('7%2')) # = 1
-# print(interpreter.i('8 % 3')) # = 2
-# print(interpreter.i('14 + 2 * 3 - 6 / 2')) # = 17
-# print(interpreter.i('14.34 + 2.237 * 3.901 - 6.018 / 2.0893644')) # = 20.186235220186006
-# print(interpreter.i('7 + 3 * (10 / (12 / (3 + 1) - 1))')) # = 22
-# print(interpreter.i('7 + 3 * (10 / (12 / (3 + 1) - 1)) / (2 + 3) - 5 - 3 + (8)')) # = 10
-# print(interpreter.i('7 + (((3 + 2)))')) # = 12
+    def test_unary_operator(self):
+        self.assertEqual(self.interpreter.input('5 - - - 2'), 3)
 
-#
-# # Basic arithmetic
-# assert interpreter.i("1 + 1"), 2
-# assert interpreter.i("2 - 1"), 1
-# assert interpreter.i("2 * 3"), 6
-# assert interpreter.i("8 / 4"), 2
-# assert interpreter.i("7 % 4"), 3
-#
-# # Variables
-# assert interpreter.i("x = 1"), 1
-# assert interpreter.i("x"), 1
-# assert interpreter.i("x + 3"), 4
-# print(interpreter.i("y"))
-#
-# # Functions
-# print(interpreter.i("fn avg x y => (x + y) / 2"))
-# assert interpreter.i("avg 4 2"), 3
-# print(interpreter.i("avg 7"))
-# print(interpreter.i("avg 7 2 4"))
-#
-# # Conflicts
-# print(interpreter.i("fn x => 0"))
-# print(interpreter.i("avg = 5"))
-
+    def test_various_expressions(self):
+        for i, out in [('2 * 7 + 3', 17),
+                       ('2 * (7 + 3)', 20),
+                       ('7 + 3 * (10 / (12 / (3 + 1) - 1))', 22),
+                       ('7 + 3 * (10 / (12 / (3 + 1) - 1)) / (2 + 3) - 5 - 3 + (8)', 10),
+                       ('7 + (((3 + 2)))', 12),
+                       ('7 + 3', 10),
+                       ('first_var = 14 + 2 * 3 - 6 / 2', 17),
+                       ('second_var = 7 + 3 * (10 / (12 / (3 + 1) - 1))', 22),
+                       ('7 + 3 * (10 / (12 / (3 + first_var) - 1)) / (2 + 3) - 5 - second_var + (8)', -27),
+                       ('a = b = 12', 12),
+                       ('x = 13 + (y = 3)', 16),
+                       ('7 % 2', 1),
+                       ('7%2', 1),
+                       ('8 % 3', 2),
+                       ('14 + 2 * 3 - 6 / 2', 17),
+                       ('14.34 + 2.237 * 3.901 - 6.018 / 2.0893644', 20.186235220186006),
+                       ('7 + 3 * (10 / (12 / (3 + 1) - 1))', 22),
+                       ('7 + 3 * (10 / (12 / (3 + 1) - 1)) / (2 + 3) - 5 - 3 + (8)', 10),
+                       ('7 + (((3 + 2)))', 12),
+                       ('1 + 1', 2),
+                       ('2 - 1', 1),
+                       ('2 * 3', 6),
+                       ('8 / 4', 2),
+                       ('7 % 4', 3)]:
+            with self.subTest(msg=i):
+                self.assertEqual(self.interpreter.input(i), out)
