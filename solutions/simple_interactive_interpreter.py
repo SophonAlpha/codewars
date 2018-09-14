@@ -322,7 +322,7 @@ class NodeVisitor():
     def generic_visit(self, node):
         raise Exception('No visit_{} method'.format(type(node).__name__))
     
-    def visit_NoneType(self, node):
+    def visit_NoneType(self, _):
         return ''
 
 #-------------------------------------------------------------------------------
@@ -484,91 +484,3 @@ class Interpreter(NodeVisitor):
         var = Variable(name=node.left.value, value=self.visit(node.right))
         self.current_scope.insert(var)
         return var.value
-
-#-------------------------------------------------------------------------------
-# Main
-#-------------------------------------------------------------------------------
-
-interpreter = Interpreter()
-
-#print(interpreter.input('1 2')) # ERROR
-#print(interpreter.input('1two')) # ERROR
-#print(interpreter.input('fn add x x => x + x')) # ERROR
-print(interpreter.input('fn echo x => x')) # None
-print(interpreter.input('fn avg x y => (x + y) / 2')) # None
-print(interpreter.input('avg echo 4 echo 2')) # 3
-
-print(interpreter.input('')) # 
-print(interpreter.input(' ')) #
-
-#print(interpreter.input('fn add => x + z')) # ERROR: Unknown identifier 'x'
-#print(interpreter.input('fn add x y => x + z')) # ERROR: Invalid identifier 'z' in function body.
-#print(interpreter.input('y + 7')) # ERROR: Invalid identifier. No variable with name 'y' was found.
-
-print(interpreter.input('fn add x y => x + y')) # None
-#print(interpreter.input('add 5')) # ERROR: Function 'add' expects '2' parameters. '1' given.
-#print(interpreter.input('add = 2')) # ERROR: Variable name 'add' already defined as function name.
-
-print(interpreter.input('bub = 7')) # 7
-print(interpreter.input('fn bub x y => x + y')) # ERROR: Function name 'bub' already defined as variable name.
-
-print(interpreter.input('fn avg x y => (x + y) / 2')) # None
-print(interpreter.input('a = 7')) # 7
-print(interpreter.input('b = 3')) # 3
-print(interpreter.input('avg a b')) # 5
-
-
-print(interpreter.input('x=7')) # 7
-print(interpreter.input('y=2.7')) # 2.7
-print(interpreter.input('x')) # 7
-print(interpreter.input('y')) # 2.7
-
-print(interpreter.input('5 - - - 2')) # 3
-
-print(interpreter.input('2 * 7 + 3')) # 17
-print(interpreter.input('2 * (7 + 3)')) # 20
-print(interpreter.input('7 + 3 * (10 / (12 / (3 + 1) - 1))')) # 22
-print(interpreter.input('7 + 3 * (10 / (12 / (3 + 1) - 1)) / (2 + 3) - 5 - 3 + (8)')) # 10
-print(interpreter.input('7 + (((3 + 2)))')) # 12
-print(interpreter.input('7 + 3')) # 10
-
-print(interpreter.input('b = 8'))
-print(interpreter.input('a + b'))
-print(interpreter.input('first_var = 14 + 2 * 3 - 6 / 2')) # = 17
-print(interpreter.input('second_var = 7 + 3 * (10 / (12 / (3 + 1) - 1))')) # = 22
-print(interpreter.input('7 + 3 * (10 / (12 / (3 + first_var) - 1)) / (2 + 3) - 5 - second_var + (8)')) # = -27
-print(interpreter.input('a = b = 12')) # = 12
-print(interpreter.input('x = 13 + (y = 3)')) # = 16
-
-print(interpreter.input('7 % 2')) # = 1
-print(interpreter.input('7%2')) # = 1
-print(interpreter.input('8 % 3')) # = 2
-print(interpreter.input('14 + 2 * 3 - 6 / 2')) # = 17
-print(interpreter.input('14.34 + 2.237 * 3.901 - 6.018 / 2.0893644')) # = 20.186235220186006
-print(interpreter.input('7 + 3 * (10 / (12 / (3 + 1) - 1))')) # = 22
-print(interpreter.input('7 + 3 * (10 / (12 / (3 + 1) - 1)) / (2 + 3) - 5 - 3 + (8)')) # = 10
-print(interpreter.input('7 + (((3 + 2)))')) # = 12
-
-#
-# # Basic arithmetic
-# assert interpreter.input("1 + 1"), 2
-# assert interpreter.input("2 - 1"), 1
-# assert interpreter.input("2 * 3"), 6
-# assert interpreter.input("8 / 4"), 2
-# assert interpreter.input("7 % 4"), 3
-#
-# # Variables
-# assert interpreter.input("x = 1"), 1
-# assert interpreter.input("x"), 1
-# assert interpreter.input("x + 3"), 4
-# print(interpreter.input("y"))
-#
-# # Functions
-# print(interpreter.input("fn avg x y => (x + y) / 2"))
-# assert interpreter.input("avg 4 2"), 3
-# print(interpreter.input("avg 7"))
-# print(interpreter.input("avg 7 2 4"))
-#
-# # Conflicts
-# print(interpreter.input("fn x => 0"))
-# print(interpreter.input("avg = 5"))
