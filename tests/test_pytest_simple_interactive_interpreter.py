@@ -12,6 +12,7 @@ class Test:
     def test_empty_input(self, i):
         assert self.interpreter.input(i) == ''
 
+
 #     def test_ERROR_malformed_input_string(self):
 #         self.interpreter.input('fn add x y => x + y')
 #         for i in ['1 2',
