@@ -1,48 +1,48 @@
+# https://semaphoreci.com/community/tutorials/testing-python-applications-with-pytest
+# https://hackebrot.github.io/pytest-tricks/create_tests_via_parametrization/ 
+
+
 import pytest
 
 from solutions.simple_interactive_interpreter import Interpreter
 
-class Test:
+@pytest.fixture
+def interpreter():
+    return Interpreter()
 
-    def setup_method(self):
-        self.interpreter = Interpreter()
-    
-    @pytest.mark.parametrizes(
-        'i', ['', ' '])
-    def test_empty_input(self, i):
-        assert self.interpreter.input(i) == ''
+@pytest.mark.parametrize('expr', [
+    '',
+    ' '
+    ])
+def test_empty_input(interpreter, expr):
+    assert interpreter.input(expr) == ''
 
+@pytest.mark.parametrize('expr', [
+    '1 2',
+    '1two',
+    'add 3 7 11'
+    ])
+def test_ERROR_malformed_input_string(interpreter, expr):
+    interpreter.input('fn add x y => x + y')
+    with pytest.raises(Exception, match=r'ERROR: Invalid input.'):
+        interpreter.input(expr)
 
-#     def test_ERROR_malformed_input_string(self):
-#         self.interpreter.input('fn add x y => x + y')
-#         for i in ['1 2',
-#                   '1two',
-#                   'add 3 7 11']:
-#             with self.subTest(msg=i):
-#                 self.assertRaisesRegex(Exception, r'ERROR: Invalid input.',
-#                                        self.interpreter.input, i)
-# 
-#     def test_ERROR_function_duplicate_params(self):
-#         self.assertRaisesRegex(Exception, r'ERROR: Duplicate variable \'.*\' in function declaration\.',
-#                                self.interpreter.input, 'fn add x x => x + x')
-# 
-#     def test_ERROR_function_unknown_identifier(self):
-#         self.assertRaisesRegex(Exception, r'ERROR: Unknown identifier \'.*\'',
-#                                self.interpreter.input, 'fn add => x + z')
-# 
-#     def test_ERROR_function_invalid_identifier(self):
-#         self.assertRaisesRegex(Exception, r'ERROR: Invalid identifier \'.*\' in function body\.',
-#                                self.interpreter.input, 'fn add x y => x + z')
-# 
-#     def test_ERROR_function_wrong_number_params(self):
-#         self.interpreter.input('fn add x y => x + y')
-#         self.assertRaisesRegex(Exception, r'ERROR: Function \'add\' expects \'2\' parameters. \'1\' given\.',
-#                                self.interpreter.input, 'add 5')
-# 
-#     def test_ERROR_no_variable_found(self):
-#         self.assertRaisesRegex(Exception, r'ERROR: Invalid identifier. No variable with name \'.*\' was found\.',
-#                                self.interpreter.input, 'y + 7')
-# 
+@pytest.mark.parametrize('expr, error_msg', [
+    ('fn add x x => x + x', r'ERROR: Duplicate variable \'.*\' in function declaration\.'),
+    ('fn add => x + z', r'ERROR: Unknown identifier \'.*\''),
+    ('fn add x y => x + z', r'ERROR: Invalid identifier \'.*\' in function body\.'),
+    ('y + 7', r'ERROR: Invalid identifier. No variable with name \'.*\' was found\.')
+    ])
+def test_ERROR_messages(interpreter, expr, error_msg):
+    with pytest.raises(Exception, match=error_msg):
+        interpreter.input(expr)
+
+def test_ERROR_function_wrong_number_params(interpreter):
+    interpreter.input('fn add x y => x + y')
+    with pytest.raises(Exception, match=r'ERROR: Function \'add\' expects \'2\' parameters. \'1\' given\.'):
+        interpreter.input('add 5')
+
+ 
 #     def test_ERROR_name_already_defined(self):
 #         i = 'fn add x y => x + y'
 #         self.interpreter.input(i)
