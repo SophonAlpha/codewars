@@ -1,3 +1,9 @@
+"""
+running test with code coverage from command line:
+
+py.test tests\test_pytest_simple_interactive_interpreter.py --cov=solutions.simple_interactive_interpreter --cov-report html
+"""
+
 import pytest
 
 from solutions.simple_interactive_interpreter import Interpreter
