@@ -1,6 +1,10 @@
 """
-Solution for sliding puzzle codewars challenge (1 kyu):
-https://www.codewars.com/kata/5a20eeccee1aae3cbc000090
+
+Solution for Sliding Puzzle Solver kata:
+https://www.codewars.com/kata/sliding-puzzle-solver
+
+Level: 1 kyu
+
 """
 
 import pprint
