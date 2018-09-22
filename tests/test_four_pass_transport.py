@@ -29,4 +29,17 @@ SOLUTIONS = [
 @pytest.mark.parametrize('stations, solution', zip(TESTS, SOLUTIONS))
 def test_examples(stations, solution):
     """ tests """
-    assert four_pass(stations) == solution
+    validate_solution(stations, solution)
+
+def validate_solution(stations, solution):
+    lenghts_sol = get_seg_lens(stations, solution)
+    lenghts_test = get_seg_lens(stations, four_pass(stations))
+    assert lenghts_test == lenghts_sol
+
+def get_seg_lens(stations, solution):
+    path_lens = []
+    for i, _ in enumerate(stations[:-1]):
+        start_index = solution.index(stations[i])
+        end_index = solution.index(stations[i + 1])
+        path_lens.append(len(solution[start_index:end_index]))
+    return path_lens

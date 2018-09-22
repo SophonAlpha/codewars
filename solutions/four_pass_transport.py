@@ -9,7 +9,7 @@ Level: 1 kyu
 
 import itertools
 
-CONV_BELT_MOD = 9 # a numerical representation of one conveyer belt module
+CONV_BELT_MOD = 'c' # representation for one conveyer belt module
 
 class Factory:
     """
@@ -42,14 +42,24 @@ class Factory:
         self.mark_occupied([(row, col)])
 
     def mark_occupied(self, tiles):
+        """
+        Mark tile occupied.
+        """
         for row, col in tiles:
             self.occupied.add((row, col))
 
     def unmark_occupied(self, tiles):
+        """
+        Unmark tile occupied status.
+        """
         for row, col in tiles:
             self.occupied.discard((row, col))
 
     def is_occupied(self, row, col):
+        """
+        Return true if a tile of the factory floor is occupied either by a
+        station or by a conveyer belt module.
+        """
         return (row, col) in self.occupied
 
     def show_floor(self):
@@ -67,6 +77,37 @@ class PathPlanner:
     def __init__(self, factory):
         self.factory = factory
         self.occupied_tiles = list(self.factory.stations.values())
+        self.path = []
+
+    def plan(self):
+        """
+        Plan the shortest path between stations and place conveyer belt modules.
+        """
+        stations = list(self.factory.stations.keys())
+        for station in stations[:-1]:
+            start_tile = self.factory.stations[station]
+            end_tile = self.factory.stations[station + 1]
+            path = self.get_shortest_path(start_tile, end_tile)
+            self.place_conveyer_modules(path[1:-1])
+            # exclude end station, will be added with next path as starting point
+            self.path = self.path + path[:-1]
+        self.path.append(end_tile) # complete path with last station
+        return self.convert(self.path)
+
+    def place_conveyer_modules(self, path):
+        """
+        Place conveyer belt modules along the list of tiles provided.
+        """
+        for tile in path: # exclude start station when placing conv. modules
+            row, col = tile
+            self.factory.place_conveyer_belt(row, col)
+            
+    def convert(self, path):
+        """
+        Convert tile coordinates from '(row, col)' to single digit notation.
+        """
+        path_converted = list(map(lambda tile: tile[0] * 10 + tile[1], path))
+        return path_converted
 
     def get_shortest_path(self, start_tile, end_tile):
         """
@@ -75,19 +116,20 @@ class PathPlanner:
         """
         graph = self.build_graph(start_tile, end_tile)
         distances = self.calculate_distances(start_tile, graph)
-#         tile_sequence = self.get_shortest_tile_sequence(distances, graph,
-#                                                         start_tile,
-#                                                         target_row, target_col)
-#         tile_sequence.reverse()
-#         return tile_sequence
+        tile_sequence = self.get_shortest_sequence(distances, graph,
+                                                   start_tile,
+                                                   end_tile)
+        tile_sequence.reverse()
+        return tile_sequence
 
     def build_graph(self, start_tile, end_tile):
         """
         Build a graph representation of the factory floor. The floor tiles are 
         the nodes and distance between nodes is always 1. Tiles with conveyer 
         belt modules are considered as occupied and will be excluded when 
-        building the graph. Stations except the target station are excluded as 
-        well. This way the algorithm calculates paths around occupied tiles.
+        building the graph. Stations except the start and end station are 
+        excluded as well. This way the algorithm calculates paths around 
+        occupied tiles.
         """
         floor_dim = len(self.factory.floor)
         self.factory.unmark_occupied([start_tile, end_tile])
@@ -141,27 +183,29 @@ class PathPlanner:
                     distances[neighbor] = alt
         return distances
 
-    def get_shortest_tile_sequence(self, distances, graph, start_tile,
-                                   target_row, target_col):
+    def get_shortest_sequence(self, distances, graph, start_tile, end_tile):
         """
         After the graph has been build and the distances within the graph
-        have been calculated, this function works out the sequence of tiles
-        to be moved.
+        have been calculated, this function works out the shortest sequence of 
+        tiles.
         """
-        tile = None # dummy, remove 
-#         tile = self.tile_array[target_row][target_col]
+        tile = end_tile
         tile_sequence = []
         while not tile == start_tile:
             neighbor_dist = {neighbor:distances[neighbor] for neighbor in graph[tile]}
             tile_sequence.append(tile)
             tile = min(neighbor_dist, key=neighbor_dist.get)
+        tile_sequence.append(start_tile)
         return tile_sequence
 
 def four_pass(stations):
     """ main function """
-    factory_floor = Factory(stations)
-    factory_floor.show_floor()
-    path_planner = PathPlanner(factory_floor)
-    path_planner.get_shortest_path((0, 1), (6, 9))
+    factory = Factory(stations)
+    path_planner = PathPlanner(factory)
+    path = path_planner.plan()
+    print(stations)
+    factory.show_floor()
+    print(path)
+    return path
 
 four_pass([1, 69, 95, 70])
