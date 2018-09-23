@@ -9,6 +9,7 @@ Level: 1 kyu
 
 import itertools
 import copy
+import collections
 
 CONV_BELT_MOD = 'c' # representation for one conveyer belt module
 
@@ -87,18 +88,32 @@ class PathPlanner:
 
     def plan(self):
         stations = list(self.factory.stations.keys())
-        segments = [(i,(station, station + 1)) for i, station in enumerate(stations[:-1])]
-        segment_sets = list(itertools.permutations(segments, 3))
+        ordered_segments = [(i,(station, station + 1)) 
+                            for i, station in enumerate(stations[:-1])]
+        segment_variants = list(itertools.permutations(ordered_segments, 3))
         min_path = None
-        for segment_set in segment_sets:
+        for segment_set in segment_variants:
             self.factory.remove_conveyer_belts()
-            order, station_set = [order, stations for order, stations in segment_sets]
-            path_segments = self.plan_stations_set(segment_set)
+            order = [o for o, _ in segment_set]
+            segments = [s for _, s in segment_set]
+            path_segments = self.plan_stations_set(segments)
+            path = self.join_paths(path_segments, order)
             if not min_path:
-                min_path = path_segments
+                min_path = path
             else:
-                min_path = path_segments if len(path_segments) < len(min_path) else min_path
+                min_path = path if len(path) < len(min_path) else min_path
         return min_path
+
+    def join_paths(self, path_segments, order):
+        ordered_paths = path_segments[:]
+        for i, o in enumerate(order):
+            ordered_paths[o] = path_segments[i]
+        path = list(itertools.chain.from_iterable(ordered_paths))
+        path = self.remove_duplicates(path)
+        return path
+    
+    def remove_duplicates(self, path):
+        return list(collections.OrderedDict(zip(path, path)).values())
 
     def plan_stations_set(self, stations):
         """
@@ -158,8 +173,8 @@ class PathPlanner:
         graph = {}
         for row, col in tiles:
             n_tiles = self.get_neighbour_tiles(row, col)
-            distances = {(n_row, n_col): distance for n_row, n_col in n_tiles \
-                         if not self.factory.is_occupied(n_row, n_col)}
+            distances = {(n_row, n_col): distance for n_row, n_col in n_tiles} #\
+#                          if not self.factory.is_occupied(n_row, n_col)}
             graph[(row, col)] = distances
         self.factory.mark_occupied([start_tile, end_tile])
         return graph
@@ -227,4 +242,4 @@ def four_pass(stations):
     print(path)
     return path
 
-four_pass([1, 69, 95, 70])
+four_pass([0, 49, 40, 99])
