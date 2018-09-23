@@ -8,6 +8,7 @@ Level: 1 kyu
 """
 
 import itertools
+import copy
 
 CONV_BELT_MOD = 'c' # representation for one conveyer belt module
 
@@ -21,6 +22,8 @@ class Factory:
         self.stations = {}
         self.occupied = set()
         self.place_stations(stations)
+        self.empty_floor = copy.deepcopy(self.floor)
+        self.empty_occupied = copy.deepcopy(self.occupied)
 
     def place_stations(self, stations):
         """
@@ -40,6 +43,10 @@ class Factory:
         """
         self.floor[row][col] = CONV_BELT_MOD
         self.mark_occupied([(row, col)])
+        
+    def remove_conveyer_belts(self):
+        self.floor = copy.deepcopy(self.empty_floor)
+        self.occupied = copy.deepcopy(self.empty_occupied)
 
     def mark_occupied(self, tiles):
         """
@@ -77,22 +84,34 @@ class PathPlanner:
     def __init__(self, factory):
         self.factory = factory
         self.occupied_tiles = list(self.factory.stations.values())
-        self.path = []
 
     def plan(self):
+        stations = list(self.factory.stations.keys())
+        segments = [(i,(station, station + 1)) for i, station in enumerate(stations[:-1])]
+        segment_sets = list(itertools.permutations(segments, 3))
+        min_path = None
+        for segment_set in segment_sets:
+            self.factory.remove_conveyer_belts()
+            order, station_set = [order, stations for order, stations in segment_sets]
+            path_segments = self.plan_stations_set(segment_set)
+            if not min_path:
+                min_path = path_segments
+            else:
+                min_path = path_segments if len(path_segments) < len(min_path) else min_path
+        return min_path
+
+    def plan_stations_set(self, stations):
         """
         Plan the shortest path between stations and place conveyer belt modules.
         """
-        stations = list(self.factory.stations.keys())
-        for station in stations[:-1]:
-            start_tile = self.factory.stations[station]
-            end_tile = self.factory.stations[station + 1]
+        path_segments = []
+        for start_station, end_station in stations:
+            start_tile = self.factory.stations[start_station]
+            end_tile = self.factory.stations[end_station]
             path = self.get_shortest_path(start_tile, end_tile)
             self.place_conveyer_modules(path[1:-1])
-            # exclude end station, will be added with next path as starting point
-            self.path = self.path + path[:-1]
-        self.path.append(end_tile) # complete path with last station
-        return self.convert(self.path)
+            path_segments.append(self.convert(path))
+        return path_segments
 
     def place_conveyer_modules(self, path):
         """
