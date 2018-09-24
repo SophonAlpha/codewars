@@ -87,33 +87,52 @@ class PathPlanner:
         self.occupied_tiles = list(self.factory.stations.values())
 
     def plan(self):
+        segment_variants = self.get_segment_variants()
+        min_path = None
+        for segment_set in segment_variants:
+            self.factory.remove_conveyer_belts()
+            order, segments = self.get_order_segments(segment_set)
+            path_segments = self.plan_stations_set(segments)
+            if path_segments:
+                path = self.join_paths(path_segments, order)
+                min_path = self.get_min_path(path, min_path)
+        return min_path
+
+    def get_segment_variants(self):
         stations = list(self.factory.stations.keys())
         ordered_segments = [(i,(station, station + 1)) 
                             for i, station in enumerate(stations[:-1])]
         segment_variants = list(itertools.permutations(ordered_segments, 3))
-        min_path = None
-        for segment_set in segment_variants:
-            self.factory.remove_conveyer_belts()
-            order = [o for o, _ in segment_set]
-            segments = [s for _, s in segment_set]
-            path_segments = self.plan_stations_set(segments)
-            path = self.join_paths(path_segments, order)
-            if not min_path:
-                min_path = path
-            else:
-                min_path = path if len(path) < len(min_path) else min_path
-        return min_path
+        return segment_variants
+
+    def get_order_segments(self, segment_set):
+        order = [o for o, _ in segment_set]
+        segments = [s for _, s in segment_set]
+        return order, segments
+    
+    def get_min_path(self, path, min_path):
+        """
+        Keep the shortest of two paths.
+        """
+        if not min_path:
+            min_path = path
+        else:
+            min_path = path if len(path) < len(min_path) else min_path
+        return min_path        
 
     def join_paths(self, path_segments, order):
-        ordered_paths = path_segments[:]
-        for i, o in enumerate(order):
-            ordered_paths[o] = path_segments[i]
-        path = list(itertools.chain.from_iterable(ordered_paths))
-        path = self.remove_duplicates(path)
+        """
+        Join the path segments together to one list. Avoid duplicate 
+        elements when joining the segments.
+        """
+        path = []
+        for i, _ in enumerate(order):
+            seg = path_segments[order.index(i)]
+            if path and path[-1] == seg[0]:
+                path = path + seg[1:]
+            else:
+                path = path + seg
         return path
-    
-    def remove_duplicates(self, path):
-        return list(collections.OrderedDict(zip(path, path)).values())
 
     def plan_stations_set(self, stations):
         """
@@ -124,6 +143,8 @@ class PathPlanner:
             start_tile = self.factory.stations[start_station]
             end_tile = self.factory.stations[end_station]
             path = self.get_shortest_path(start_tile, end_tile)
+            if not path:
+                return None
             self.place_conveyer_modules(path[1:-1])
             path_segments.append(self.convert(path))
         return path_segments
@@ -150,6 +171,9 @@ class PathPlanner:
         """
         graph = self.build_graph(start_tile, end_tile)
         distances = self.calculate_distances(start_tile, graph)
+        if not distances:
+            # distance calculation was not possible
+            return None
         tile_sequence = self.get_shortest_sequence(distances, graph,
                                                    start_tile,
                                                    end_tile)
@@ -173,8 +197,8 @@ class PathPlanner:
         graph = {}
         for row, col in tiles:
             n_tiles = self.get_neighbour_tiles(row, col)
-            distances = {(n_row, n_col): distance for n_row, n_col in n_tiles} #\
-#                          if not self.factory.is_occupied(n_row, n_col)}
+            distances = {(n_row, n_col): distance for n_row, n_col in n_tiles \
+                        if not self.factory.is_occupied(n_row, n_col)}
             graph[(row, col)] = distances
         self.factory.mark_occupied([start_tile, end_tile])
         return graph
@@ -211,6 +235,9 @@ class PathPlanner:
             unvisited_dist = {v:distances[v] for v in unvisited}
             vertex = min(unvisited_dist, key=unvisited_dist.get)
             unvisited.remove(vertex)
+            if not graph[vertex]:
+                # tile is surrounded by occupied tiles
+                return None
             for neighbor in graph[vertex]:
                 alt = distances[vertex] + graph[vertex][neighbor]
                 if alt < distances[neighbor]:
