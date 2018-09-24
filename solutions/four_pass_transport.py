@@ -9,9 +9,16 @@ Level: 1 kyu
 
 import itertools
 import copy
-import collections
 
 CONV_BELT_MOD = 'c' # representation for one conveyer belt module
+
+class NoNeighbourError(Exception):
+    """ Error to be raised when tile has no neighbours."""
+    pass
+
+class NoPathError(Exception):
+    """ Error to be raised when issues with finding a path between stations."""
+    pass
 
 class Factory:
     """
@@ -44,8 +51,9 @@ class Factory:
         """
         self.floor[row][col] = CONV_BELT_MOD
         self.mark_occupied([(row, col)])
-        
+
     def remove_conveyer_belts(self):
+        """ remove all conveyer belts from factory floor """
         self.floor = copy.deepcopy(self.empty_floor)
         self.occupied = copy.deepcopy(self.empty_occupied)
 
@@ -81,35 +89,57 @@ class Factory:
             print(line)
 
 class PathPlanner:
-    
+    """
+    Plans the shortest path through the factory floor.
+    """
+
     def __init__(self, factory):
         self.factory = factory
         self.occupied_tiles = list(self.factory.stations.values())
 
     def plan(self):
+        """
+        Main function. Uses Djikstra algorithm to find shortest path between
+        stations. Djikstra does not guarantee to find the total shortest path
+        between all stations. Total path length depends on the order in which
+        which path segments are determined.
+
+        To find shortest total path length plan runs through all permutations
+        of segment combinations and returns min_path or None if not path could
+        be found.
+        """
         segment_variants = self.get_segment_variants()
         min_path = None
         for segment_set in segment_variants:
             self.factory.remove_conveyer_belts()
             order, segments = self.get_order_segments(segment_set)
-            path_segments = self.plan_stations_set(segments)
-            if path_segments:
-                path = self.join_paths(path_segments, order)
-                min_path = self.get_min_path(path, min_path)
+            try:
+                path_segments = self.plan_stations_set(segments)
+            except NoNeighbourError:
+                continue
+            except NoPathError:
+                continue
+            path = self.join_paths(path_segments, order)
+            min_path = self.get_min_path(path, min_path)
         return min_path
 
     def get_segment_variants(self):
+        """ Generate list of all permutations of the segment order. """
         stations = list(self.factory.stations.keys())
-        ordered_segments = [(i,(station, station + 1)) 
+        ordered_segments = [(i, (station, station + 1))
                             for i, station in enumerate(stations[:-1])]
         segment_variants = list(itertools.permutations(ordered_segments, 3))
         return segment_variants
 
     def get_order_segments(self, segment_set):
+        """
+        Return the order of segments. This is required to recombine the
+        individual path segments in the correct order to the total path.
+        """
         order = [o for o, _ in segment_set]
         segments = [s for _, s in segment_set]
         return order, segments
-    
+
     def get_min_path(self, path, min_path):
         """
         Keep the shortest of two paths.
@@ -118,18 +148,18 @@ class PathPlanner:
             min_path = path
         else:
             min_path = path if len(path) < len(min_path) else min_path
-        return min_path        
+        return min_path
 
     def join_paths(self, path_segments, order):
         """
-        Join the path segments together to one list. Avoid duplicate 
+        Join the path segments together to one list. Avoid duplicate
         elements when joining the segments.
         """
         path = []
         for i, _ in enumerate(order):
             seg = path_segments[order.index(i)]
             if path and path[-1] == seg[0]:
-                path = path + seg[1:]
+                path = path + seg[1:] # skip first element to avoid duplicates
             else:
                 path = path + seg
         return path
@@ -143,8 +173,6 @@ class PathPlanner:
             start_tile = self.factory.stations[start_station]
             end_tile = self.factory.stations[end_station]
             path = self.get_shortest_path(start_tile, end_tile)
-            if not path:
-                return None
             self.place_conveyer_modules(path[1:-1])
             path_segments.append(self.convert(path))
         return path_segments
@@ -156,7 +184,7 @@ class PathPlanner:
         for tile in path: # exclude start station when placing conv. modules
             row, col = tile
             self.factory.place_conveyer_belt(row, col)
-            
+
     def convert(self, path):
         """
         Convert tile coordinates from '(row, col)' to single digit notation.
@@ -171,9 +199,6 @@ class PathPlanner:
         """
         graph = self.build_graph(start_tile, end_tile)
         distances = self.calculate_distances(start_tile, graph)
-        if not distances:
-            # distance calculation was not possible
-            return None
         tile_sequence = self.get_shortest_sequence(distances, graph,
                                                    start_tile,
                                                    end_tile)
@@ -182,11 +207,11 @@ class PathPlanner:
 
     def build_graph(self, start_tile, end_tile):
         """
-        Build a graph representation of the factory floor. The floor tiles are 
-        the nodes and distance between nodes is always 1. Tiles with conveyer 
-        belt modules are considered as occupied and will be excluded when 
-        building the graph. Stations except the start and end station are 
-        excluded as well. This way the algorithm calculates paths around 
+        Build a graph representation of the factory floor. The floor tiles are
+        the nodes and distance between nodes is always 1. Tiles with conveyer
+        belt modules are considered as occupied and will be excluded when
+        building the graph. Stations except the start and end station are
+        excluded as well. This way the algorithm calculates paths around
         occupied tiles.
         """
         floor_dim = len(self.factory.floor)
@@ -222,7 +247,7 @@ class PathPlanner:
     def calculate_distances(self, start_tile, graph):
         """
         Perform the distance calculations required for the Dijkstra algorithm.
-        
+
         Based on this introduction to the Dijkstra algorithm:
         https://brilliant.org/wiki/dijkstras-short-path-finder/
         """
@@ -236,8 +261,7 @@ class PathPlanner:
             vertex = min(unvisited_dist, key=unvisited_dist.get)
             unvisited.remove(vertex)
             if not graph[vertex]:
-                # tile is surrounded by occupied tiles
-                return None
+                raise NoNeighbourError('ERROR: tile {} has no neighbour tiles.'.format(vertex))
             for neighbor in graph[vertex]:
                 alt = distances[vertex] + graph[vertex][neighbor]
                 if alt < distances[neighbor]:
@@ -247,26 +271,32 @@ class PathPlanner:
     def get_shortest_sequence(self, distances, graph, start_tile, end_tile):
         """
         After the graph has been build and the distances within the graph
-        have been calculated, this function works out the shortest sequence of 
+        have been calculated, this function works out the shortest sequence of
         tiles.
         """
         tile = end_tile
         tile_sequence = []
         while not tile == start_tile:
             neighbor_dist = {neighbor:distances[neighbor] for neighbor in graph[tile]}
+            if self.all_dist_infinite(neighbor_dist):
+                raise NoPathError('ERROR: no path to tile {} found.'.format(tile))
             tile_sequence.append(tile)
             tile = min(neighbor_dist, key=neighbor_dist.get)
         tile_sequence.append(start_tile)
         return tile_sequence
+
+    def all_dist_infinite(self, neighbor_dist):
+        """
+        Check if distances to all neighbour tiles are infinite. This is the case
+        when no path between stations could be found (e.g. factory floor
+        separated by conveyer belt.)
+        """
+        dists = set(neighbor_dist.values())
+        return len(dists) == 1 and float('inf') in dists
 
 def four_pass(stations):
     """ main function """
     factory = Factory(stations)
     path_planner = PathPlanner(factory)
     path = path_planner.plan()
-    print(stations)
-    factory.show_floor()
-    print(path)
     return path
-
-four_pass([0, 49, 40, 99])
