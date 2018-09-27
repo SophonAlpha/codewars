@@ -5,12 +5,36 @@ https://www.codewars.com/kata/four-pass-transport
 
 Level: 1 kyu
 
+https://en.wikipedia.org/wiki/Travelling_salesman_problem
+
 """
 
 import itertools
 import copy
 
 CONV_BELT_MOD = 'c' # representation for one conveyer belt module
+
+def show(stations, path):
+    symbols = {0: 'a', 1: 'b', 2: 'c', 3: 'd'}
+    floor = [[None] * 10 for _ in range(0, 10)]
+    for p in path:
+        if p in stations:
+            symbol = symbols[stations.index(p)]
+        row, col = convert(p)
+        floor[row][col] = symbol
+    for i, s in enumerate(stations):
+        row, col = convert(s)
+        floor[row][col] = i + 1
+    print('  0 1 2 3 4 5 6 7 8 9')
+    for i, row in enumerate(floor):
+        line = str(i) + ' ' + ' '.join([str(col) if col else '.'
+                                        for col in row])
+        print(line)
+
+def convert(pos):
+    row = pos // 10
+    col = pos % 10
+    return row, col
 
 class NoNeighbourError(Exception):
     """ Error to be raised when tile has no neighbours."""
@@ -78,7 +102,7 @@ class Factory:
         """
         return (row, col) in self.occupied
 
-    def show_floor(self):
+    def show_state(self):
         """
         Print a top view of the factory floor. Useful for troubleshooting.
         """
@@ -122,6 +146,18 @@ class PathPlanner:
             path = self.join_paths(path_segments, order)
             min_path = self.get_min_path(path, min_path)
         return min_path
+    
+    def planv2(self):
+        S1 = ('S1_1', 'S1_2', 'S1_3', 'S1_4')
+        S2 = ('S2_1', 'S2_2', 'S2_3', 'S2_4')
+        S3 = ('S3_1', 'S3_2', 'S3_3', 'S3_4')
+        S4 = ('S4_1', 'S4_2', 'S4_3', 'S4_4')
+        seg1_2 = list(zip(itertools.repeat(0), itertools.product(S1, S2)))
+        seg2_3 = list(zip(itertools.repeat(1), itertools.product(S2, S3)))
+        seg3_4 = list(zip(itertools.repeat(2), itertools.product(S3, S4)))
+        segment_variants = []
+        for seg_comb in itertools.product(seg1_2, seg2_3, seg3_4):
+            segment_variants = segment_variants + list(itertools.permutations(seg_comb, 3))
 
     def get_segment_variants(self):
         """ Generate list of all permutations of the segment order. """
@@ -260,7 +296,7 @@ class PathPlanner:
             unvisited_dist = {v:distances[v] for v in unvisited}
             vertex = min(unvisited_dist, key=unvisited_dist.get)
             unvisited.remove(vertex)
-            if not graph[vertex]:
+            if not graph[vertex] and vertex == start_tile:
                 raise NoNeighbourError('ERROR: tile {} has no neighbour tiles.'.format(vertex))
             for neighbor in graph[vertex]:
                 alt = distances[vertex] + graph[vertex][neighbor]
@@ -274,14 +310,16 @@ class PathPlanner:
         have been calculated, this function works out the shortest sequence of
         tiles.
         """
+        if not graph[end_tile]:
+            raise NoPathError('ERROR: no path to tile {} found.'.format(end_tile))
         tile = end_tile
         tile_sequence = []
         while not tile == start_tile:
-            neighbor_dist = {neighbor:distances[neighbor] for neighbor in graph[tile]}
-            if self.all_dist_infinite(neighbor_dist):
+            neighbour_dist = {neighbour:distances[neighbour] for neighbour in graph[tile]}
+            if self.all_dist_infinite(neighbour_dist):
                 raise NoPathError('ERROR: no path to tile {} found.'.format(tile))
             tile_sequence.append(tile)
-            tile = min(neighbor_dist, key=neighbor_dist.get)
+            tile = min(neighbour_dist, key=neighbour_dist.get)
         tile_sequence.append(start_tile)
         return tile_sequence
 
@@ -300,3 +338,30 @@ def four_pass(stations):
     path_planner = PathPlanner(factory)
     path = path_planner.plan()
     return path
+
+print('\nshortest path:\n')
+show([62, 67, 36, 86],
+     [62, 63, 64, 65, 66, 67, 57, 56, 46, 36, 37, 38, 48, 58, 68, 78, 88,
+      87, 86])
+print('\nmy solution:\n')
+show([62, 67, 36, 86],
+     [62, 63, 64, 65, 66, 67, 57, 47, 37, 36, 26, 27, 28, 38, 48, 58, 68, 78,
+      77, 76, 86])
+
+print('\nshortest path:\n')
+show([83, 79, 96, 7],
+     [83, 73, 74, 75, 76, 77, 78, 79, 89, 88, 87, 86, 96, 95, 94, 93, 92, 82,
+      72, 62, 52, 42, 32, 22, 12, 2, 3, 4, 5, 6, 7])
+print('\nmy solution:\n')
+show([83, 79, 96, 7],
+     [83, 84, 74, 64, 65, 66, 67, 68, 69, 79, 78, 77, 76, 86, 96, 95, 94, 93,
+      92, 82, 72, 73, 63, 53, 54, 44, 34, 24, 25, 26, 16, 6, 7])
+
+print('\nshortest path:\n')
+show([3, 7, 22, 6],
+     [3, 2, 1, 11, 21, 31, 32, 33, 34, 35, 36, 37, 38, 28, 18, 8, 7, 17, 27,
+      26, 25, 24, 23, 22, 12, 13, 14, 15, 16, 6])
+print('\nmy solution:\n')
+show([3, 7, 22, 6],
+     [3, 2, 1, 11, 21, 31, 41, 42, 43, 44, 45, 46, 47, 48, 38, 28, 18, 8, 7,
+      17, 27, 37, 36, 35, 34, 33, 32, 22, 23, 24, 25, 26, 16, 6])
