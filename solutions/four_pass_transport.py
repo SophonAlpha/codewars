@@ -44,6 +44,10 @@ class NoPathError(Exception):
     """ Error to be raised when issues with finding a path between stations."""
     pass
 
+class TileOccupiedError(Exception):
+    """ Error to be raised when a occupied tile is selected as path element."""
+    pass
+
 class Factory:
     """
     Represent the factory floor as an object.
@@ -143,21 +147,45 @@ class PathPlanner:
                 continue
             except NoPathError:
                 continue
+            except TileOccupiedError:
+                continue
             path = self.join_paths(path_segments, order)
             min_path = self.get_min_path(path, min_path)
         return min_path
     
     def planv2(self):
-        S1 = ('S1_1', 'S1_2', 'S1_3', 'S1_4')
-        S2 = ('S2_1', 'S2_2', 'S2_3', 'S2_4')
-        S3 = ('S3_1', 'S3_2', 'S3_3', 'S3_4')
-        S4 = ('S4_1', 'S4_2', 'S4_3', 'S4_4')
-        seg1_2 = list(zip(itertools.repeat(0), itertools.product(S1, S2)))
-        seg2_3 = list(zip(itertools.repeat(1), itertools.product(S2, S3)))
-        seg3_4 = list(zip(itertools.repeat(2), itertools.product(S3, S4)))
+        stations = list(self.factory.stations.values())
+        S = []
+        for (s_row, s_col) in stations:
+            S.append([(n_row, n_col) 
+                      for (n_row, n_col) in self.get_neighbour_tiles(s_row, s_col)
+                      if not self.factory.is_occupied(n_row, n_col)])
+        seg1_2 = list(zip(itertools.repeat(0), itertools.product(S[0], S[1])))
+        seg2_3 = list(zip(itertools.repeat(1), itertools.product(S[1], S[2])))
+        seg3_4 = list(zip(itertools.repeat(2), itertools.product(S[2], S[3])))
+        seg_combs = [(seg1_2, seg2_3, seg3_4)
+                     for seg1_2, seg2_3, seg3_4 in itertools.product(seg1_2,
+                                                                     seg2_3,
+                                                                     seg3_4)
+                     if not seg1_2[1][1] == seg2_3[1][0] and 
+                        not seg2_3[1][1] == seg3_4[1][0]]
         segment_variants = []
-        for seg_comb in itertools.product(seg1_2, seg2_3, seg3_4):
+        for seg_comb in seg_combs:
             segment_variants = segment_variants + list(itertools.permutations(seg_comb, 3))
+
+        min_path = None
+        for segment_set in segment_variants:
+            self.factory.remove_conveyer_belts()
+            order, segments = self.get_order_segments(segment_set)
+            try:
+                path_segments = self.plan_stations_set(segments)
+            except NoNeighbourError:
+                continue
+            except NoPathError:
+                continue
+            path = self.join_paths(path_segments, order)
+            min_path = self.get_min_path(path, min_path)
+        return min_path
 
     def get_segment_variants(self):
         """ Generate list of all permutations of the segment order. """
@@ -200,16 +228,14 @@ class PathPlanner:
                 path = path + seg
         return path
 
-    def plan_stations_set(self, stations):
+    def plan_stations_set(self, segments):
         """
         Plan the shortest path between stations and place conveyer belt modules.
         """
         path_segments = []
-        for start_station, end_station in stations:
-            start_tile = self.factory.stations[start_station]
-            end_tile = self.factory.stations[end_station]
+        for start_tile, end_tile in segments:
             path = self.get_shortest_path(start_tile, end_tile)
-            self.place_conveyer_modules(path[1:-1])
+            self.place_conveyer_modules(path)
             path_segments.append(self.convert(path))
         return path_segments
 
@@ -233,6 +259,10 @@ class PathPlanner:
         Calculate a sequence of tiles to be moved that get a tile to the target
         position. Uses Dijkstra algorithm for shortest path calculation.
         """
+        if self.factory.is_occupied(start_tile):
+            raise TileOccupiedError('ERROR: tile {} is occupied.'.format(start_tile))
+        if self.factory.is_occupied(end_tile):
+            raise TileOccupiedError('ERROR: tile {} is occupied.'.format(end_tile))
         graph = self.build_graph(start_tile, end_tile)
         distances = self.calculate_distances(start_tile, graph)
         tile_sequence = self.get_shortest_sequence(distances, graph,
@@ -250,8 +280,11 @@ class PathPlanner:
         excluded as well. This way the algorithm calculates paths around
         occupied tiles.
         """
+        # TODO: Optimisation potential. Don't waste time building the graph
+        # if if start or end tile are occupied or if they don't have neighbour
+        # tiles. 
         floor_dim = len(self.factory.floor)
-        self.factory.unmark_occupied([start_tile, end_tile])
+#         self.factory.unmark_occupied([start_tile, end_tile])
         tiles = set(itertools.product(range(0, floor_dim), repeat=2))
         tiles = tiles - self.factory.occupied
         distance = 1
@@ -261,7 +294,7 @@ class PathPlanner:
             distances = {(n_row, n_col): distance for n_row, n_col in n_tiles \
                         if not self.factory.is_occupied(n_row, n_col)}
             graph[(row, col)] = distances
-        self.factory.mark_occupied([start_tile, end_tile])
+#         self.factory.mark_occupied([start_tile, end_tile])
         return graph
 
     def get_neighbour_tiles(self, row, col):
@@ -336,8 +369,10 @@ def four_pass(stations):
     """ main function """
     factory = Factory(stations)
     path_planner = PathPlanner(factory)
-    path = path_planner.plan()
+    path = path_planner.planv2()
     return path
+
+four_pass([3, 7, 22, 6])
 
 print('\nshortest path:\n')
 show([62, 67, 36, 86],
