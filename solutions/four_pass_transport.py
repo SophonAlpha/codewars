@@ -11,7 +11,7 @@ https://en.wikipedia.org/wiki/Travelling_salesman_problem
 
 import itertools
 import copy
-from datetime import datetime
+import time
 
 CONV_BELT_MOD = 'c' # representation for one conveyer belt module
 
@@ -126,6 +126,9 @@ class PathPlanner:
     def __init__(self, factory):
         self.factory = factory
         self.occupied_tiles = list(self.factory.stations.values())
+        self.min_path_segments = None
+        self.min_path_order = None
+        self.min_path_len = None
 
 #     def plan(self):
 #         """
@@ -152,7 +155,7 @@ class PathPlanner:
 #             except TileOccupiedError:
 #                 continue
 #             path = self.join_paths(path_segments, order)
-#             min_path = self.get_min_path(path, min_path)
+#             min_path = self.save_min_path(path, min_path)
 #         return min_path
     
     def planv2(self):
@@ -166,6 +169,9 @@ class PathPlanner:
         of segment combinations and returns min_path or None if not path could
         be found.
         """
+
+        start_time = time.time()
+
         stations = list(self.factory.stations.values())
         S = []
         for (s_row, s_col) in stations:
@@ -185,7 +191,10 @@ class PathPlanner:
         for seg_comb in seg_combs:
             segment_variants = segment_variants + list(itertools.permutations(seg_comb, 3))
 
-        min_path = None
+        end_time = time.time()
+        print('segment_variants: {} seconds'.format(end_time - start_time))
+        start_time = time.time()
+
         cnt_NoNeighbour = cnt_NoPath = cnt_TileOccupied = 0
         for segment_set in segment_variants:
             self.factory.remove_conveyer_belts()
@@ -201,9 +210,12 @@ class PathPlanner:
             except TileOccupiedError:
                 cnt_TileOccupied += 1
                 continue
-            # TODO: performance tuning: join only the min_path not every path
-            path = self.join_paths(path_segments, order)
-            min_path = self.get_min_path(path, min_path)
+            self.save_min_path(path_segments, order)
+        min_path = self.join_paths()
+        
+        end_time = time.time()
+        print('processing segment_variants: {} seconds'.format(end_time - start_time))
+
         return min_path
 
     def get_segment_variants(self):
@@ -223,25 +235,30 @@ class PathPlanner:
         segments = [s for _, s in segment_set]
         return order, segments
 
-    def get_min_path(self, path, min_path):
+    def save_min_path(self, path_segments, order):
         """
         Keep the shortest of two paths.
         """
-        if not min_path:
-            min_path = path
+        if not self.min_path_segments:
+            self.min_path_segments = path_segments
+            self.min_path_order = order
+            self.min_path_len = sum(map(lambda x: len(x), path_segments))
         else:
-            min_path = path if len(path) < len(min_path) else min_path
-        return min_path
+            lenght = sum(map(lambda x: len(x), path_segments))
+            if lenght < self.min_path_len:
+                self.min_path_segments = path_segments
+                self.min_path_order = order
+                self.min_path_len = lenght
 
-    def join_paths(self, path_segments, order):
+    def join_paths(self):
         """
         Join the path segments together to one list. Avoid duplicate
         elements when joining the segments.
         """
         stations = self.factory.stations
         path = []
-        for i, _ in enumerate(order):
-            seg = path_segments[order.index(i)]
+        for i, _ in enumerate(self.min_path_order):
+            seg = self.min_path_segments[self.min_path_order.index(i)]
             path = path + [stations[i + 1]] + seg
         path = path + [stations[len(stations)]] # add last station
         path = self.convert(path)
@@ -283,7 +300,7 @@ class PathPlanner:
         if self.factory.is_occupied(end_tile):
             raise TileOccupiedError('ERROR: tile {} is occupied.'.format(end_tile))
         graph = self.build_graph(start_tile, end_tile)
-        distances = self.calculate_distances(start_tile, graph)
+        distances = self.calculate_distances(start_tile, end_tile, graph)
         tile_sequence = self.get_shortest_sequence(distances, graph,
                                                    start_tile,
                                                    end_tile)
@@ -332,7 +349,7 @@ class PathPlanner:
                 neighbours.append((n_row, n_col))
         return neighbours
 
-    def calculate_distances(self, start_tile, graph):
+    def calculate_distances(self, start_tile, end_tile, graph):
         """
         Perform the distance calculations required for the Dijkstra algorithm.
 
@@ -350,10 +367,12 @@ class PathPlanner:
             unvisited.remove(vertex)
             if not graph[vertex] and vertex == start_tile:
                 raise NoNeighbourError('ERROR: tile {} has no neighbour tiles.'.format(vertex))
-            for neighbor in graph[vertex]:
-                alt = distances[vertex] + graph[vertex][neighbor]
-                if alt < distances[neighbor]:
-                    distances[neighbor] = alt
+            for neighbour in graph[vertex]:
+                alt = distances[vertex] + graph[vertex][neighbour]
+                if alt < distances[neighbour]:
+                    distances[neighbour] = alt
+                if neighbour == end_tile:
+                    break # no need to look further
         return distances
 
     def get_shortest_sequence(self, distances, graph, start_tile, end_tile):
@@ -397,10 +416,10 @@ show([62, 67, 36, 86],
       67, 57, 56, 46,
       36, 37, 38, 48, 58, 68, 78, 88, 87, 86])
 print('\nmy solution:\n')
-start_time = datetime.now()
+start_time = time.time()
 shortest_path = four_pass([62, 67, 36, 86])
-end_time = datetime.now()
-print('total run time: {} minutes'.format(end_time - start_time))
+end_time = time.time()
+print('total run time: {} seconds'.format(end_time - start_time))
 show([62, 67, 36, 86], shortest_path)
 
 """
@@ -408,6 +427,18 @@ Performance tuning:
 
 baseline: 0:01:09.132954 minutes
 
+>>> 16 * 12 * 12 * 6
+13824
+>>> len(segment_variants)
+13824
+>>> cnt_NoNeighbour, cnt_NoPath, cnt_TileOccupied
+(53, 585, 7665)
+>>> len(segment_variants) - cnt_NoNeighbour - cnt_NoPath - cnt_TileOccupied
+5521
+
+Djikstra distances only until end tile found: 0:00:58.379339 minutes
+
+Join path only for min path: 0:00:52.745693 minutes
 
 """
 
