@@ -44,8 +44,8 @@ SOLUTIONS = [
      65, 75, 76, 77, 67, 57],
     [92, 93, 94, 95, 96, 97, 98, 99, 89, 79, 69, 59, 58, 68, 78, 88, 87, 77,
      67, 57, 47, 37, 27, 17, 16, 15, 14, 13, 12, 11],
-    [62, 63, 64, 65, 66, 67, 57, 47, 37, 36, 26, 27, 28, 38, 48, 58, 68, 78,
-     77, 76, 86],
+    [62, 63, 64, 65, 66, 67, 57, 56, 46, 36, 37, 38, 48, 58, 68, 78, 88, 87,
+     86],
     [83, 73, 74, 75, 76, 77, 78, 79, 89, 88, 87, 86, 96, 95, 94, 93, 92, 82,
      72, 62, 52, 42, 32, 22, 12, 2, 3, 4, 5, 6, 7],
     [16, 26, 25, 24, 23, 22, 21, 11, 10, 20, 30, 31, 32, 33, 34, 35, 36, 37,
@@ -72,6 +72,12 @@ SOLUTIONS = [
     [41, 31, 32, 33, 34, 44, 43, 42, 52, 62, 72, 82, 83, 84, 85, 75, 65, 55,
      45, 35, 25, 15]]
 
+def test_single_sample():
+    """ test """
+    validate_solution([62, 67, 36, 86],
+                      [62, 63, 64, 65, 66, 67, 57, 56, 46, 36, 37, 38, 48, 58,
+                       68, 78, 88, 87, 86])
+
 @pytest.mark.parametrize('stations, solution', zip(TESTS, SOLUTIONS))
 def test_examples(stations, solution):
     """ tests """
@@ -79,9 +85,10 @@ def test_examples(stations, solution):
 
 def validate_solution(stations, solution):
     """ helper function to validate solution path is the shortest """
+    test_case_path = four_pass(stations)
     if solution:
         lenghts_sol = get_seg_lens(stations, solution)
-        lenghts_test = get_seg_lens(stations, four_pass(stations))
+        lenghts_test = get_seg_lens(stations, test_case_path)
     else:
         lenghts_sol = solution
         lenghts_test = four_pass(stations)

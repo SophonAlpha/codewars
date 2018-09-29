@@ -11,6 +11,7 @@ https://en.wikipedia.org/wiki/Travelling_salesman_problem
 
 import itertools
 import copy
+from datetime import datetime
 
 CONV_BELT_MOD = 'c' # representation for one conveyer belt module
 
@@ -99,11 +100,12 @@ class Factory:
         for row, col in tiles:
             self.occupied.discard((row, col))
 
-    def is_occupied(self, row, col):
+    def is_occupied(self, tile):
         """
         Return true if a tile of the factory floor is occupied either by a
         station or by a conveyer belt module.
         """
+        row, col = tile
         return (row, col) in self.occupied
 
     def show_state(self):
@@ -125,7 +127,35 @@ class PathPlanner:
         self.factory = factory
         self.occupied_tiles = list(self.factory.stations.values())
 
-    def plan(self):
+#     def plan(self):
+#         """
+#         Main function. Uses Djikstra algorithm to find shortest path between
+#         stations. Djikstra does not guarantee to find the total shortest path
+#         between all stations. Total path length depends on the order in which
+#         which path segments are determined.
+# 
+#         To find shortest total path length plan runs through all permutations
+#         of segment combinations and returns min_path or None if not path could
+#         be found.
+#         """
+#         segment_variants = self.get_segment_variants()
+#         min_path = None
+#         for segment_set in segment_variants:
+#             self.factory.remove_conveyer_belts()
+#             order, segments = self.get_order_segments(segment_set)
+#             try:
+#                 path_segments = self.plan_stations_set(segments)
+#             except NoNeighbourError:
+#                 continue
+#             except NoPathError:
+#                 continue
+#             except TileOccupiedError:
+#                 continue
+#             path = self.join_paths(path_segments, order)
+#             min_path = self.get_min_path(path, min_path)
+#         return min_path
+    
+    def planv2(self):
         """
         Main function. Uses Djikstra algorithm to find shortest path between
         stations. Djikstra does not guarantee to find the total shortest path
@@ -136,30 +166,12 @@ class PathPlanner:
         of segment combinations and returns min_path or None if not path could
         be found.
         """
-        segment_variants = self.get_segment_variants()
-        min_path = None
-        for segment_set in segment_variants:
-            self.factory.remove_conveyer_belts()
-            order, segments = self.get_order_segments(segment_set)
-            try:
-                path_segments = self.plan_stations_set(segments)
-            except NoNeighbourError:
-                continue
-            except NoPathError:
-                continue
-            except TileOccupiedError:
-                continue
-            path = self.join_paths(path_segments, order)
-            min_path = self.get_min_path(path, min_path)
-        return min_path
-    
-    def planv2(self):
         stations = list(self.factory.stations.values())
         S = []
         for (s_row, s_col) in stations:
             S.append([(n_row, n_col) 
                       for (n_row, n_col) in self.get_neighbour_tiles(s_row, s_col)
-                      if not self.factory.is_occupied(n_row, n_col)])
+                      if not self.factory.is_occupied((n_row, n_col))])
         seg1_2 = list(zip(itertools.repeat(0), itertools.product(S[0], S[1])))
         seg2_3 = list(zip(itertools.repeat(1), itertools.product(S[1], S[2])))
         seg3_4 = list(zip(itertools.repeat(2), itertools.product(S[2], S[3])))
@@ -174,15 +186,22 @@ class PathPlanner:
             segment_variants = segment_variants + list(itertools.permutations(seg_comb, 3))
 
         min_path = None
+        cnt_NoNeighbour = cnt_NoPath = cnt_TileOccupied = 0
         for segment_set in segment_variants:
             self.factory.remove_conveyer_belts()
             order, segments = self.get_order_segments(segment_set)
             try:
                 path_segments = self.plan_stations_set(segments)
             except NoNeighbourError:
+                cnt_NoNeighbour += 1
                 continue
             except NoPathError:
+                cnt_NoPath += 1
                 continue
+            except TileOccupiedError:
+                cnt_TileOccupied += 1
+                continue
+            # TODO: performance tuning: join only the min_path not every path
             path = self.join_paths(path_segments, order)
             min_path = self.get_min_path(path, min_path)
         return min_path
@@ -219,13 +238,13 @@ class PathPlanner:
         Join the path segments together to one list. Avoid duplicate
         elements when joining the segments.
         """
+        stations = self.factory.stations
         path = []
         for i, _ in enumerate(order):
             seg = path_segments[order.index(i)]
-            if path and path[-1] == seg[0]:
-                path = path + seg[1:] # skip first element to avoid duplicates
-            else:
-                path = path + seg
+            path = path + [stations[i + 1]] + seg
+        path = path + [stations[len(stations)]] # add last station
+        path = self.convert(path)
         return path
 
     def plan_stations_set(self, segments):
@@ -236,7 +255,7 @@ class PathPlanner:
         for start_tile, end_tile in segments:
             path = self.get_shortest_path(start_tile, end_tile)
             self.place_conveyer_modules(path)
-            path_segments.append(self.convert(path))
+            path_segments.append(path)
         return path_segments
 
     def place_conveyer_modules(self, path):
@@ -280,21 +299,21 @@ class PathPlanner:
         excluded as well. This way the algorithm calculates paths around
         occupied tiles.
         """
-        # TODO: Optimisation potential. Don't waste time building the graph
-        # if if start or end tile are occupied or if they don't have neighbour
-        # tiles. 
         floor_dim = len(self.factory.floor)
-#         self.factory.unmark_occupied([start_tile, end_tile])
         tiles = set(itertools.product(range(0, floor_dim), repeat=2))
         tiles = tiles - self.factory.occupied
         distance = 1
         graph = {}
         for row, col in tiles:
             n_tiles = self.get_neighbour_tiles(row, col)
+            if ((row, col) == start_tile or (row, col) == end_tile) and \
+               not n_tiles:
+                # start and/or end tile are isolated, they have no neighbours,
+                # stop algorithm, not worth continuing
+                raise NoNeighbourError('ERROR: tile {} has no neighbour tiles.'.format((row, col)))
             distances = {(n_row, n_col): distance for n_row, n_col in n_tiles \
-                        if not self.factory.is_occupied(n_row, n_col)}
+                        if not self.factory.is_occupied((n_row, n_col))}
             graph[(row, col)] = distances
-#         self.factory.mark_occupied([start_tile, end_tile])
         return graph
 
     def get_neighbour_tiles(self, row, col):
@@ -372,31 +391,36 @@ def four_pass(stations):
     path = path_planner.planv2()
     return path
 
-four_pass([3, 7, 22, 6])
-
 print('\nshortest path:\n')
-show([62, 67, 36, 86],
-     [62, 63, 64, 65, 66, 67, 57, 56, 46, 36, 37, 38, 48, 58, 68, 78, 88,
-      87, 86])
+show([62, 67, 36, 86], 
+     [62, 63, 64, 65, 66,
+      67, 57, 56, 46,
+      36, 37, 38, 48, 58, 68, 78, 88, 87, 86])
 print('\nmy solution:\n')
-show([62, 67, 36, 86],
-     [62, 63, 64, 65, 66, 67, 57, 47, 37, 36, 26, 27, 28, 38, 48, 58, 68, 78,
-      77, 76, 86])
+start_time = datetime.now()
+shortest_path = four_pass([62, 67, 36, 86])
+end_time = datetime.now()
+print('total run time: {} minutes'.format(end_time - start_time))
+show([62, 67, 36, 86], shortest_path)
 
-print('\nshortest path:\n')
-show([83, 79, 96, 7],
-     [83, 73, 74, 75, 76, 77, 78, 79, 89, 88, 87, 86, 96, 95, 94, 93, 92, 82,
-      72, 62, 52, 42, 32, 22, 12, 2, 3, 4, 5, 6, 7])
-print('\nmy solution:\n')
-show([83, 79, 96, 7],
-     [83, 84, 74, 64, 65, 66, 67, 68, 69, 79, 78, 77, 76, 86, 96, 95, 94, 93,
-      92, 82, 72, 73, 63, 53, 54, 44, 34, 24, 25, 26, 16, 6, 7])
+"""
+Performance tuning:
 
-print('\nshortest path:\n')
-show([3, 7, 22, 6],
-     [3, 2, 1, 11, 21, 31, 32, 33, 34, 35, 36, 37, 38, 28, 18, 8, 7, 17, 27,
-      26, 25, 24, 23, 22, 12, 13, 14, 15, 16, 6])
-print('\nmy solution:\n')
-show([3, 7, 22, 6],
-     [3, 2, 1, 11, 21, 31, 41, 42, 43, 44, 45, 46, 47, 48, 38, 28, 18, 8, 7,
-      17, 27, 37, 36, 35, 34, 33, 32, 22, 23, 24, 25, 26, 16, 6])
+baseline: 0:01:09.132954 minutes
+
+
+"""
+
+# print('\nshortest path:\n')
+# show([83, 79, 96, 7],
+#      [83, 73, 74, 75, 76, 77, 78, 79, 89, 88, 87, 86, 96, 95, 94, 93, 92, 82,
+#       72, 62, 52, 42, 32, 22, 12, 2, 3, 4, 5, 6, 7])
+# print('\nmy solution:\n')
+# show([83, 79, 96, 7], four_pass([83, 79, 96, 7]))
+# 
+# print('\nshortest path:\n')
+# show([3, 7, 22, 6],
+#      [3, 2, 1, 11, 21, 31, 32, 33, 34, 35, 36, 37, 38, 28, 18, 8, 7, 17, 27,
+#       26, 25, 24, 23, 22, 12, 13, 14, 15, 16, 6])
+# print('\nmy solution:\n')
+# show([3, 7, 22, 6], four_pass([3, 7, 22, 6]))
