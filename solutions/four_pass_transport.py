@@ -6,6 +6,7 @@ https://www.codewars.com/kata/four-pass-transport
 Level: 1 kyu
 
 https://en.wikipedia.org/wiki/Travelling_salesman_problem
+https://en.wikipedia.org/wiki/A*_search_algorithm
 
 """
 
@@ -130,44 +131,37 @@ class PathPlanner:
         self.min_path_order = None
         self.min_path_len = None
 
-#     def plan(self):
-#         """
-#         Main function. Uses Djikstra algorithm to find shortest path between
-#         stations. Djikstra does not guarantee to find the total shortest path
-#         between all stations. Total path length depends on the order in which
-#         which path segments are determined.
-# 
-#         To find shortest total path length plan runs through all permutations
-#         of segment combinations and returns min_path or None if not path could
-#         be found.
-#         """
-#         segment_variants = self.get_segment_variants()
-#         min_path = None
-#         for segment_set in segment_variants:
-#             self.factory.remove_conveyer_belts()
-#             order, segments = self.get_order_segments(segment_set)
-#             try:
-#                 path_segments = self.plan_stations_set(segments)
-#             except NoNeighbourError:
-#                 continue
-#             except NoPathError:
-#                 continue
-#             except TileOccupiedError:
-#                 continue
-#             path = self.join_paths(path_segments, order)
-#             min_path = self.save_min_path(path, min_path)
-#         return min_path
-    
-    def planv2(self):
+    def plan(self):
         """
         Main function. Uses Djikstra algorithm to find shortest path between
         stations. Djikstra does not guarantee to find the total shortest path
         between all stations. Total path length depends on the order in which
         which path segments are determined.
-
+ 
         To find shortest total path length plan runs through all permutations
         of segment combinations and returns min_path or None if not path could
         be found.
+        """
+        segment_variants = self.get_segment_variants()
+        for segment_set in segment_variants:
+            self.factory.remove_conveyer_belts()
+            order, segments = self.get_order_segments(segment_set)
+            try:
+                path_segments = self.plan_stations_set(segments)
+            except NoNeighbourError:
+                continue
+            except NoPathError:
+                continue
+            except TileOccupiedError:
+                continue
+            self.save_min_path(path_segments, order)
+        min_path = self.join_paths()
+        return min_path
+    
+    def planv2(self):
+        """
+        Main function v2. Generates path segments for each "connector" of the
+        stations.
         """
 
         start_time = time.time()
@@ -220,9 +214,9 @@ class PathPlanner:
 
     def get_segment_variants(self):
         """ Generate list of all permutations of the segment order. """
-        stations = list(self.factory.stations.keys())
-        ordered_segments = [(i, (station, station + 1))
-                            for i, station in enumerate(stations[:-1])]
+        stations = list(self.factory.stations.values())
+        ordered_segments = [(i, (stations[i], stations[i + 1]))
+                            for i in range(len(stations) - 1)]
         segment_variants = list(itertools.permutations(ordered_segments, 3))
         return segment_variants
 
@@ -242,9 +236,9 @@ class PathPlanner:
         if not self.min_path_segments:
             self.min_path_segments = path_segments
             self.min_path_order = order
-            self.min_path_len = sum(map(lambda x: len(x), path_segments))
+            self.min_path_len = sum(map(len, path_segments))
         else:
-            lenght = sum(map(lambda x: len(x), path_segments))
+            lenght = sum(map(len, path_segments))
             if lenght < self.min_path_len:
                 self.min_path_segments = path_segments
                 self.min_path_order = order
@@ -259,7 +253,7 @@ class PathPlanner:
         path = []
         for i, _ in enumerate(self.min_path_order):
             seg = self.min_path_segments[self.min_path_order.index(i)]
-            path = path + [stations[i + 1]] + seg
+            path = path + seg[:-1]
         path = path + [stations[len(stations)]] # add last station
         path = self.convert(path)
         return path
@@ -270,10 +264,38 @@ class PathPlanner:
         """
         path_segments = []
         for start_tile, end_tile in segments:
-            path = self.get_shortest_path(start_tile, end_tile)
+            self.factory.unmark_occupied([start_tile, end_tile])
+#             path = self.get_shortest_path(start_tile, end_tile)
+            path = self.get_Astar_path(start_tile, end_tile)
+            self.factory.mark_occupied([start_tile, end_tile])
             self.place_conveyer_modules(path)
             path_segments.append(path)
         return path_segments
+
+    def get_Astar_path(self, start_tile, end_tile):
+        graph = self.build_graph(start_tile, end_tile)
+        distances = self.calculate_Astar_distances(start_tile, end_tile, graph)
+        
+    def calculate_Astar_distances(self, start_tile, end_tile, graph):
+        open_set = {start_tile: 0}
+        closed_set = {}
+        parents = {}
+        
+        while open_set:
+            q = min(open_set, key=open_set.get)
+            open_set.pop(q)
+            s = graph[q]
+            for successor in s:
+                parents[s] = parents[s].append(q) if parents else [q]
+                
+            
+            
+            
+            
+
+        
+        
+        
 
     def place_conveyer_modules(self, path):
         """
@@ -407,20 +429,23 @@ def four_pass(stations):
     """ main function """
     factory = Factory(stations)
     path_planner = PathPlanner(factory)
-    path = path_planner.planv2()
+#     path = path_planner.planv2()
+    path = path_planner.plan()
     return path
 
+print('-----------------------------------------------------------------------')
 print('\nshortest path:\n')
-show([62, 67, 36, 86], 
-     [62, 63, 64, 65, 66,
-      67, 57, 56, 46,
-      36, 37, 38, 48, 58, 68, 78, 88, 87, 86])
+short_path = [62, 63, 64, 65, 66,
+              67, 57, 56, 46,
+              36, 37, 38, 48, 58, 68, 78, 88, 87, 86]
+show([62, 67, 36, 86], short_path)
 print('\nmy solution:\n')
 start_time = time.time()
-shortest_path = four_pass([62, 67, 36, 86])
+sol_path = four_pass([62, 67, 36, 86])
 end_time = time.time()
 print('total run time: {} seconds'.format(end_time - start_time))
-show([62, 67, 36, 86], shortest_path)
+show([62, 67, 36, 86], sol_path)
+print('\nmy solution: {}, shortest: {}'.format(len(sol_path), len(short_path)))
 
 """
 Performance tuning:
@@ -442,16 +467,22 @@ Join path only for min path: 0:00:52.745693 minutes
 
 """
 
-# print('\nshortest path:\n')
-# show([83, 79, 96, 7],
-#      [83, 73, 74, 75, 76, 77, 78, 79, 89, 88, 87, 86, 96, 95, 94, 93, 92, 82,
-#       72, 62, 52, 42, 32, 22, 12, 2, 3, 4, 5, 6, 7])
-# print('\nmy solution:\n')
-# show([83, 79, 96, 7], four_pass([83, 79, 96, 7]))
-# 
-# print('\nshortest path:\n')
-# show([3, 7, 22, 6],
-#      [3, 2, 1, 11, 21, 31, 32, 33, 34, 35, 36, 37, 38, 28, 18, 8, 7, 17, 27,
-#       26, 25, 24, 23, 22, 12, 13, 14, 15, 16, 6])
-# print('\nmy solution:\n')
-# show([3, 7, 22, 6], four_pass([3, 7, 22, 6]))
+print('-----------------------------------------------------------------------')
+print('\nshortest path:\n')
+short_path = [83, 73, 74, 75, 76, 77, 78, 79, 89, 88, 87, 86, 96, 95, 94, 93,
+              92, 82, 72, 62, 52, 42, 32, 22, 12, 2, 3, 4, 5, 6, 7]
+show([83, 79, 96, 7], short_path)
+print('\nmy solution:\n')
+sol_path = four_pass([83, 79, 96, 7])
+show([83, 79, 96, 7], sol_path)
+print('\nmy solution: {}, shortest: {}'.format(len(sol_path), len(short_path)))
+
+print('-----------------------------------------------------------------------')
+print('\nshortest path:\n')
+short_path = [3, 2, 1, 11, 21, 31, 32, 33, 34, 35, 36, 37, 38, 28, 18, 8, 7,
+              17, 27, 26, 25, 24, 23, 22, 12, 13, 14, 15, 16, 6]
+show([3, 7, 22, 6], short_path)
+print('\nmy solution:\n')
+sol_path = four_pass([3, 7, 22, 6])
+show([3, 7, 22, 6], sol_path)
+print('\nmy solution: {}, shortest: {}'.format(len(sol_path), len(short_path)))
