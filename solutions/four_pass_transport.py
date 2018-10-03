@@ -7,12 +7,14 @@ Level: 1 kyu
 
 https://en.wikipedia.org/wiki/Travelling_salesman_problem
 https://en.wikipedia.org/wiki/A*_search_algorithm
+https://www.geeksforgeeks.org/a-search-algorithm/
 
 """
 
 import itertools
 import copy
 import time
+import math
 
 CONV_BELT_MOD = 'c' # representation for one conveyer belt module
 
@@ -274,40 +276,72 @@ class PathPlanner:
 
     def get_Astar_path(self, start_tile, end_tile):
         graph = self.build_graph(start_tile, end_tile)
-        distances = self.calculate_Astar_distances(start_tile, end_tile, graph)
-        
-    def calculate_Astar_distances(self, start_tile, end_tile, graph):
-        open_set = {start_tile: 0}
-        closed_set = {}
-        parents = {}
-        
-        while open_set:
-            q = min(open_set, key=open_set.get)
-            open_set.pop(q)
-            s = graph[q]
-            for successor in s:
-                parents[s] = parents[s].append(q) if parents else [q]
-                
-            
-            
-            
-            
+        path = self.Astar_search(start_tile, end_tile, graph)
+        if not path:
+            raise NoPathError('ERROR: no path from {} to {} found.'.format(start_tile, end_tile))
+        return path
 
-        
-        
-        
+    def Astar_search(self, start_tile, end_tile, graph):
+        closed_set = {}
+        open_set = {start_tile: self.manhattan_dist(start_tile, end_tile)}
+        came_from = {}
+        g_score = {start_tile: 0}
+        while open_set:
+            current = min(open_set, key=open_set.get)
+            if current == end_tile:
+                return self.reconstruct_path(came_from, current)
+            closed_set[current] = open_set[current]
+            open_set.pop(current)
+            neighbour_dists = graph[current]
+            for neighbour in neighbour_dists:
+                neighbour_g = g_score[current] + neighbour_dists[neighbour]
+                neighbour_f = neighbour_g + self.manhattan_dist(neighbour, end_tile)
+                if neighbour in open_set and \
+                   neighbour_f > open_set[neighbour]:
+                    continue
+                if neighbour in closed_set and \
+                   neighbour_f > closed_set[neighbour]:
+                    continue
+                elif neighbour in g_score and \
+                   neighbour_g < g_score[neighbour]:
+                    continue
+                came_from[neighbour] = current
+                g_score[neighbour] = neighbour_g
+                open_set[neighbour] = neighbour_f
+        return None
+
+    def manhattan_dist(self, start, end):
+        s_row, s_col = start
+        e_row, e_col = end
+        dist = abs(e_row - s_row) + abs(e_col - s_col)
+        return dist
+    
+    def euclidean_dist(self, start, end):
+        s_row, s_col = start
+        e_row, e_col = end
+        dist = math.sqrt(abs(e_row - s_row)**2 + abs(e_col - s_col)**2)
+        return dist
+
+    def reconstruct_path(self, came_from, current):
+        path = []
+        while current in came_from:
+            path.append(current)
+            current = came_from[current]
+        path.append(current)
+        path.reverse()
+        return path
 
     def place_conveyer_modules(self, path):
         """
         Place conveyer belt modules along the list of tiles provided.
         """
-        for tile in path: # exclude start station when placing conv. modules
+        for tile in path[1:-1]: # exclude start and end station tiles
             row, col = tile
             self.factory.place_conveyer_belt(row, col)
 
     def convert(self, path):
         """
-        Convert tile coordinates from '(row, col)' to single digit notation.
+        Convert tile coordinates from '(row, col)' to single integer notation.
         """
         path_converted = list(map(lambda tile: tile[0] * 10 + tile[1], path))
         return path_converted
@@ -433,19 +467,19 @@ def four_pass(stations):
     path = path_planner.plan()
     return path
 
-print('-----------------------------------------------------------------------')
-print('\nshortest path:\n')
-short_path = [62, 63, 64, 65, 66,
-              67, 57, 56, 46,
-              36, 37, 38, 48, 58, 68, 78, 88, 87, 86]
-show([62, 67, 36, 86], short_path)
-print('\nmy solution:\n')
-start_time = time.time()
-sol_path = four_pass([62, 67, 36, 86])
-end_time = time.time()
-print('total run time: {} seconds'.format(end_time - start_time))
-show([62, 67, 36, 86], sol_path)
-print('\nmy solution: {}, shortest: {}'.format(len(sol_path), len(short_path)))
+# print('-----------------------------------------------------------------------')
+# print('\nshortest path:\n')
+# short_path = [62, 63, 64, 65, 66,
+#               67, 57, 56, 46,
+#               36, 37, 38, 48, 58, 68, 78, 88, 87, 86]
+# show([62, 67, 36, 86], short_path)
+# print('\nmy solution:\n')
+# start_time = time.time()
+# sol_path = four_pass([62, 67, 36, 86])
+# end_time = time.time()
+# print('total run time: {} seconds'.format(end_time - start_time))
+# show([62, 67, 36, 86], sol_path)
+# print('\nmy solution: {}, shortest: {}'.format(len(sol_path), len(short_path)))
 
 """
 Performance tuning:
@@ -467,16 +501,16 @@ Join path only for min path: 0:00:52.745693 minutes
 
 """
 
-print('-----------------------------------------------------------------------')
-print('\nshortest path:\n')
-short_path = [83, 73, 74, 75, 76, 77, 78, 79, 89, 88, 87, 86, 96, 95, 94, 93,
-              92, 82, 72, 62, 52, 42, 32, 22, 12, 2, 3, 4, 5, 6, 7]
-show([83, 79, 96, 7], short_path)
-print('\nmy solution:\n')
-sol_path = four_pass([83, 79, 96, 7])
-show([83, 79, 96, 7], sol_path)
-print('\nmy solution: {}, shortest: {}'.format(len(sol_path), len(short_path)))
-
+# print('-----------------------------------------------------------------------')
+# print('\nshortest path:\n')
+# short_path = [83, 73, 74, 75, 76, 77, 78, 79, 89, 88, 87, 86, 96, 95, 94, 93,
+#               92, 82, 72, 62, 52, 42, 32, 22, 12, 2, 3, 4, 5, 6, 7]
+# show([83, 79, 96, 7], short_path)
+# print('\nmy solution:\n')
+# sol_path = four_pass([83, 79, 96, 7])
+# show([83, 79, 96, 7], sol_path)
+# print('\nmy solution: {}, shortest: {}'.format(len(sol_path), len(short_path)))
+# 
 print('-----------------------------------------------------------------------')
 print('\nshortest path:\n')
 short_path = [3, 2, 1, 11, 21, 31, 32, 33, 34, 35, 36, 37, 38, 28, 18, 8, 7,
