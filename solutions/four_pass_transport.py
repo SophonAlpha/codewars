@@ -283,7 +283,8 @@ class PathPlanner:
 
     def Astar_search(self, start_tile, end_tile, graph):
         closed_set = {}
-        open_set = {start_tile: self.manhattan_dist(start_tile, end_tile)}
+        open_set = {start_tile: self.manhattan_dist(start_tile, end_tile) + \
+                                self.cross_product(start_tile, start_tile, end_tile)}
         came_from = {}
         g_score = {start_tile: 0}
         while open_set:
@@ -295,7 +296,9 @@ class PathPlanner:
             neighbour_dists = graph[current]
             for neighbour in neighbour_dists:
                 neighbour_g = g_score[current] + neighbour_dists[neighbour]
-                neighbour_f = neighbour_g + self.manhattan_dist(neighbour, end_tile)
+                neighbour_f = neighbour_g + \
+                              self.manhattan_dist(neighbour, end_tile) + \
+                              self.cross_product(start_tile, neighbour, end_tile)
                 if neighbour in open_set and \
                    neighbour_f > open_set[neighbour]:
                     continue
@@ -321,6 +324,18 @@ class PathPlanner:
         e_row, e_col = end
         dist = math.sqrt(abs(e_row - s_row)**2 + abs(e_col - s_col)**2)
         return dist
+    
+    def cross_product(self, start, current, end):
+        ATTENUATION = 0.001
+        s_row, s_col = start
+        c_row, c_col = current
+        e_row, e_col = end
+        dx1 = c_col - e_col
+        dy1 = c_row - e_row
+        dx2 = s_col - e_col
+        dy2 = s_row - e_row
+        cross = abs(dx1 * dy2 - dx2*dy1)
+        return cross * ATTENUATION
 
     def reconstruct_path(self, came_from, current):
         path = []
@@ -510,7 +525,7 @@ Join path only for min path: 0:00:52.745693 minutes
 # sol_path = four_pass([83, 79, 96, 7])
 # show([83, 79, 96, 7], sol_path)
 # print('\nmy solution: {}, shortest: {}'.format(len(sol_path), len(short_path)))
-# 
+#  
 print('-----------------------------------------------------------------------')
 print('\nshortest path:\n')
 short_path = [3, 2, 1, 11, 21, 31, 32, 33, 34, 35, 36, 37, 38, 28, 18, 8, 7,
@@ -520,3 +535,13 @@ print('\nmy solution:\n')
 sol_path = four_pass([3, 7, 22, 6])
 show([3, 7, 22, 6], sol_path)
 print('\nmy solution: {}, shortest: {}'.format(len(sol_path), len(short_path)))
+
+# print('-----------------------------------------------------------------------')
+# print('\nshortest path:\n')
+# short_path = None
+# show([0, 99, 9, 90], short_path)
+# print('\nmy solution:\n')
+# sol_path = four_pass([0, 99, 9, 90])
+# show([3, 7, 22, 6], sol_path)
+# print('\nmy solution: {}, shortest: {}'.format(len(sol_path), len(short_path)))
+
