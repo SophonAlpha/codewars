@@ -220,6 +220,13 @@ class PathPlanner:
         ordered_segments = [(i, (stations[i], stations[i + 1]))
                             for i in range(len(stations) - 1)]
         segment_variants = list(itertools.permutations(ordered_segments, 3))
+        heur_funcs = ['heur_no_heuristic', 'heur_manhattan',
+                      'heur_manhattan_cross', 'heur_manhattan_vertical',
+                      'heur_manhattan_horizontal']
+        heur_combs = list(itertools.product(heur_funcs, repeat=3))
+        segment_variants = [((s1, h1), (s2, h2), (s3, h3))
+                            for (s1, s2, s3) in segment_variants
+                            for (h1, h2, h3) in heur_combs]
         return segment_variants
 
     def get_order_segments(self, segment_set):
@@ -267,7 +274,7 @@ class PathPlanner:
         path_segments = []
         for start_tile, end_tile in segments:
             self.factory.unmark_occupied([start_tile, end_tile])
-#             path = self.get_shortest_path(start_tile, end_tile)
+#             path = self.get_shortest_path(start_tile, end)
             path = self.get_Astar_path(start_tile, end_tile)
             self.factory.mark_occupied([start_tile, end_tile])
             self.place_conveyer_modules(path)
@@ -276,12 +283,12 @@ class PathPlanner:
 
     def get_Astar_path(self, start_tile, end_tile):
         graph = self.build_graph(start_tile, end_tile)
-        path = self.Astar_search(start_tile, end_tile, graph)
+        path = self.astar(start_tile, end_tile, graph)
         if not path:
             raise NoPathError('ERROR: no path from {} to {} found.'.format(start_tile, end_tile))
         return path
 
-    def Astar_search(self, start_tile, end_tile, graph):
+    def astar(self, start_tile, end_tile, graph):
         closed_set = {}
         open_set = {start_tile: self.manhattan_dist(start_tile, end_tile) + \
                                 self.cross_product(start_tile, start_tile, end_tile)}
@@ -297,8 +304,7 @@ class PathPlanner:
             for neighbour in neighbour_dists:
                 neighbour_g = g_score[current] + neighbour_dists[neighbour]
                 neighbour_f = neighbour_g + \
-                              self.manhattan_dist(neighbour, end_tile) + \
-                              self.cross_product(start_tile, neighbour, end_tile)
+                              self.heuristic(start_tile, neighbour, end_tile)
                 if neighbour in open_set and \
                    neighbour_f > open_set[neighbour]:
                     continue
@@ -312,6 +318,36 @@ class PathPlanner:
                 g_score[neighbour] = neighbour_g
                 open_set[neighbour] = neighbour_f
         return None
+    
+    def heuristic(self, start, current, end):
+        h = self.manhattan_dist(current, end) + \
+            self.horizontal_dist(current, end)
+#             self.vertical_dist(current, end)
+#             self.cross_product(start, current, end)
+        return h
+
+    def heur_no_heuristic(self, start, current, end):
+        h = 0
+        return h
+
+    def heur_manhattan(self, start, current, end):
+        h = self.manhattan_dist(current, end)
+        return h
+
+    def heur_manhattan_cross(self, start, current, end):
+        h = self.manhattan_dist(current, end) + \
+            self.cross_product(start, current, end)
+        return h
+
+    def heur_manhattan_vertical(self, start, current, end):
+        h = self.manhattan_dist(current, end) + \
+            self.vertical_dist(current, end)
+        return h
+    
+    def heur_manhattan_horizontal(self, start, current, end):
+        h = self.manhattan_dist(current, end) + \
+            self.horizontal_dist(current, end)
+        return h        
 
     def manhattan_dist(self, start, end):
         s_row, s_col = start
@@ -336,6 +372,18 @@ class PathPlanner:
         dy2 = s_row - e_row
         cross = abs(dx1 * dy2 - dx2*dy1)
         return cross * ATTENUATION
+    
+    def vertical_dist(self, current, end):
+        ATTENUATION = 0.001
+        c_row, _ = current
+        e_row, _ = end
+        return abs(e_row - c_row) * ATTENUATION
+    
+    def horizontal_dist(self, current, end):
+        ATTENUATION = 0.001
+        _, c_col = current
+        _, e_col = end
+        return (e_col - c_col) * ATTENUATION
 
     def reconstruct_path(self, came_from, current):
         path = []
