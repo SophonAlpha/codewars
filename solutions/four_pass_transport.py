@@ -159,60 +159,6 @@ class PathPlanner:
             self.save_min_path(path_segments, order)
         min_path = self.join_paths()
         return min_path
-    
-    def planv2(self):
-        """
-        Main function v2. Generates path segments for each "connector" of the
-        stations.
-        """
-
-        start_time = time.time()
-
-        stations = list(self.factory.stations.values())
-        S = []
-        for (s_row, s_col) in stations:
-            S.append([(n_row, n_col) 
-                      for (n_row, n_col) in self.get_neighbour_tiles(s_row, s_col)
-                      if not self.factory.is_occupied((n_row, n_col))])
-        seg1_2 = list(zip(itertools.repeat(0), itertools.product(S[0], S[1])))
-        seg2_3 = list(zip(itertools.repeat(1), itertools.product(S[1], S[2])))
-        seg3_4 = list(zip(itertools.repeat(2), itertools.product(S[2], S[3])))
-        seg_combs = [(seg1_2, seg2_3, seg3_4)
-                     for seg1_2, seg2_3, seg3_4 in itertools.product(seg1_2,
-                                                                     seg2_3,
-                                                                     seg3_4)
-                     if not seg1_2[1][1] == seg2_3[1][0] and 
-                        not seg2_3[1][1] == seg3_4[1][0]]
-        segment_variants = []
-        for seg_comb in seg_combs:
-            segment_variants = segment_variants + list(itertools.permutations(seg_comb, 3))
-
-        end_time = time.time()
-        print('segment_variants: {} seconds'.format(end_time - start_time))
-        start_time = time.time()
-
-        cnt_NoNeighbour = cnt_NoPath = cnt_TileOccupied = 0
-        for segment_set in segment_variants:
-            self.factory.remove_conveyer_belts()
-            order, segments = self.get_order_segments(segment_set)
-            try:
-                path_segments = self.plan_stations_set(segments)
-            except NoNeighbourError:
-                cnt_NoNeighbour += 1
-                continue
-            except NoPathError:
-                cnt_NoPath += 1
-                continue
-            except TileOccupiedError:
-                cnt_TileOccupied += 1
-                continue
-            self.save_min_path(path_segments, order)
-        min_path = self.join_paths()
-        
-        end_time = time.time()
-        print('processing segment_variants: {} seconds'.format(end_time - start_time))
-
-        return min_path
 
     def get_segment_variants(self):
         """ Generate list of all permutations of the segment order. """
@@ -220,12 +166,16 @@ class PathPlanner:
         ordered_segments = [(i, (stations[i], stations[i + 1]))
                             for i in range(len(stations) - 1)]
         segment_variants = list(itertools.permutations(ordered_segments, 3))
-        heur_funcs = ['heur_no_heuristic', 'heur_manhattan',
-                      'heur_manhattan_cross', 'heur_manhattan_vertical',
-                      'heur_manhattan_horizontal']
+        heur_funcs = [
+                      'heur_no_heuristic',
+                      'heur_manhattan',
+                      'heur_manhattan_cross',
+                      'heur_manhattan_vertical',
+                      'heur_manhattan_horizontal'
+                     ]
         heur_combs = list(itertools.product(heur_funcs, repeat=3))
-        segment_variants = [((s1, h1), (s2, h2), (s3, h3))
-                            for (s1, s2, s3) in segment_variants
+        segment_variants = [((o1, (s1, h1)), (o2, (s2, h2)), (o3, (s3, h3)))
+                            for ((o1, s1), (o2, s2), (o3, s3)) in segment_variants
                             for (h1, h2, h3) in heur_combs]
         return segment_variants
 
@@ -258,6 +208,8 @@ class PathPlanner:
         Join the path segments together to one list. Avoid duplicate
         elements when joining the segments.
         """
+        if not self.min_path_order:
+            return None
         stations = self.factory.stations
         path = []
         for i, _ in enumerate(self.min_path_order):
@@ -272,26 +224,25 @@ class PathPlanner:
         Plan the shortest path between stations and place conveyer belt modules.
         """
         path_segments = []
-        for start_tile, end_tile in segments:
+        for (start_tile, end_tile), heuristic in segments:
             self.factory.unmark_occupied([start_tile, end_tile])
-#             path = self.get_shortest_path(start_tile, end)
-            path = self.get_Astar_path(start_tile, end_tile)
+            path = self.get_Astar_path(start_tile, end_tile, heuristic)
             self.factory.mark_occupied([start_tile, end_tile])
             self.place_conveyer_modules(path)
             path_segments.append(path)
         return path_segments
 
-    def get_Astar_path(self, start_tile, end_tile):
+    def get_Astar_path(self, start_tile, end_tile, heuristic):
         graph = self.build_graph(start_tile, end_tile)
-        path = self.astar(start_tile, end_tile, graph)
+        path = self.astar(start_tile, end_tile, heuristic, graph)
         if not path:
             raise NoPathError('ERROR: no path from {} to {} found.'.format(start_tile, end_tile))
         return path
 
-    def astar(self, start_tile, end_tile, graph):
+    def astar(self, start_tile, end_tile, heuristic, graph):
+        heuristic_func = getattr(self, heuristic, self.heur_generic)
         closed_set = {}
-        open_set = {start_tile: self.manhattan_dist(start_tile, end_tile) + \
-                                self.cross_product(start_tile, start_tile, end_tile)}
+        open_set = {start_tile: heuristic_func(start_tile, start_tile, end_tile)}
         came_from = {}
         g_score = {start_tile: 0}
         while open_set:
@@ -304,7 +255,7 @@ class PathPlanner:
             for neighbour in neighbour_dists:
                 neighbour_g = g_score[current] + neighbour_dists[neighbour]
                 neighbour_f = neighbour_g + \
-                              self.heuristic(start_tile, neighbour, end_tile)
+                              heuristic_func(start_tile, neighbour, end_tile)
                 if neighbour in open_set and \
                    neighbour_f > open_set[neighbour]:
                     continue
@@ -319,12 +270,8 @@ class PathPlanner:
                 open_set[neighbour] = neighbour_f
         return None
     
-    def heuristic(self, start, current, end):
-        h = self.manhattan_dist(current, end) + \
-            self.horizontal_dist(current, end)
-#             self.vertical_dist(current, end)
-#             self.cross_product(start, current, end)
-        return h
+    def heur_generic(self, start, current, end):
+        raise Exception('Unknown heuristic function')
 
     def heur_no_heuristic(self, start, current, end):
         h = 0
@@ -353,12 +300,6 @@ class PathPlanner:
         s_row, s_col = start
         e_row, e_col = end
         dist = abs(e_row - s_row) + abs(e_col - s_col)
-        return dist
-    
-    def euclidean_dist(self, start, end):
-        s_row, s_col = start
-        e_row, e_col = end
-        dist = math.sqrt(abs(e_row - s_row)**2 + abs(e_col - s_col)**2)
         return dist
     
     def cross_product(self, start, current, end):
@@ -409,23 +350,6 @@ class PathPlanner:
         path_converted = list(map(lambda tile: tile[0] * 10 + tile[1], path))
         return path_converted
 
-    def get_shortest_path(self, start_tile, end_tile):
-        """
-        Calculate a sequence of tiles to be moved that get a tile to the target
-        position. Uses Dijkstra algorithm for shortest path calculation.
-        """
-        if self.factory.is_occupied(start_tile):
-            raise TileOccupiedError('ERROR: tile {} is occupied.'.format(start_tile))
-        if self.factory.is_occupied(end_tile):
-            raise TileOccupiedError('ERROR: tile {} is occupied.'.format(end_tile))
-        graph = self.build_graph(start_tile, end_tile)
-        distances = self.calculate_distances(start_tile, end_tile, graph)
-        tile_sequence = self.get_shortest_sequence(distances, graph,
-                                                   start_tile,
-                                                   end_tile)
-        tile_sequence.reverse()
-        return tile_sequence
-
     def build_graph(self, start_tile, end_tile):
         """
         Build a graph representation of the factory floor. The floor tiles are
@@ -468,67 +392,16 @@ class PathPlanner:
                 neighbours.append((n_row, n_col))
         return neighbours
 
-    def calculate_distances(self, start_tile, end_tile, graph):
-        """
-        Perform the distance calculations required for the Dijkstra algorithm.
-
-        Based on this introduction to the Dijkstra algorithm:
-        https://brilliant.org/wiki/dijkstras-short-path-finder/
-        """
-        infinity = float('inf')
-        unvisited = [vertex for vertex in graph]
-        distances = {vertex: infinity for vertex in unvisited}
-        distances[start_tile] = 0
-        # calculate distances from source
-        while unvisited:
-            unvisited_dist = {v:distances[v] for v in unvisited}
-            vertex = min(unvisited_dist, key=unvisited_dist.get)
-            unvisited.remove(vertex)
-            if not graph[vertex] and vertex == start_tile:
-                raise NoNeighbourError('ERROR: tile {} has no neighbour tiles.'.format(vertex))
-            for neighbour in graph[vertex]:
-                alt = distances[vertex] + graph[vertex][neighbour]
-                if alt < distances[neighbour]:
-                    distances[neighbour] = alt
-                if neighbour == end_tile:
-                    break # no need to look further
-        return distances
-
-    def get_shortest_sequence(self, distances, graph, start_tile, end_tile):
-        """
-        After the graph has been build and the distances within the graph
-        have been calculated, this function works out the shortest sequence of
-        tiles.
-        """
-        if not graph[end_tile]:
-            raise NoPathError('ERROR: no path to tile {} found.'.format(end_tile))
-        tile = end_tile
-        tile_sequence = []
-        while not tile == start_tile:
-            neighbour_dist = {neighbour:distances[neighbour] for neighbour in graph[tile]}
-            if self.all_dist_infinite(neighbour_dist):
-                raise NoPathError('ERROR: no path to tile {} found.'.format(tile))
-            tile_sequence.append(tile)
-            tile = min(neighbour_dist, key=neighbour_dist.get)
-        tile_sequence.append(start_tile)
-        return tile_sequence
-
-    def all_dist_infinite(self, neighbor_dist):
-        """
-        Check if distances to all neighbour tiles are infinite. This is the case
-        when no path between stations could be found (e.g. factory floor
-        separated by conveyer belt.)
-        """
-        dists = set(neighbor_dist.values())
-        return len(dists) == 1 and float('inf') in dists
-
 def four_pass(stations):
     """ main function """
     factory = Factory(stations)
     path_planner = PathPlanner(factory)
-#     path = path_planner.planv2()
     path = path_planner.plan()
     return path
+
+[1, 69, 95, 70]
+sol_path = four_pass([1, 69, 95, 70])
+show([1, 69, 95, 70], sol_path)
 
 # print('-----------------------------------------------------------------------')
 # print('\nshortest path:\n')
