@@ -5,6 +5,8 @@ https://www.codewars.com/kata/four-pass-transport
 
 Level: 1 kyu
 
+Useful learning sources:
+https://www.redblobgames.com/pathfinding/a-star/introduction.html
 https://en.wikipedia.org/wiki/Travelling_salesman_problem
 https://en.wikipedia.org/wiki/A*_search_algorithm
 https://www.geeksforgeeks.org/a-search-algorithm/
@@ -13,12 +15,14 @@ https://www.geeksforgeeks.org/a-search-algorithm/
 
 import itertools
 import copy
-import time
-import math
 
 CONV_BELT_MOD = 'c' # representation for one conveyer belt module
+ATTENUATION = 0.001
 
 def show(stations, path):
+    """
+    Helper function to display factory floor, stations and conveyer belt modules.
+    """
     symbols = {0: 'a', 1: 'b', 2: 'c', 3: 'd'}
     floor = [[None] * 10 for _ in range(0, 10)]
     for p in path:
@@ -36,6 +40,10 @@ def show(stations, path):
         print(line)
 
 def convert(pos):
+    """
+    Convert single integer representation of position coordinates (e.g. 34) to
+    two integer representation (e.g. row: 3, column: 4).
+    """
     row = pos // 10
     col = pos % 10
     return row, col
@@ -85,7 +93,7 @@ class Factory:
         self.mark_occupied([(row, col)])
 
     def remove_conveyer_belts(self):
-        """ remove all conveyer belts from factory floor """
+        """ Remove all conveyer belts from factory floor. """
         self.floor = copy.deepcopy(self.empty_floor)
         self.occupied = copy.deepcopy(self.empty_occupied)
 
@@ -135,14 +143,24 @@ class PathPlanner:
 
     def plan(self):
         """
-        Main function. Uses Djikstra algorithm to find shortest path between
-        stations. Djikstra does not guarantee to find the total shortest path
-        between all stations. Total path length depends on the order in which
-        which path segments are determined.
- 
-        To find shortest total path length plan runs through all permutations
-        of segment combinations and returns min_path or None if not path could
-        be found.
+        Main function. Uses A* algorithm with combinations of heuristics and 
+        path segment orders to find shortest overall path that crosses a series
+        of stations.
+
+        A path segment is the path between two stations. With four stations 
+        there are three segments: segment 1: station 1 - station 2, 
+        segment 2: station 2 - station 3, segment 3: station 3 - station 4). A*
+        finds the shortest path for individual segments. However, this does not
+        guarantee overall shortest path. The overall path length is highly
+        dependent on the order in which the segments are processed. The
+        algorithm used in this solution runs A* for all permutations of the
+        path segments.
+
+        In addition to path segment permutations the algorithm varies the
+        heuristics used by the A* search function. Tests showed that forcing A*
+        to prefer straight horizontal or vertical paths seems to help finding
+        optimum solutions However, this is no proof that this approach will
+        always find the shortest overall path.
         """
         segment_variants = self.get_segment_variants()
         for segment_set in segment_variants:
@@ -161,17 +179,30 @@ class PathPlanner:
         return min_path
 
     def get_segment_variants(self):
-        """ Generate list of all permutations of the segment order. """
+        """
+        Generate a list of all segment orders + A* heuristics to be tested.
+        
+        First all permutations of segment orders are generated. Then, for each
+        order each segment gets each heuristic assigned.
+        
+        For four stations and two heuristics this generates the following number
+        of segment variants:
+            - permutations of 3 segments = 6 variants in segment order
+            - each segment tested with 2 heuristics = 2^3 = 8 heuristic variants 
+              for one segment order
+            - 6 segment orders * 8 heuristic variants = 48 segment variants to
+              be tested
+        """
         stations = list(self.factory.stations.values())
         ordered_segments = [(i, (stations[i], stations[i + 1]))
                             for i in range(len(stations) - 1)]
         segment_variants = list(itertools.permutations(ordered_segments, 3))
         heur_funcs = [
-                      'heur_no_heuristic',
-                      'heur_manhattan',
-                      'heur_manhattan_cross',
-                      'heur_manhattan_vertical',
-                      'heur_manhattan_horizontal'
+#                       'heur_no_heuristic',
+#                       'heur_manhattan',
+#                       'heur_manhattan_cross',
+                    'heur_manhattan_vertical',
+                    'heur_manhattan_horizontal'
                      ]
         heur_combs = list(itertools.product(heur_funcs, repeat=3))
         segment_variants = [((o1, (s1, h1)), (o2, (s2, h2)), (o3, (s3, h3)))
@@ -187,6 +218,19 @@ class PathPlanner:
         order = [o for o, _ in segment_set]
         segments = [s for _, s in segment_set]
         return order, segments
+
+    def plan_stations_set(self, segments):
+        """
+        Plan the shortest path between stations and place conveyer belt modules.
+        """
+        path_segments = []
+        for (start_tile, end_tile), heuristic in segments:
+            self.factory.unmark_occupied([start_tile, end_tile])
+            path = self.get_Astar_path(start_tile, end_tile, heuristic)
+            self.factory.mark_occupied([start_tile, end_tile])
+            self.place_conveyer_modules(path)
+            path_segments.append(path)
+        return path_segments
 
     def save_min_path(self, path_segments, order):
         """
@@ -218,19 +262,6 @@ class PathPlanner:
         path = path + [stations[len(stations)]] # add last station
         path = self.convert(path)
         return path
-
-    def plan_stations_set(self, segments):
-        """
-        Plan the shortest path between stations and place conveyer belt modules.
-        """
-        path_segments = []
-        for (start_tile, end_tile), heuristic in segments:
-            self.factory.unmark_occupied([start_tile, end_tile])
-            path = self.get_Astar_path(start_tile, end_tile, heuristic)
-            self.factory.mark_occupied([start_tile, end_tile])
-            self.place_conveyer_modules(path)
-            path_segments.append(path)
-        return path_segments
 
     def get_Astar_path(self, start_tile, end_tile, heuristic):
         graph = self.build_graph(start_tile, end_tile)
@@ -303,7 +334,6 @@ class PathPlanner:
         return dist
     
     def cross_product(self, start, current, end):
-        ATTENUATION = 0.001
         s_row, s_col = start
         c_row, c_col = current
         e_row, e_col = end
@@ -315,7 +345,6 @@ class PathPlanner:
         return cross * ATTENUATION
     
     def vertical_dist(self, current, end):
-        ATTENUATION = 0.001
         c_row, _ = current
         e_row, _ = end
         return abs(e_row - c_row) * ATTENUATION
@@ -398,71 +427,3 @@ def four_pass(stations):
     path_planner = PathPlanner(factory)
     path = path_planner.plan()
     return path
-
-[1, 69, 95, 70]
-sol_path = four_pass([1, 69, 95, 70])
-show([1, 69, 95, 70], sol_path)
-
-# print('-----------------------------------------------------------------------')
-# print('\nshortest path:\n')
-# short_path = [62, 63, 64, 65, 66,
-#               67, 57, 56, 46,
-#               36, 37, 38, 48, 58, 68, 78, 88, 87, 86]
-# show([62, 67, 36, 86], short_path)
-# print('\nmy solution:\n')
-# start_time = time.time()
-# sol_path = four_pass([62, 67, 36, 86])
-# end_time = time.time()
-# print('total run time: {} seconds'.format(end_time - start_time))
-# show([62, 67, 36, 86], sol_path)
-# print('\nmy solution: {}, shortest: {}'.format(len(sol_path), len(short_path)))
-
-"""
-Performance tuning:
-
-baseline: 0:01:09.132954 minutes
-
->>> 16 * 12 * 12 * 6
-13824
->>> len(segment_variants)
-13824
->>> cnt_NoNeighbour, cnt_NoPath, cnt_TileOccupied
-(53, 585, 7665)
->>> len(segment_variants) - cnt_NoNeighbour - cnt_NoPath - cnt_TileOccupied
-5521
-
-Djikstra distances only until end tile found: 0:00:58.379339 minutes
-
-Join path only for min path: 0:00:52.745693 minutes
-
-"""
-
-# print('-----------------------------------------------------------------------')
-# print('\nshortest path:\n')
-# short_path = [83, 73, 74, 75, 76, 77, 78, 79, 89, 88, 87, 86, 96, 95, 94, 93,
-#               92, 82, 72, 62, 52, 42, 32, 22, 12, 2, 3, 4, 5, 6, 7]
-# show([83, 79, 96, 7], short_path)
-# print('\nmy solution:\n')
-# sol_path = four_pass([83, 79, 96, 7])
-# show([83, 79, 96, 7], sol_path)
-# print('\nmy solution: {}, shortest: {}'.format(len(sol_path), len(short_path)))
-#  
-print('-----------------------------------------------------------------------')
-print('\nshortest path:\n')
-short_path = [3, 2, 1, 11, 21, 31, 32, 33, 34, 35, 36, 37, 38, 28, 18, 8, 7,
-              17, 27, 26, 25, 24, 23, 22, 12, 13, 14, 15, 16, 6]
-show([3, 7, 22, 6], short_path)
-print('\nmy solution:\n')
-sol_path = four_pass([3, 7, 22, 6])
-show([3, 7, 22, 6], sol_path)
-print('\nmy solution: {}, shortest: {}'.format(len(sol_path), len(short_path)))
-
-# print('-----------------------------------------------------------------------')
-# print('\nshortest path:\n')
-# short_path = None
-# show([0, 99, 9, 90], short_path)
-# print('\nmy solution:\n')
-# sol_path = four_pass([0, 99, 9, 90])
-# show([3, 7, 22, 6], sol_path)
-# print('\nmy solution: {}, shortest: {}'.format(len(sol_path), len(short_path)))
-
