@@ -14,18 +14,22 @@ https://www.geeksforgeeks.org/a-search-algorithm/
 """
 
 import itertools
+import collections
 import copy
+import time
 
 CONV_BELT_MOD = 'c' # representation for one conveyer belt module
 ATTENUATION = 0.001
 
-def show(stations, path):
+def show(stations, test_path):
     """
     Helper function to display factory floor, stations and conveyer belt modules.
     """
+    if not test_path:
+        return
     symbols = {0: 'a', 1: 'b', 2: 'c', 3: 'd'}
     floor = [[None] * 10 for _ in range(0, 10)]
-    for p in path:
+    for p in test_path:
         if p in stations:
             symbol = symbols[stations.index(p)]
         row, col = convert(p)
@@ -53,11 +57,11 @@ class NoNeighbourError(Exception):
     pass
 
 class NoPathError(Exception):
-    """ Error to be raised when issues with finding a path between stations."""
+    """ Error to be raised when issues with finding a test_path between stations."""
     pass
 
 class TileOccupiedError(Exception):
-    """ Error to be raised when a occupied tile is selected as path element."""
+    """ Error to be raised when a occupied tile is selected as test_path element."""
     pass
 
 class Factory:
@@ -131,7 +135,7 @@ class Factory:
 
 class PathPlanner:
     """
-    Plans the shortest path through the factory floor.
+    Plans the shortest test_path through the factory floor.
     """
 
     def __init__(self, factory):
@@ -144,23 +148,23 @@ class PathPlanner:
     def plan(self):
         """
         Main function. Uses A* algorithm with combinations of heuristics and 
-        path segment orders to find shortest overall path that crosses a series
+        test_path segment orders to find shortest overall test_path that crosses a series
         of stations.
 
-        A path segment is the path between two stations. With four stations 
+        A test_path segment is the test_path between two stations. With four stations 
         there are three segments: segment 1: station 1 - station 2, 
         segment 2: station 2 - station 3, segment 3: station 3 - station 4). A*
-        finds the shortest path for individual segments. However, this does not
-        guarantee overall shortest path. The overall path length is highly
+        finds the shortest test_path for individual segments. However, this does not
+        guarantee overall shortest test_path. The overall test_path length is highly
         dependent on the order in which the segments are processed. The
         algorithm used in this solution runs A* for all permutations of the
-        path segments.
+        test_path segments.
 
-        In addition to path segment permutations the algorithm varies the
+        In addition to test_path segment permutations the algorithm varies the
         heuristics used by the A* search function. Tests showed that forcing A*
         to prefer straight horizontal or vertical paths seems to help finding
         optimum solutions However, this is no proof that this approach will
-        always find the shortest overall path.
+        always find the shortest overall test_path.
         """
         segment_variants = self.get_segment_variants()
         for segment_set in segment_variants:
@@ -213,7 +217,7 @@ class PathPlanner:
     def get_order_segments(self, segment_set):
         """
         Return the order of segments. This is required to recombine the
-        individual path segments in the correct order to the total path.
+        individual test_path segments in the correct order to the total test_path.
         """
         order = [o for o, _ in segment_set]
         segments = [s for _, s in segment_set]
@@ -221,15 +225,23 @@ class PathPlanner:
 
     def plan_stations_set(self, segments):
         """
-        Plan the shortest path between stations and place conveyer belt modules.
+        Plan the shortest test_path between stations and place conveyer belt modules.
         """
         path_segments = []
         for (start_tile, end_tile), heuristic in segments:
             self.factory.unmark_occupied([start_tile, end_tile])
-            path = self.get_Astar_path(start_tile, end_tile, heuristic)
+            start_time = time.time()
+            test_path = self.get_manhattan_path(start_tile, end_tile, heuristic)
+            end_time = time.time()
+            if test_path: print('get_manhattan_path run time: {}'.format(end_time - start_time))
+            if not test_path:
+                start_time = time.time()
+                test_path = self.get_Astar_path(start_tile, end_tile, heuristic)
+                end_time = time.time()
+                if test_path: print('get_Astar_path run time: {}'.format(end_time - start_time))                
             self.factory.mark_occupied([start_tile, end_tile])
-            self.place_conveyer_modules(path)
-            path_segments.append(path)
+            self.place_conveyer_modules(test_path)
+            path_segments.append(test_path)
         return path_segments
 
     def save_min_path(self, path_segments, order):
@@ -249,26 +261,39 @@ class PathPlanner:
 
     def join_paths(self):
         """
-        Join the path segments together to one list. Avoid duplicate
+        Join the test_path segments together to one list. Avoid duplicate
         elements when joining the segments.
         """
         if not self.min_path_order:
             return None
         stations = self.factory.stations
-        path = []
+        test_path = []
         for i, _ in enumerate(self.min_path_order):
             seg = self.min_path_segments[self.min_path_order.index(i)]
-            path = path + seg[:-1]
-        path = path + [stations[len(stations)]] # add last station
-        path = self.convert(path)
-        return path
+            test_path = test_path + seg[:-1]
+        test_path = test_path + [stations[len(stations)]] # add last station
+        test_path = self.convert(test_path)
+        return test_path
+
+    def get_manhattan_path(self, start_tile, end_tile, heuristic):
+        s_row, s_col = start_tile
+        e_row, e_col = end_tile
+        if heuristic == 'heur_manhattan_vertical':
+            path = {(r, s_col) for r in list(range(s_row, e_row + 1))}
+            path = path | {(e_row, c) for c in list(range(s_col, e_col + 1))}
+        if heuristic == 'heur_manhattan_horizontal':
+            path = {(s_row, c) for c in list(range(s_col, e_col + 1))}
+            path = path | {(r, s_col) for r in list(range(s_row, e_row + 1))}
+        if path & self.factory.occupied:
+            path = None
+        return list(path)
 
     def get_Astar_path(self, start_tile, end_tile, heuristic):
         graph = self.build_graph(start_tile, end_tile)
-        path = self.astar(start_tile, end_tile, heuristic, graph)
-        if not path:
-            raise NoPathError('ERROR: no path from {} to {} found.'.format(start_tile, end_tile))
-        return path
+        test_path = self.astar(start_tile, end_tile, heuristic, graph)
+        if not test_path:
+            raise NoPathError('ERROR: no test_path from {} to {} found.'.format(start_tile, end_tile))
+        return test_path
 
     def astar(self, start_tile, end_tile, heuristic, graph):
         heuristic_func = getattr(self, heuristic, self.heur_generic)
@@ -356,27 +381,27 @@ class PathPlanner:
         return (e_col - c_col) * ATTENUATION
 
     def reconstruct_path(self, came_from, current):
-        path = []
+        test_path = []
         while current in came_from:
-            path.append(current)
+            test_path.append(current)
             current = came_from[current]
-        path.append(current)
-        path.reverse()
-        return path
+        test_path.append(current)
+        test_path.reverse()
+        return test_path
 
-    def place_conveyer_modules(self, path):
+    def place_conveyer_modules(self, test_path):
         """
         Place conveyer belt modules along the list of tiles provided.
         """
-        for tile in path[1:-1]: # exclude start and end station tiles
+        for tile in test_path[1:-1]: # exclude start and end station tiles
             row, col = tile
             self.factory.place_conveyer_belt(row, col)
 
-    def convert(self, path):
+    def convert(self, test_path):
         """
         Convert tile coordinates from '(row, col)' to single integer notation.
         """
-        path_converted = list(map(lambda tile: tile[0] * 10 + tile[1], path))
+        path_converted = list(map(lambda tile: tile[0] * 10 + tile[1], test_path))
         return path_converted
 
     def build_graph(self, start_tile, end_tile):
@@ -425,5 +450,73 @@ def four_pass(stations):
     """ main function """
     factory = Factory(stations)
     path_planner = PathPlanner(factory)
-    path = path_planner.plan()
-    return path
+    test_path = path_planner.plan()
+    return test_path
+
+TESTS = [
+    [1, 69, 95, 70],
+    [0, 49, 40, 99],
+    [0, 99, 9, 90],
+    [37, 61, 92, 36],
+    [51, 24, 75, 57],
+    [92, 59, 88, 11],
+    [62, 67, 36, 86],
+    [83, 79, 96, 7],
+    [16, 10, 18, 14],
+    [3, 75, 49, 2],
+    [3, 7, 22, 6],
+    [49, 41, 76, 12],
+    [98, 4, 76, 79],
+    [88, 41, 56, 91],
+    [49, 74, 29, 77],
+    [90, 27, 86, 15],
+    [89, 41, 85, 6],
+    [82, 50, 37, 63],
+    [56, 28, 77, 94],
+    [41, 34, 82, 15]]
+
+SOLUTIONS = [
+    [1, 2, 3, 4, 5, 6, 7, 8, 9, 19, 29, 39, 49, 59,
+     69, 79, 78, 77, 76, 75, 85, 95, 94, 93, 92, 91, 81, 71, 70],
+    [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 19, 29, 39, 49, 48, 47, 46, 45, 44, 43, 42,
+     41, 40, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 69, 79, 89, 99],
+    None,
+    [37, 27, 26, 25, 24, 23, 22, 21, 31, 41, 51,
+     61, 71, 81, 91, 92, 93, 94, 95, 96, 86, 76, 66, 56, 46, 36],
+    [51, 41, 42, 43, 44, 34, 24, 25, 35, 45, 55,
+     65, 75, 76, 77, 67, 57],
+    [92, 93, 94, 95, 96, 97, 98, 99, 89, 79, 69, 59, 58, 68, 78, 88, 87, 77,
+     67, 57, 47, 37, 27, 17, 16, 15, 14, 13, 12, 11],
+    [62, 63, 64, 65, 66, 67, 57, 56, 46, 36, 37, 38, 48, 58, 68, 78, 88, 87,
+     86],
+    [83, 73, 74, 75, 76, 77, 78, 79, 89, 88, 87, 86, 96, 95, 94, 93, 92, 82,
+     72, 62, 52, 42, 32, 22, 12, 2, 3, 4, 5, 6, 7],
+    [16, 26, 25, 24, 23, 22, 21, 11, 10, 20, 30, 31, 32, 33, 34, 35, 36, 37,
+     38, 28, 18, 8, 7, 6, 5, 4, 14],
+    [3, 4, 5, 15, 25, 35, 45, 55, 65, 75, 76, 77, 78, 68, 58, 48, 49, 59, 69,
+     79, 89, 88, 87, 86, 85, 84, 83, 82, 72, 62, 52, 42, 32, 22, 12, 2],
+    [3, 2, 1, 11, 21, 31, 32, 33, 34, 35, 36, 37, 38, 28, 18, 8, 7, 17, 27,
+     26, 25, 24, 23, 22, 12, 13, 14, 15, 16, 6],
+    [49, 48, 47, 46, 45, 44, 43, 42, 41, 51, 52, 53, 54, 55, 56, 66, 76, 75,
+     65, 64, 63, 62, 61, 60, 50, 40, 30, 20, 10, 11, 12],
+    [98, 88, 87, 86, 85, 84, 74, 64, 54, 44, 34, 24, 14, 4, 5, 6, 16, 26, 36,
+     46, 56, 66, 76, 77, 78, 79],
+    [88, 78, 68, 58, 48, 47, 46, 45, 44, 43, 42, 41, 51, 52, 53, 54, 55, 56,
+     66, 65, 64, 63, 62, 61, 71, 81, 91],
+    [49, 59, 69, 79, 89, 88, 87, 86, 85, 84, 74, 64, 54, 44, 34, 24, 25, 26,
+     27, 28, 29, 39, 38, 37, 47, 57, 67, 77],
+    [90, 91, 92, 93, 94, 95, 96, 97, 87, 77, 67, 57, 47, 37, 27, 26, 36, 46,
+     56, 66, 76, 86, 85, 75, 65, 55, 45, 35, 25, 15],
+    [89, 99, 98, 97, 96, 95, 94, 93, 92, 91, 81, 71, 61, 51, 41, 42, 43, 44,
+     45, 55, 65, 75, 85, 86, 76, 66, 56, 46, 36, 26, 16, 6],
+    [82, 72, 71, 61, 51, 50, 40, 41, 42, 43, 44, 45, 46, 36, 37, 47, 57, 56,
+     55, 54, 53, 63],
+    [56, 46, 47, 37, 27, 28, 38, 48, 58, 68, 67, 77, 87, 86, 85, 84, 94],
+    [41, 31, 32, 33, 34, 44, 43, 42, 52, 62, 72, 82, 83, 84, 85, 75, 65, 55,
+     45, 35, 25, 15]]
+
+if __name__ == "__main__":
+    for i, test in enumerate(TESTS):
+        print('\n{} ---------------------------------------\n'.format(i))
+        p = four_pass(test)
+        show(test, p)
