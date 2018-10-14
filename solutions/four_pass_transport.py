@@ -522,9 +522,14 @@ def four_pass(stations):
     test_path = path_planner.plan()
     return test_path
 
-import timeit
-results = timeit.timeit(stmt='four_pass([3, 7, 22, 6])',
-                        setup='from __main__ import four_pass',
-                        number=100)
-print('total runtime: {}s'.format(results))
+print('with rotation index:\n')
+show([62, 67, 36, 86], [62, 63, 64, 65, 66, 67, 57, 56, 46, 36, 37, 38, 48, 58, 68, 78, 88, 87, 86])
+print('\nno rotation index:\n')
+show([62, 67, 36, 86], [62, 63, 64, 65, 66, 67, 57, 47, 37, 36, 26, 27, 28, 38, 48, 58, 68, 78, 77, 76, 86])
+
+# import timeit
+# results = timeit.timeit(stmt='four_pass([3, 7, 22, 6])',
+#                         setup='from __main__ import four_pass',
+#                         number=100)
+# print('total runtime: {}s'.format(results))
 

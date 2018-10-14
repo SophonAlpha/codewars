@@ -69,21 +69,21 @@ def rebuildPath(pOrder, shortest):
 def aStar(p1, p2, board, moves):
     prev  = [[None]*10 for _ in range(10)]
     # (heuristic, rotation index)
-    local = [[(INF, 0) if free else (0, 0) for free in r] for r in board]
-    local[p2[0]][p2[1]] = (INF, 0)
+    local = [[INF if free else 0 for free in r] for r in board]
+    local[p2[0]][p2[1]] = INF
     
     # queue: (cost+h, rotation index, cost, (x,y))
-    q = [(manhattan(p1,p2), 0, 0, p1)]
+    q = [(manhattan(p1,p2), 0, p1)]
     while q and not q[0][-1] == p2:
-        _, _, cost, src = heappop(q)
+        _, cost, src = heappop(q)
         x, y = src
-        for i, a, b in ((i, x+dx, y+dy) 
+        for a, b in ((x+dx, y+dy) 
                         for i, (dx, dy) in enumerate(moves)
                         if 0 <= x + dx < 10 and 0 <= y + dy < 10):
             pos, nCost = (a, b), cost + 1
-            if (nCost, i) < local[a][b]:
-                prev[a][b], local[a][b] = src, (nCost, i)
-                heappush(q, (nCost + manhattan(pos, p2), i, nCost, pos))
+            if nCost < local[a][b]:
+                prev[a][b], local[a][b] = src, nCost
+                heappush(q, (nCost + manhattan(pos, p2), nCost, pos))
 
     if q:
         p, (x,y) = [], q[0][-1]
@@ -93,8 +93,8 @@ def aStar(p1, p2, board, moves):
             p.append(pos)
         return p[::-1]
 
-print(four_pass([3, 7, 22, 6]))
-results = timeit.timeit(stmt='four_pass([3, 7, 22, 6])',
-                        setup='from __main__ import four_pass',
-                        number=100)
-print('total runtime: {}s'.format(results))
+# print(four_pass([3, 7, 22, 6]))
+# results = timeit.timeit(stmt='four_pass([3, 7, 22, 6])',
+#                         setup='from __main__ import four_pass',
+#                         number=100)
+# print('total runtime: {}s'.format(results))
