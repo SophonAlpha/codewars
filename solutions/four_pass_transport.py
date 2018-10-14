@@ -521,3 +521,10 @@ def four_pass(stations):
     path_planner = PathPlanner(factory)
     test_path = path_planner.plan()
     return test_path
+
+import timeit
+results = timeit.timeit(stmt='four_pass([3, 7, 22, 6])',
+                        setup='from __main__ import four_pass',
+                        number=100)
+print('total runtime: {}s'.format(results))
+
