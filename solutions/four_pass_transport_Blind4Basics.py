@@ -68,7 +68,8 @@ def rebuildPath(pOrder, shortest):
 
 def aStar(p1, p2, board, moves):
     prev  = [[None]*10 for _ in range(10)]
-    local = [[(INF, 0) if free else (0, 0) for free in r] for r in board]                # (heuristic, rotation index)
+    # (heuristic, rotation index)
+    local = [[(INF, 0) if free else (0, 0) for free in r] for r in board]
     local[p2[0]][p2[1]] = (INF, 0)
     
     # queue: (cost+h, rotation index, cost, (x,y))
