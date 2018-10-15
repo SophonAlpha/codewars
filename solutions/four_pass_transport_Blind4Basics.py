@@ -3,9 +3,9 @@
 Blind4Basic's solution for Four Pass Transport kata:
 https://www.codewars.com/kata/four-pass-transport
 
-original running time: 3683ms
 
-performance tuned:   
+
+optimised solution: 1.002065627055475s
 
 """
 
@@ -114,8 +114,8 @@ def aStar(p1, p2, board, tie_breaker_func):
             p.append(pos)
         return p[::-1]
 
-# print(four_pass([62, 67, 36, 86]))
-# results = timeit.timeit(stmt='four_pass([62, 67, 36, 86])',
-#                         setup='from __main__ import four_pass',
-#                         number=100)
-# print('total runtime: {}s'.format(results))
+print(four_pass([62, 67, 36, 86]))
+results = timeit.timeit(stmt='four_pass([62, 67, 36, 86])',
+                        setup='from __main__ import four_pass',
+                        number=100)
+print('total runtime: {}s'.format(results))
