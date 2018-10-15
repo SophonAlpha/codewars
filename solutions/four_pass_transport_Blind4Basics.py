@@ -93,8 +93,8 @@ def aStar(p1, p2, board, moves):
             p.append(pos)
         return p[::-1]
 
-print(four_pass([3, 7, 22, 6]))
-results = timeit.timeit(stmt='four_pass([3, 7, 22, 6])',
+print(four_pass([62, 67, 36, 86]))
+results = timeit.timeit(stmt='four_pass([62, 67, 36, 86])',
                         setup='from __main__ import four_pass',
                         number=100)
 print('total runtime: {}s'.format(results))
