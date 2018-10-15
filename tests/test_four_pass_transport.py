@@ -8,9 +8,9 @@ py.test tests\test_four_pass_transport.py --cov=solutions.four_pass_transport --
 
 import pytest
 
-from solutions.four_pass_transport import four_pass
-from solutions.four_pass_transport import Factory
-from solutions.four_pass_transport import PathPlanner
+from solutions.four_pass_transport_Blind4Basics import four_pass
+# from solutions.four_pass_transport import Factory
+# from solutions.four_pass_transport import PathPlanner
 
 TESTS = [
     [1, 69, 95, 70],
@@ -79,12 +79,12 @@ def test_examples(stations, solution):
     """ tests """
     validate_solution(stations, solution)
     
-def test_show_state():
-    factory = Factory([1, 69, 95, 70])
-    path_planner = PathPlanner(factory)
-    path_planner.plan()
-    factory.show_state()
-    assert True
+# def test_show_state():
+#     factory = Factory([1, 69, 95, 70])
+#     path_planner = PathPlanner(factory)
+#     path_planner.plan()
+#     factory.show_state()
+#     assert True
 
 def validate_solution(stations, solution):
     """ helper function to validate solution path is the shortest """

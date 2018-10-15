@@ -3,6 +3,11 @@
 Blind4Basic's solution for Four Pass Transport kata:
 https://www.codewars.com/kata/four-pass-transport
 
+Added performance optimisation by using tie-breaker functions.
+
+original solution: 1.410877719697666s
+optimised solution: 1.002065627055475s
+
 """
 
 from itertools import permutations
@@ -10,8 +15,24 @@ from heapq import heappop, heappush
 import timeit
 
 INF   = float("inf")
-MOVES = (( (0,1), (-1,0), (0,-1), (1,0) ),        # Turn anticlockwise
-         ( (1,0), (0,-1), (-1,0), (0,1) ))        # Turn clockwise
+MOVES = [(0,1), (-1,0), (0,-1), (1,0)]        # Turn anticlockwise
+ATTENUATION = 0.001
+
+def vertical_dist(pos, p2):
+    """
+    tie breaker for preference of vertical paths
+    """
+    c_row, _ = pos
+    e_row, _ = p2
+    return abs(e_row - c_row) * ATTENUATION
+
+def horizontal_dist(pos, p2):
+    """
+    tie breaker for preference of horizontal paths
+    """
+    _, c_col = pos
+    _, e_col = p2
+    return abs(e_col - c_col) * ATTENUATION
 
 def four_pass(stations):
     def dfs(pOrder, paths, n=0):
@@ -19,8 +40,8 @@ def four_pass(stations):
             yield paths[:]
         else:
             _, p1, p2 = pOrder[n]
-            for moves in MOVES:
-                path = aStar(p1, p2, board, moves)
+            for tie_breaker_func in [vertical_dist, horizontal_dist]:
+                path = aStar(p1, p2, board, tie_breaker_func)
                 if path is None:
                     continue
                 paths.append(path)
@@ -66,24 +87,25 @@ def rebuildPath(pOrder, shortest):
     fullPath.append(linearize(p2))
     return fullPath
 
-def aStar(p1, p2, board, moves):
+def aStar(p1, p2, board, tie_breaker_func):
     prev  = [[None]*10 for _ in range(10)]
     # (heuristic, rotation index)
-    local = [[(INF, 0) if free else (0, 0) for free in r] for r in board]
-    local[p2[0]][p2[1]] = (INF, 0)
+    local = [[INF if free else 0 for free in r] for r in board]
+    local[p2[0]][p2[1]] = INF
     
     # queue: (cost+h, rotation index, cost, (x,y))
-    q = [(manhattan(p1,p2), 0, 0, p1)]
+    q = [(manhattan(p1, p2) + tie_breaker_func(p1, p2), 0, p1)]
     while q and not q[0][-1] == p2:
-        _, _, cost, src = heappop(q)
+        _, cost, src = heappop(q)
         x, y = src
-        for i, a, b in ((i, x+dx, y+dy) 
-                        for i, (dx, dy) in enumerate(moves)
-                        if 0 <= x + dx < 10 and 0 <= y + dy < 10):
+        for a, b in ((x+dx, y+dy)
+                     for i, (dx, dy) in enumerate(MOVES)
+                     if 0 <= x + dx < 10 and 0 <= y + dy < 10):
             pos, nCost = (a, b), cost + 1
-            if (nCost, i) < local[a][b]:
-                prev[a][b], local[a][b] = src, (nCost, i)
-                heappush(q, (nCost + manhattan(pos, p2), i, nCost, pos))
+            if nCost < local[a][b]:
+                prev[a][b], local[a][b] = src, nCost
+                heappush(q, (nCost + manhattan(pos, p2) + tie_breaker_func(pos, p2),
+                             nCost, pos))
 
     if q:
         p, (x,y) = [], q[0][-1]
