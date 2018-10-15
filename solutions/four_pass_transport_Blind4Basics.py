@@ -3,8 +3,9 @@
 Blind4Basic's solution for Four Pass Transport kata:
 https://www.codewars.com/kata/four-pass-transport
 
+Added performance optimisation by using tie-breaker functions.
 
-
+original solution: 1.410877719697666s
 optimised solution: 1.002065627055475s
 
 """
