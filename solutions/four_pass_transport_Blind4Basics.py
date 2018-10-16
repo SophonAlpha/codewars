@@ -200,8 +200,10 @@ def aStar(p1, p2, board, tie_breaker_func):
     
     # queue: (cost+h, cost, (x,y))
     q = [(manhattan(p1, p2) + tie_breaker_func(p1, p2), 0, p1)]
-    while q and not q[0][-1] == p2:
+    while q:
         _, cost, src = q.pop(q.index(min(q)))
+        if src == p2:
+            break
         x, y = src
         for a, b in ((x+dx, y+dy)
                      for i, (dx, dy) in enumerate(MOVES)
@@ -213,9 +215,12 @@ def aStar(p1, p2, board, tie_breaker_func):
                              nCost, pos))
     
     if q:
-        p, (x,y) = [], q[0][-1]
+        p, (x,y) = [], p2
         while 1:
             x,y = pos = prev[x][y]
             if pos == p1: break
             p.append(pos)
         return p[::-1]
+
+print(four_pass([80, 8, 68, 21]))
+
