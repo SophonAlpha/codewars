@@ -3,6 +3,11 @@
 Blind4Basic's solution for Four Pass Transport kata:
 https://www.codewars.com/kata/four-pass-transport
 
+Added performance optimisation by using tie-breaker functions.
+
+original solution: 1.410877719697666s
+optimised solution: 1.002065627055475s
+
 """
 
 from itertools import permutations,starmap
@@ -191,7 +196,6 @@ def rebuildPath(pOrder, shortest):
     fullPath.append(linearize(p2))
     return fullPath
 
-
 def aStar(p1, p2, board, tie_breaker_func):
     prev  = [[None]*10 for _ in range(10)]
     # (heuristic, rotation index)
@@ -213,7 +217,6 @@ def aStar(p1, p2, board, tie_breaker_func):
                 prev[a][b], local[a][b] = src, nCost
                 q.append((nCost + manhattan(pos, p2) + tie_breaker_func(pos, p2),
                              nCost, pos))
-    
     if q:
         p, (x,y) = [], p2
         while 1:

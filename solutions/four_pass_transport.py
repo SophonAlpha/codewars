@@ -442,7 +442,7 @@ class PathPlanner:
         """
         _, c_col = current
         _, e_col = end
-        return (e_col - c_col) * ATTENUATION
+        return abs(e_col - c_col) * ATTENUATION
 
     def reconstruct_path(self, came_from, current):
         """
@@ -521,6 +521,11 @@ def four_pass(stations):
     path_planner = PathPlanner(factory)
     test_path = path_planner.plan()
     return test_path
+
+print('with rotation index:\n')
+show([62, 67, 36, 86], [62, 63, 64, 65, 66, 67, 57, 56, 46, 36, 37, 38, 48, 58, 68, 78, 88, 87, 86])
+print('\nno rotation index:\n')
+show([62, 67, 36, 86], [62, 63, 64, 65, 66, 67, 57, 47, 37, 36, 26, 27, 28, 38, 48, 58, 68, 78, 88, 87, 86])
 
 import timeit
 results = timeit.timeit(stmt='four_pass([3, 7, 22, 6])',
