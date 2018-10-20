@@ -19,9 +19,10 @@ class Dinglemouse(object):
         self.ground_floor = 0
         self.capacity = capacity
         self.passengers = []
-        self.stops = [0]
+        self.stops = []
         self.floor = 0
         self.direction = UP
+        self.lift_floor = None
 
     def theLift(self):
         """ main function """
@@ -33,6 +34,8 @@ class Dinglemouse(object):
                 self.direction = DOWN
             if self.floor == self.ground_floor:
                 self.direction = UP
+            if self.floor == 0 and not self.stops:
+                self.stops.append(0)
             self.floor += self.direction
         if self.stops[-1:] != [0]:
             self.stops.append(0)
@@ -48,13 +51,14 @@ class Dinglemouse(object):
 
     def stop_lift(self):
         """ check whether the lift needs to stop """
-        to_enter = [p for p in self.queues[self.floor]
-                    if (self.direction == UP and p > self.floor) or \
-                       (self.direction == DOWN and p < self.floor)]
+        ret = False
+        to_enter = [p for p in self.queues[self.floor] if self.passenger_to_enter(p)]
         if self.floor in self.passengers or to_enter:
-            self.stops.append(self.floor)
-            return True
-        return False
+            ret = True
+            if self.floor != self.lift_floor:
+                self.stops.append(self.floor)
+                self.lift_floor = self.floor
+        return ret
 
     def passengers_leaving(self):
         """ passengers leaving the lift """
@@ -67,10 +71,16 @@ class Dinglemouse(object):
         passengers = self.queues[self.floor][:]
         for passenger in passengers:
             if len(self.passengers) < self.capacity and \
-               ((self.direction == UP and passenger > self.floor) or \
-                (self.direction == DOWN and passenger < self.floor)):
+               self.passenger_to_enter(passenger):
                 self.passengers.append(passenger)
                 self.queues[self.floor].pop(self.queues[self.floor].index(passenger))
+
+    def passenger_to_enter(self, p):
+        """ check if a passenger will enter the lift """
+        return (self.direction == UP and p > self.floor) or \
+               (self.direction == DOWN and p < self.floor) or \
+               self.floor == self.top_floor or \
+               self.floor == self.ground_floor
 
 def tuples_to_list(i):
     """ transform nested tuples to nested lists """
