@@ -41,7 +41,7 @@ TESTS = [[((), (), (5, 5, 5), (), (), (), ()), 5, [0, 2, 5, 0]],
          [((2, 2), (2,), (1,)), 1, [0, 1, 2, 1, 0, 1, 2, 1, 2, 0]],
          [((5, 5), (0, 4, 3, 5), (0, 3, 1), (2, 4, 2, 4), (2,), (2,)), 4, [0, 1, 2, 3, 4, 5, 4, 3, 2, 1, 0, 1, 2, 3, 4, 5, 0]]]
 
-TEST_IDs = [str(i) for i in range(1, 33 + 1)]
+TEST_IDs = [str(i) for i in range(1, len(TESTS) + 1)]
 
 @pytest.mark.parametrize('queues, capacity, answer', TESTS, ids=TEST_IDs)
 def test_cases(queues, capacity, answer):
