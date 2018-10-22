@@ -63,7 +63,7 @@ class Parser:
         raise Exception('invalid syntax')
     
     def eat(self, token):
-        if self.current_token == token:
+        if self.current_token.type == token:
             self.current_token = self.get_next_token()
         else:
             self.error()
@@ -71,8 +71,14 @@ class Parser:
     def get_next_token(self):
         if self.position >= len(self.tokens):
             return 'end of expression'
-        token = self.tokens(self.position)
+        token = self.tokens[self.position]
         self.position += 1
+        return token
+    
+    def peek(self):
+        if self.position >= len(self.tokens):
+            return 'end of expression'
+        token = self.tokens[self.position]
         return token
 
     def parse(self):
@@ -81,22 +87,93 @@ class Parser:
         return ast
     
     def function(self):
-        if self.current_token == '[':
-            self.eat('[')
+        if self.current_token.type == 'L_BRACK':
+            self.eat('L_BRACK')
             var_list = self.arg_list()
-            self.eat(']')
-            ast = self.expression()
-        return ast
+            self.eat('R_BRACK')
+            expr = self.expression()
+            # TODO: build AST
+        return
     
     def arg_list(self):
         var_list = []
-        while re.match(r'[A-Za-z]+', self.current_token):
-            var_list.append(self.current_token)
-            self.eat('variable')
+        while self.current_token.type == 'VAR':
+            var_list.append(self.current_token.value)
+            self.eat('VAR')
         return var_list
     
     def expression(self):
-        pass
+        """
+        expression ::= term
+                       | expression '+' term
+                       | expression '-' term
+        """
+        # TODO: check how this is solved in other solutions
+        if self.current_token.type in ['NUM', 'VAR', 'L_PAREN'] and \
+           self.peek() == 'PLUS':
+            expr = self.expression()
+            self.eat('PLUS')
+            term = self.term()
+            # TODO: build AST
+            return
+        elif self.current_token.type in ['NUM', 'VAR', 'L_PAREN'] and \
+           self.peek() == 'MINUS':
+            expr = self.expression()
+            self.eat('MINUS')
+            term = self.term()
+            # TODO: build AST
+            return
+        elif self.current_token.type in ['NUM', 'VAR', 'L_PAREN']:
+            term = self.term()
+            # TODO: build AST
+            return
+    
+    def term(self):
+        """
+        term ::= factor
+                 | term '*' factor
+                 | term '/' factor
+        """
+        if self.current_token.type in ['NUM', 'VAR', 'L_PAREN'] and \
+           self.peek() == 'MUL':
+            term = self.term()
+            self.eat('MUL')
+            factor = self.factor()
+            # TODO: build AST
+            return
+        elif self.current_token.type in ['NUM', 'VAR', 'L_PAREN'] and \
+           self.peek() == 'DIV':
+            term = self.term()
+            self.eat('DIV')
+            factor = self.factor()
+            # TODO: build AST
+            return
+        elif self.current_token.type in ['NUM', 'VAR', 'L_PAREN']:
+            term = self.term()
+            # TODO: build AST
+            return
+    
+    def factor(self):
+        """
+        factor ::= number
+                   | variable
+                   | '(' expression ')'
+        """
+        if self.current_token.type == 'NUM':
+            number = self.current_token
+            self.eat('NUM')
+            # TODO: build AST
+            return
+        elif self.current_token.type == 'VAR':
+            var = self.current_token
+            self.eat('VAR')
+            # TODO: build AST
+            return
+        elif self.current_token.type == 'L_PAREN':
+            expr = self.expression()
+            self.eat('R_PAREN')
+            # TODO: build AST
+            return
 
 class Compiler(object):
     
@@ -107,8 +184,19 @@ class Compiler(object):
         """Turn a program string into an array of tokens.  Each token
            is either '[', ']', '(', ')', '+', '-', '*', '/', a variable
            name or a number (as a string)"""
-        token_iter = (m.group(0) for m in re.finditer(r'[-+*/()[\]]|[A-Za-z]+|\d+', program))
-        return [int(tok) if tok.isdigit() else tok for tok in token_iter]
+        patterns  = re.compile(r'(?P<MINUS>-)'
+                               r'|(?P<PLUS>\+)'
+                               r'|(?P<MUL>\*)'
+                               r'|(?P<DIV>/)'
+                               r'|(?P<L_BRACK>\[)'
+                               r'|(?P<R_BRACK>\])'
+                               r'|(?P<L_PAREN>\()'
+                               r'|(?P<R_PAREN>\))'
+                               r'|(?P<VAR>)[A-Za-z]+'
+                               r'|(?P<NUM>)\d+')
+        tokens = [Token(m.lastgroup, int(m.group(0)) if m.group(0).isdigit() else m.group(0))
+                  for m in patterns.finditer(program)]
+        return tokens
 
     def pass1(self, program):
         """Returns an un-optimized AST"""
