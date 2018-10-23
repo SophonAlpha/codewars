@@ -39,25 +39,22 @@ class Parser:
     function   ::= '[' arg-list ']' expression
 
     arg-list   ::= /* nothing */
-                 | variable arg-list
+                   | variable arg-list
 
-    expression ::= term
-                 | expression '+' term
-                 | expression '-' term
+    expression ::= term (( '+' | '-' ) term)*
 
-    term       ::= factor
-                 | term '*' factor
-                 | term '/' factor
+    term       ::= factor (( '*' | '/' ) factor)*
 
     factor     ::= number
-                 | variable
-                 | '(' expression ')'
+                   | variable
+                   | '(' expression ')'
     """
     
     def __init__(self, tokens):
         self.tokens = tokens
         self.current_token = None
         self.position = 0
+        self.var_list = []
     
     def error(self):
         raise Exception('invalid syntax')
@@ -70,14 +67,14 @@ class Parser:
             
     def get_next_token(self):
         if self.position >= len(self.tokens):
-            return 'end of expression'
+            return Token('end of expression', None)
         token = self.tokens[self.position]
         self.position += 1
         return token
     
     def peek(self):
         if self.position >= len(self.tokens):
-            return 'end of expression'
+            return Token('end of expression', None)
         token = self.tokens[self.position]
         return token
 
@@ -89,47 +86,46 @@ class Parser:
     def function(self):
         if self.current_token.type == 'L_BRACK':
             self.eat('L_BRACK')
-            var_list = self.arg_list()
+            self.arg_list()
             self.eat('R_BRACK')
-            expr = self.expression()
-            # TODO: build AST
-        return
+            ast = self.expression()
+        return ast
     
     def arg_list(self):
-        var_list = []
         while self.current_token.type == 'VAR':
-            var_list.append(self.current_token.value)
+            self.var_list.append(self.current_token.value)
             self.eat('VAR')
-        return var_list
+        return
     
     def expression(self):
         """
         expression ::= term (( '+' | '-' ) term)*
         """
-        # TODO: check how this is solved in other solutions
-        term1 = self.term()
+        ast = self.term()
         while self.current_token.type in ['PLUS', 'MINUS']:
             if self.current_token.type == 'PLUS':
                 self.eat('PLUS')
+                op = '+'
             elif self.current_token.type == 'MINUS':
                 self.eat('MINUS')
-            term2 = self.term()
-        # TODO: build AST
-        return
+                op = '-'
+            ast = {'op': op, 'a': ast, 'b': self.term()}
+        return ast
     
     def term(self):
         """
         term ::= factor (( '*' | '/' ) factor)*
         """
-        factor1 = self.factor()
+        ast = self.factor()
         while self.current_token.type in ['MUL', 'DIV']:
             if self.current_token.type == 'MUL':
                 self.eat('MUL')
+                op = '*'
             elif self.current_token.type == 'DIV':
                 self.eat('DIV')
-            factor2 = self.factor()
-        # TODO: build AST
-        return
+                op = '/'
+            ast = {'op': op, 'a': ast, 'b': self.factor()}
+        return ast
     
     def factor(self):
         """
@@ -138,21 +134,18 @@ class Parser:
                    | '(' expression ')'
         """
         if self.current_token.type == 'NUM':
-            number = self.current_token
+            ast = {'op': 'imm', 'n': self.current_token.value}
             self.eat('NUM')
-            # TODO: build AST
-            return
+            return ast
         elif self.current_token.type == 'VAR':
-            var = self.current_token
+            ast = {'op': 'arg', 'n': self.var_list.index(self.current_token.value)}
             self.eat('VAR')
-            # TODO: build AST
-            return
+            return ast
         elif self.current_token.type == 'L_PAREN':
             self.eat('L_PAREN')
-            expr = self.expression()
+            ast = self.expression()
             self.eat('R_PAREN')
-            # TODO: build AST
-            return
+            return ast
 
 class Compiler(object):
     
