@@ -104,54 +104,32 @@ class Parser:
     
     def expression(self):
         """
-        expression ::= term
-                       | expression '+' term
-                       | expression '-' term
+        expression ::= term (( '+' | '-' ) term)*
         """
         # TODO: check how this is solved in other solutions
-        if self.current_token.type in ['NUM', 'VAR', 'L_PAREN'] and \
-           self.peek() == 'PLUS':
-            expr = self.expression()
-            self.eat('PLUS')
-            term = self.term()
-            # TODO: build AST
-            return
-        elif self.current_token.type in ['NUM', 'VAR', 'L_PAREN'] and \
-           self.peek() == 'MINUS':
-            expr = self.expression()
-            self.eat('MINUS')
-            term = self.term()
-            # TODO: build AST
-            return
-        elif self.current_token.type in ['NUM', 'VAR', 'L_PAREN']:
-            term = self.term()
-            # TODO: build AST
-            return
+        term1 = self.term()
+        while self.current_token.type in ['PLUS', 'MINUS']:
+            if self.current_token.type == 'PLUS':
+                self.eat('PLUS')
+            elif self.current_token.type == 'MINUS':
+                self.eat('MINUS')
+            term2 = self.term()
+        # TODO: build AST
+        return
     
     def term(self):
         """
-        term ::= factor
-                 | term '*' factor
-                 | term '/' factor
+        term ::= factor (( '*' | '/' ) factor)*
         """
-        if self.current_token.type in ['NUM', 'VAR', 'L_PAREN'] and \
-           self.peek() == 'MUL':
-            term = self.term()
-            self.eat('MUL')
-            factor = self.factor()
-            # TODO: build AST
-            return
-        elif self.current_token.type in ['NUM', 'VAR', 'L_PAREN'] and \
-           self.peek() == 'DIV':
-            term = self.term()
-            self.eat('DIV')
-            factor = self.factor()
-            # TODO: build AST
-            return
-        elif self.current_token.type in ['NUM', 'VAR', 'L_PAREN']:
-            term = self.term()
-            # TODO: build AST
-            return
+        factor1 = self.factor()
+        while self.current_token.type in ['MUL', 'DIV']:
+            if self.current_token.type == 'MUL':
+                self.eat('MUL')
+            elif self.current_token.type == 'DIV':
+                self.eat('DIV')
+            factor2 = self.factor()
+        # TODO: build AST
+        return
     
     def factor(self):
         """
@@ -170,6 +148,7 @@ class Parser:
             # TODO: build AST
             return
         elif self.current_token.type == 'L_PAREN':
+            self.eat('L_PAREN')
             expr = self.expression()
             self.eat('R_PAREN')
             # TODO: build AST
