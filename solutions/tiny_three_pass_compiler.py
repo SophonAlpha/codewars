@@ -227,7 +227,7 @@ def assembly(ast):
         if v in op_asm_map.keys():
             a = assembly(ast['a'])
             b = assembly(ast['b'])
-            return a + ['SW'] + b + ['SW'] + [op_asm_map[v]]
+            return a + ['PU'] + b + ['SW'] + ['PO'] + [op_asm_map[v]]
         if v == 'imm':
             return ['IM {}'.format(ast['n'])]
         if v == 'arg':

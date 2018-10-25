@@ -87,11 +87,11 @@ TESTS_ASM = [('[ x y z ] 2 * 3 * x + 5 * y', [2, 3], 27),
 
 1.)
   6*x
-  'IM 6', 'SW', 'AR 0', 'SW', 'MU', 'SW' 
+  'IM 6', 'PU', 'AR 0', 'SW', 'PO', 'MU', 'PU',  
   5*y
-  'IM 5', 'SW', 'AR 1', 'SW', 'MU', 'SW'
+  'IM 5', 'PU', 'AR 1', 'SW', 'PO', 'MU', 'SW',
   
-['AD']
+['PO', 'AD']
 
 """
 TEST_IDs = [str(i) for i in range(1, len(PROGRAMS) + 1)]
