@@ -9,23 +9,6 @@ Level: 1 kyu
 
 import re
 
-def simulate(asm, argv):
-    r0, r1 = None, None
-    stack = []
-    for ins in asm:
-        if ins[:2] == 'IM' or ins[:2] == 'AR':
-            ins, n = ins[:2], int(ins[2:])
-        if ins == 'IM':   r0 = n
-        elif ins == 'AR': r0 = argv[n]
-        elif ins == 'SW': r0, r1 = r1, r0
-        elif ins == 'PU': stack.append(r0)
-        elif ins == 'PO': r0 = stack.pop()
-        elif ins == 'AD': r0 += r1
-        elif ins == 'SU': r0 -= r1
-        elif ins == 'MU': r0 *= r1
-        elif ins == 'DI': r0 /= r1
-    return r0
-
 class Token:
 
     def __init__(self, token_type, token_value):
@@ -240,10 +223,15 @@ def assembly(ast):
                   '-': 'SU',
                   '*': 'MU',
                   '/': 'DI'}
-    for k, v in ast.items():
+    for _, v in ast.items():
         if v in op_asm_map.keys():
-            return op_asm_map[v]
-        
+            a = assembly(ast['a'])
+            b = assembly(ast['b'])
+            return a + ['SW'] + b + ['SW'] + [op_asm_map[v]]
+        if v == 'imm':
+            return ['IM {}'.format(ast['n'])]
+        if v == 'arg':
+            return ['AR {}'.format(ast['n'])]
 
 if __name__ == "__main__":
     pass
