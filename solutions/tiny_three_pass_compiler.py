@@ -32,22 +32,74 @@ class Token:
         self.type = token_type
         self.value = token_value
 
+class AST():
+    pass
+
+class BinOp(AST):
+    def __init__(self, op, a, b):
+        self.op = op
+        self.a = a
+        self.b = b
+        
+    def JSON(self):
+        return {'op': self.op, 'a': self.a.JSON(), 'b': self.b.JSON()}
+    
+    def reduce(self):
+        a = self.a.reduce()
+        b = self.b.reduce()
+        if isinstance(a, int):
+            a = {'op': 'imm', 'n': a}
+        if isinstance(b, int):
+            b = {'op': 'imm', 'n': b}
+        if a['op'] == b['op'] == 'imm':
+            if self.op == '+':
+                return {'op': 'imm', 'n': a['n'] + b['n']}
+            elif self.op == '-':
+                return {'op': 'imm', 'n': a['n'] - b['n']}
+            elif self.op == '*':
+                return {'op': 'imm', 'n': a['n'] * b['n']}
+            elif self.op == '/':
+                return {'op': 'imm', 'n': a['n'] / b['n']}
+        else:
+            self.a = a
+            self.b = b
+        return self.JSON()
+
+class Num(AST):
+    def __init__(self, op, n):
+        self.op = op
+        self.n = n
+        
+    def JSON(self):
+        return {'op': 'imm', 'n': self.n}
+    
+    def reduce(self):
+        return self.n
+
+class Var(AST):
+    def __init__(self, op, n):
+        self.op = op
+        self.n = n
+        
+    def JSON(self):
+        return {'op': 'arg', 'n': self.n}
+    
+    def reduce(self):
+        return self.JSON()
+
 class Parser:
     """
     Parser for EBNF:
     
     function   ::= '[' arg-list ']' expression
 
-    arg-list   ::= /* nothing */
-                   | variable arg-list
+    arg-list   ::= /* nothing */ | variable arg-list
 
     expression ::= term (( '+' | '-' ) term)*
 
     term       ::= factor (( '*' | '/' ) factor)*
 
-    factor     ::= number
-                   | variable
-                   | '(' expression ')'
+    factor     ::= number | variable | '(' expression ')'
     """
     
     def __init__(self, tokens):
@@ -80,10 +132,13 @@ class Parser:
 
     def parse(self):
         self.current_token = self.get_next_token()
-        ast = self.function()
+        ast = self.function().JSON()
         return ast
     
     def function(self):
+        """
+        function ::= '[' arg-list ']' expression
+        """
         if self.current_token.type == 'L_BRACK':
             self.eat('L_BRACK')
             self.arg_list()
@@ -92,6 +147,9 @@ class Parser:
         return ast
     
     def arg_list(self):
+        """
+        arg-list ::= /* nothing */ | variable arg-list
+        """
         while self.current_token.type == 'VAR':
             self.var_list.append(self.current_token.value)
             self.eat('VAR')
@@ -109,7 +167,7 @@ class Parser:
             elif self.current_token.type == 'MINUS':
                 self.eat('MINUS')
                 op = '-'
-            ast = {'op': op, 'a': ast, 'b': self.term()}
+            ast = BinOp(op, ast, self.term())
         return ast
     
     def term(self):
@@ -124,21 +182,19 @@ class Parser:
             elif self.current_token.type == 'DIV':
                 self.eat('DIV')
                 op = '/'
-            ast = {'op': op, 'a': ast, 'b': self.factor()}
+            ast = BinOp(op, ast, self.factor())
         return ast
     
     def factor(self):
         """
-        factor ::= number
-                   | variable
-                   | '(' expression ')'
+        factor ::= number | variable | '(' expression ')'
         """
         if self.current_token.type == 'NUM':
-            ast = {'op': 'imm', 'n': self.current_token.value}
+            ast = Num('imm', self.current_token.value)
             self.eat('NUM')
             return ast
         elif self.current_token.type == 'VAR':
-            ast = {'op': 'arg', 'n': self.var_list.index(self.current_token.value)}
+            ast = Var('arg', self.var_list.index(self.current_token.value))
             self.eat('VAR')
             return ast
         elif self.current_token.type == 'L_PAREN':
@@ -166,7 +222,8 @@ class Compiler(object):
                                r'|(?P<R_PAREN>\))'
                                r'|(?P<VAR>)[A-Za-z]+'
                                r'|(?P<NUM>)\d+')
-        tokens = [Token(m.lastgroup, int(m.group(0)) if m.group(0).isdigit() else m.group(0))
+        tokens = [Token(m.lastgroup,
+                        int(m.group(0)) if m.group(0).isdigit() else m.group(0))
                   for m in patterns.finditer(program)]
         return tokens
 
@@ -179,11 +236,30 @@ class Compiler(object):
         
     def pass2(self, ast):
         """Returns an AST with constant expressions reduced"""
-        pass
+        ast = reduce(ast)
+        return ast
 
     def pass3(self, ast):
         """Returns assembly instructions"""
         pass
+
+def reduce(ast):
+    for _, v in ast.items():
+        if v in ['+', '-', '*', '/']:
+            a = reduce(ast['a'])
+            b = reduce(ast['b'])
+            if a['op'] == 'imm' and b['op'] == 'imm':
+                if v == '+':
+                    return {'op': 'imm', 'n': a['n'] + b['n']}
+                if v == '-':
+                    return {'op': 'imm', 'n': a['n'] - b['n']}
+                if v == '*':
+                    return {'op': 'imm', 'n': a['n'] * b['n']}
+                if v == '/':
+                    return {'op': 'imm', 'n': a['n'] / b['n']}
+            ast['a'] = a
+            ast['b'] = b
+    return ast
 
 if __name__ == "__main__":
     pass
