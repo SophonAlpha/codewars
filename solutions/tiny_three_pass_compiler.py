@@ -214,7 +214,8 @@ class Compiler(object):
 
     def pass3(self, ast):
         """Returns assembly instructions"""
-        pass
+        asm = assembly(ast)
+        return asm
 
 def reduce(ast):
     for _, v in ast.items():
@@ -233,6 +234,16 @@ def reduce(ast):
             ast['a'] = a
             ast['b'] = b
     return ast
+
+def assembly(ast):
+    op_asm_map = {'+': 'AD',
+                  '-': 'SU',
+                  '*': 'MU',
+                  '/': 'DI'}
+    for k, v in ast.items():
+        if v in op_asm_map.keys():
+            return op_asm_map[v]
+        
 
 if __name__ == "__main__":
     pass
