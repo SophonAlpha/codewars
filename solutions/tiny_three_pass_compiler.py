@@ -43,27 +43,6 @@ class BinOp(AST):
         
     def JSON(self):
         return {'op': self.op, 'a': self.a.JSON(), 'b': self.b.JSON()}
-    
-    def reduce(self):
-        a = self.a.reduce()
-        b = self.b.reduce()
-        if isinstance(a, int):
-            a = {'op': 'imm', 'n': a}
-        if isinstance(b, int):
-            b = {'op': 'imm', 'n': b}
-        if a['op'] == b['op'] == 'imm':
-            if self.op == '+':
-                return {'op': 'imm', 'n': a['n'] + b['n']}
-            elif self.op == '-':
-                return {'op': 'imm', 'n': a['n'] - b['n']}
-            elif self.op == '*':
-                return {'op': 'imm', 'n': a['n'] * b['n']}
-            elif self.op == '/':
-                return {'op': 'imm', 'n': a['n'] / b['n']}
-        else:
-            self.a = a
-            self.b = b
-        return self.JSON()
 
 class Num(AST):
     def __init__(self, op, n):
@@ -72,9 +51,6 @@ class Num(AST):
         
     def JSON(self):
         return {'op': 'imm', 'n': self.n}
-    
-    def reduce(self):
-        return self.n
 
 class Var(AST):
     def __init__(self, op, n):
@@ -83,9 +59,6 @@ class Var(AST):
         
     def JSON(self):
         return {'op': 'arg', 'n': self.n}
-    
-    def reduce(self):
-        return self.JSON()
 
 class Parser:
     """
