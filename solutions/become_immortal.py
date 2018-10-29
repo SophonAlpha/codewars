@@ -12,6 +12,7 @@ import numpy as np
 np.set_printoptions(threshold=np.inf)
 
 def elder_age(m, n, l, t):
+    m, n, l, t = 8, 5, 1, 100
     rows, cols = np.array(np.meshgrid(np.arange(m), np.arange(n))).reshape(2, m*n)
     xor_arr = np.bitwise_xor(rows, cols).reshape(n, m)
     trans_loss = np.subtract(xor_arr, l)
