@@ -33,6 +33,43 @@ def sum_array():
     print(sum_arr)
 
 if __name__ == "__main__":
-    elder_age(48, 48, 0, 10000)
+    elder_age(128, 128, 0, 10000)
 #     sum_array()
-    
+
+"""
+Notes:
+
+  8 x   8 = 8**1
+  
+ 64 x  64 = 8**2:
+    t1 = elder_age(n_s=m_s=0, n_e=m_e=7)
+    t2 = elder_age(n_s=m_s=8, n_e=m_e=15)
+    t3 = elder_age(n_s=m_s=16, n_e=m_e=23)
+    t4 = elder_age(n_s=m_s=24, n_e=m_e=31)
+    t5 = elder_age(n_s=m_s=32, n_e=m_e=39)
+    t6 = elder_age(n_s=m_s=40, n_e=m_e=47)
+    t7 = elder_age(n_s=m_s=48, n_e=m_e=55)
+    t8 = elder_age(n_s=m_s=56, n_e=m_e=63)
+
+    note that the XOR only needs to be done for one half of the square
+
+    donation_time_tile = t1 * 8 + 
+                         t2 * 8 + 
+                         t3 * 4 + 
+                         t4 * 8 +
+                         t5 * 8 +
+                         t6 * 8 +
+                         t7 * 4 +
+                         t8 * 8
+
+
+
+
+
+
+
+
+512 x 512
+
+
+"""
