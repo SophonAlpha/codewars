@@ -6,46 +6,55 @@ https://www.codewars.com/kata/become-immortal
 Level: 1 kyu
 
 """
-import timeit
 import numpy as np
 
-def elder_age(m_s, m_e, n_s, n_e, l, t):
-    rows, cols = np.array(np.meshgrid(np.arange(n_s, n_e),
-                                      np.arange(m_s, m_e))).reshape(2, -1)
-    mask = np.zeros(len(rows), dtype=bool)
-    mask[[8, 16, 17, 24, 25, 26, 32, 33, 34, 35, 40, 41, 42, 43, 44, 48, 49,
-          50, 51, 52, 53, 56, 57, 58, 59, 60, 61, 62]] = True
-    rows = rows[mask]
-    cols = cols[mask]
 
-    # upper triangle    
-    xor_arr = np.bitwise_xor(rows, cols)
-    trans_loss = np.subtract(xor_arr, l)
-    trans_loss[trans_loss < 0] = 0
-    utri_time = np.sum(trans_loss)
-    # diagonal
-    diag_time = (m_s | n_s) - l
-    diag_time = diag_time if diag_time >= 0 else 0
-    # donate time
-    donate_time = (2 * utri_time + 8 * diag_time) % t
+"""
+m = 545, n = 435, l = 342, t = 1000007, age = 808451
+"""
+
+def elder_age(m, n, l, t):
+    donate_time = tile(m, n, l, t)
     return donate_time
 
-def elder_age2(m_s, m_e, n_s, n_e, l, t):
-#     m_s, m_e, n_s, n_e, l, t = 0, 8, 0, 8, 1, 100
+def tile_group(m, n, l, t):
+    q, r = divmod(max(m, n), 8)
+    m_starts = np.append(np.arange(0, q * 8, 8), q * 8)
+    m_ends = np.append(np.arange(7, q * 8, 8), q * 8 + r)
+    params = np.column_stack((m_starts, m_ends,
+                              np.repeat(0, m_starts.shape[0]),
+                              np.repeat(7, m_starts.shape[0]),
+                              np.repeat(l, m_starts.shape[0]),
+                              np.repeat(t, m_starts.shape[0])))
+
+    """
+    m = 35,165,045,587
+    q =  3,603,381,301
+    """
+
+    tile_index = 0
+    while tile_index <= q:
+        m_starts = tile_index * 8
+        m_ends = m_starts + 7
+        tile_time = tile(m_starts, m_ends, l, t)
+        tile_index += 1
+
+
+        
+    
+
+def tile(m_s, m_e, l, t):
+    n_s, n_e = 0, 7
     rows, cols = np.array(np.meshgrid(np.arange(n_s, n_e),
                                       np.arange(m_s, m_e))).reshape(2, -1)
-
-    
     xor_arr = np.bitwise_xor(rows, cols)
     trans_loss = np.subtract(xor_arr, l)
     trans_loss[trans_loss < 0] = 0
     donate_time = np.sum(trans_loss) % t
     return donate_time
 
+
 if __name__ == "__main__":
-    print(timeit.timeit('elder_age(0, 8, 0, 8, 1, 100)',
-                        'from __main__ import elder_age, elder_age2',
-                        number=10000))
-    print(timeit.timeit('elder_age2(0, 8, 0, 8, 1, 100)',
-                        'from __main__ import elder_age, elder_age2',
-                        number=10000))
+    m, n, l, t = 545, 435, 342, 1000007
+    m, n, l, t = 28827050410, 35165045587, 7109602, 13719506
+    tile_group(m, n, l, t)
