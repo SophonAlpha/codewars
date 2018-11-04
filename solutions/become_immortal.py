@@ -11,15 +11,14 @@ import numpy as np
 def elder_age(m, n, l, t):
     xor_time = 0
     index = 0
-    while m > 0:
-        m, n = (n, m) if n > m else (m, n) # ensure m always contains the bigger of two dimensions 
-        level = largest_sqare_tile(m) 
-        sub_m = 8**level
-        quo, rem = divmod(n, sub_m)
-        sub_n = 8 if quo > 0 else rem
-        xor_time += tile_time(sub_m, sub_n, l, t, 0, index, level - 1)
-        m = m - sub_m
+    sub_m, sub_n = (m, n)
+    while sub_m > 0:
+        m1, n1 = (sub_n, sub_m) if sub_n > sub_m else (sub_m, sub_n)
+        sub_m = 8**largest_sqare_tile(m1) if m1 >= 8 else m1
+        sub_n = sub_m if n1 >= sub_m else n1
+        xor_time += sub_m * ((index + index + sub_m - 1) / 2) * sub_n
         index += sub_m
+        sub_m = m1 - sub_m
     return xor_time
 
 def largest_sqare_tile(size):
@@ -35,12 +34,14 @@ def tile_time(m, n, l, t, origin, start_col, level):
     if level > 0:
         sub_m = 8**level
         quo, rem = divmod(n, sub_m)
-        sub_n = 8 if quo > 0 else rem
+        sub_n = sub_m # 8 if quo > 0 else rem
         origin = tile_time(sub_m, sub_n, l, t, origin, 0, level - 1)
+
+    time = m * ((start_col + start_col + m - 1) / 2) * n
+
     tile_width = 8**level
     column = start_col
     columns = np.arange(start_col, start_col + m, tile_width)
-    
     # TODO; fix tile_width multiplicator for 8x8 tile
     col_adder = np.multiply(columns, tile_width*tile_width)
     col_adder = np.add(col_adder, origin)
