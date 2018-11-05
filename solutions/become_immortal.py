@@ -12,8 +12,11 @@ def elder_age(m, n, l, t):
     m, n = (n, m) if n > m else (m, n)
     donate_time = 0
     m1_s, n1_s = 0, 0
-    m1_e, n1_e = divmod(m, 8)[0] * 8, divmod(n, 8)[0] * 8
-    donate_time += xor_time_sum(m1_s, m1_e, n1_s, n1_e)
+    level = largest_sqare_tile(m)
+    m1 = 8**level
+    n1 = m1 if n > m1 else n
+    donate_time += tile_time(m1, n1, l, t, 0, 0, level)
+
     m2_s, n2_s = m1_e, m1_e
     m2_e, n2_e = m2_s + m1_e, m
     donate_time += xor_time_sum(m2_s, m2_e, n2_s, n2_e)
@@ -43,33 +46,7 @@ def tile_time(m, n, l, t, origin, start_col, level):
         quo, rem = divmod(n, sub_m)
         sub_n = sub_m # 8 if quo > 0 else rem
         origin = tile_time(sub_m, sub_n, l, t, origin, 0, level - 1)
-
     time = m * ((start_col + start_col + m - 1) / 2) * n
-
-    tile_width = 8**level
-    column = start_col
-    columns = np.arange(start_col, start_col + m, tile_width)
-    # TODO; fix tile_width multiplicator for 8x8 tile
-    col_adder = np.multiply(columns, tile_width*tile_width)
-    col_adder = np.add(col_adder, origin)
-    time = np.sum(col_adder) * n
-
-#     t = 0
-#     # the sum of xors of tile originating at relative position 0, 0
-# #     xor_sum = np.sum(origin)
-#     while column < start_col + m:
-#         # adder that represents the sum to be added for tiles along columns
-#         # ' * 8'     - tile width in cells by which to shift to the right
-#         # ' * 8 * 8' - number of cells in the tile
-#         col_adder = column * tile_width * tile_width
-#         t = t + origin + col_adder
-#         column += tile_width
-#     tile_time = t * 8 # multiplied by number of tile rows
-
-#         tile_time = (224 + \
-#                      column * 8 * 8 * 8 - \
-#                      l * 64 + \
-#                      4 * l * (l + 1)) % t
     return time
 
 
