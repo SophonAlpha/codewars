@@ -9,17 +9,25 @@ Level: 1 kyu
 import numpy as np
 
 def elder_age(m, n, l, t):
-    xor_time = 0
-    index = 0
-    sub_m, sub_n = (m, n)
-    while sub_m > 0:
-        m1, n1 = (sub_n, sub_m) if sub_n > sub_m else (sub_m, sub_n)
-        sub_m = 8**largest_sqare_tile(m1) if m1 >= 8 else m1
-        sub_n = sub_m if n1 >= sub_m else n1
-        xor_time += sub_m * ((index + index + sub_m - 1) / 2) * sub_n
-        index += sub_m
-        sub_m = m1 - sub_m
-    return xor_time
+    m, n = (n, m) if n > m else (m, n)
+    donate_time = 0
+    m1_s, n1_s = 0, 0
+    m1_e, n1_e = divmod(m, 8)[0] * 8, divmod(n, 8)[0] * 8
+    donate_time += xor_time_sum(m1_s, m1_e, n1_s, n1_e)
+    m2_s, n2_s = m1_e, m1_e
+    m2_e, n2_e = m2_s + m1_e, m
+    donate_time += xor_time_sum(m2_s, m2_e, n2_s, n2_e)
+    m3_s, n3_s = m1_e, m1_e
+    m3_e, n3_e = m3_s + m1_e, n
+    donate_time += xor_time_sum(m2_s, m2_e, n2_s, n2_e)
+    m4_s, n4_s = m1_e + m1_e, m1_e
+    m4_e, n4_e = m3_s + m1_e, n
+    
+    
+    return donate_time
+
+def xor_time_sum(m_s, m_e, n_s, n_e):
+    return (m_e - m_s) * ((m_s + m_e - 1) / 2) * (n_e - n_s)
 
 def largest_sqare_tile(size):
     exp = 0
@@ -82,6 +90,6 @@ if __name__ == "__main__":
     m, n, l, t = 64, 64, 0, 100000
     m, n, l, t = 1024, 512, 0, 100000
     m, n, l, t = 64, 88, 0, 100000
-    m, n, l, t = 64, 67, 0, 100000
+    m, n, l, t = 67, 67, 0, 100000
     print(elder_age(m, n, l, t))
     print(tile(m, n, l, t**2))
