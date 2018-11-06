@@ -8,13 +8,35 @@ Level: 1 kyu
 """
 import numpy as np
 
+VALUES = np.array([[0, 1, 2, 3, 4, 5, 6, 7],
+                   [1, 0, 3, 2, 5, 4, 7, 6],
+                   [2, 3, 0, 1, 6, 7, 4, 5],
+                   [3, 2, 1, 0, 7, 6, 5, 4],
+                   [4, 5, 6, 7, 0, 1, 2, 3],
+                   [5, 4, 7, 6, 1, 0, 3, 2],
+                   [6, 7, 4, 5, 2, 3, 0, 1],
+                   [7, 6, 5, 4, 3, 2, 1, 0]])
+
 def elder_age(m, n, l, t):
     m, n = (n, m) if n > m else (m, n)
     donate_time = 0
     level = largest_sqare_tile(m)
-    m1 = 8**level if level > 0 else m
-    n1 = m1 if n > m1 else n
+    m1 = m if m < 8**level else divmod(m, 8**level)[0] * 8**level
+    n1 = n if n < 8**level else divmod(n, 8**level)[0] * 8**level
     donate_time += tile_time(m1, n1, l, t, 0, 0, level)
+
+    """
+	level 0:
+		origin = 0
+		(0, 0) = origin
+		(0, column) = column * 8**level * 8**level + (0, 0)
+
+	level 1 (8):
+		origin = (8x8 sum of level 0)
+		(0, column) = column * 8**level * 8**level + (0, 0)
+
+	"""
+
     return donate_time
 
 def xor_time_sum(m_s, m_e, n_s, n_e):
@@ -34,18 +56,30 @@ def largest_sqare_tile(size):
 def tile_time(m, n, l, t, origin, start_col, level):
     if level > 0:
         sub_m = 8**level
-        quo, rem = divmod(n, sub_m)
-        sub_n = sub_m
+        sub_n = sub_m if n > sub_m else n
         origin = tile_time(sub_m, sub_n, l, t, origin, 0, level - 1)
-    quo, rem = divmod(m, 8**(level + 1))
-    if quo == 0 and level == 0:
-        time = tile(0, m, 0, n, l, t)
-    elif quo == 0 and level > 0:
-        pass
+    index = np.arange(0, 8**(level + 1), 8**level)
+    if level == 0:
+        xor_arr = np.add(np.multiply(index, 8**level * 8**level), origin)
     else:
-        time = m * ((start_col + start_col + m - 1) / 2) * n
+        square_size = 8**(level - 1)
+        m_quo, _ = divmod(m, square_size)
+        n_quo, _ = divmod(n, square_size)
+        xor_arr = np.add(np.multiply(index, m_quo * square_size * n_quo * square_size), origin)
+    val_row = 1 if m < 8**level else divmod(m, 8**level)[0]
+    val_col = 1 if n < 8**level else divmod(n, 8**level)[0]
+    time = np.sum(xor_arr[VALUES[:val_row, :val_col]])
+    
+#     m_count = m if level == 0 else 8**(level - 1)
+#     n_count = n if level == 0 else 8**(level - 1)
+#     quo, rem = divmod(m, 8**(level + 1))
+#     if quo == 0 and level == 0:
+#         time = tile(0, m, 0, n, l, t)
+#     elif quo == 0 and level > 0:
+#         pass
+#     else:
+#         time = m * ((start_col + start_col + m - 1) / 2) * n
     return time
-
 
 def tile(m_s, m_e, n_s, n_e, l, t):
     rows, cols = np.array(np.meshgrid(np.arange(n_s, n_e), np.arange(m_s, m_e))).reshape(2, -1)
@@ -65,6 +99,6 @@ if __name__ == "__main__":
     m, n, l, t = 67, 67, 0, 100000
     m, n, l, t = 19, 53, 0, 100000
     m, n, l, t = 5, 6, 0, 100000
-    m, n, l, t = 16, 8, 0, 100000
+    m, n, l, t = 5, 16, 0, 100000
     print(elder_age(m, n, l, t))
     print(tile(m, n, l, t**2))
