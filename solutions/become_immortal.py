@@ -18,16 +18,25 @@ VALUES = np.array([[0, 1, 2, 3, 4, 5, 6, 7],
                    [7, 6, 5, 4, 3, 2, 1, 0]])
 
 def elder_age(m, n, l, t):
-    m, n = (n, m) if n > m else (m, n)
     donate_time = 0
-    level = largest_sqare_tile(m)
-    m1 = m if m < 8**level else divmod(m, 8**level)[0] * 8**level
-    n1 = n if n < 8**level else divmod(n, 8**level)[0] * 8**level
-    donate_time += tile_time(m1, n1, l, t, 0, 0, level)
-    return donate_time
+    m_start, n_start = 0, 0
+    m_end, n_end = m, n
+    for section in range(0, 4):
+        dm = m_end - m_start
+        dn = n_end - n_start
+        if dn > dm:
+            m_start, m_end, n_start, n_end = n_start, n_end, m_start, m_end
+            dm, dn = dn, dm
+        m_level = largest_sqare_tile(m_end - m_start)
+        n_level = largest_sqare_tile(n_end - n_start)
+        m_start, n_start = 0, 0
+        m_end = m_start + divmod(dm, 8**m_level)[0] * 8**m_level
+        n_end = n_start + divmod(dn, 8**n_level)[0] * 8**n_level
+        donate_time += tile_time(m_start, m_end, n_start, n_end, 0, m_level, l, t)
 
-def xor_time_sum(m_s, m_e, n_s, n_e):
-    return (m_e - m_s) * ((m_s + m_e - 1) / 2) * (n_e - n_s)
+
+
+    return donate_time
 
 def largest_sqare_tile(size):
     exp = 1
@@ -40,11 +49,15 @@ def largest_sqare_tile(size):
         exp += 1
     return exp
 
-def tile_time(m, n, l, t, origin, start_col, level):
+def tile_time(m_start, m_end, n_start, n_end, origin, level, l, t):
+    
+    m = m_end
+    n = n_end
+    
     if level > 0:
         sub_m = 8**level
         sub_n = sub_m if n > sub_m else n
-        origin = tile_time(sub_m, sub_n, l, t, origin, 0, level - 1)
+        origin = tile_time(None, sub_m, None, sub_n, origin, level - 1, l, t)
     index = np.arange(0, 8**(level + 1), 8**level)
     if level == 0:
         xor_arr = np.add(np.multiply(index, 8**level * 8**level), origin)
@@ -77,6 +90,6 @@ if __name__ == "__main__":
     m, n, l, t = 5, 6, 0, 100000
     m, n, l, t = 5, 16, 0, 100000
     m, n, l, t = 19, 53, 0, 100000
-    m, n, l, t = 19, 83, 0, 100000
+    m, n, l, t = 19, 58, 0, 100000
     print(elder_age(m, n, l, t))
     print(tile(m, n, l, t**2))
