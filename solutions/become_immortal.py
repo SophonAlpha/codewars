@@ -76,9 +76,8 @@ def tile_time(m_start, m_end, n_start, n_end, origin, level, l, t):
         # 8**0 = 1x1 = 1
         # 8**1 = 8x8 = 512
         # 8**2 = 64x64 = 262144
-        cell_delta = (8**level)**3
-        adder = np.multiply(np.arange(0, len(index)), cell_delta)
-        xor_arr = np.add(np.multiply(index, m_quo * square_size * n_quo * square_size), cell_delta)
+        base_origin = tile_time(0, 8**level, 0, 8**level, 0, level - 1, l, t)
+        xor_arr = np.add(np.multiply(index, m_quo * square_size * n_quo * square_size), origin)
     val_col = 1 if dm < 8**level else divmod(dm, 8**level)[0]
     val_row = 1 if dn < 8**level else divmod(dn, 8**level)[0]
     time = np.sum(xor_arr[VALUE_MAP[:val_row, :val_col]])
