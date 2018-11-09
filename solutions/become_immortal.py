@@ -20,25 +20,22 @@ VALUE_MAP = np.array([[0, 1, 2, 3, 4, 5, 6, 7],
 def elder_age(m, n, l, t):
     donate_time = 0
     m, n = (m, n) if m > n else (n, m)
-    for section in range(0, 4):
-        if section == 0:
-            m_start, n_start = 0, 0
-            m_end, n_end = m, n
-        elif section == 1:
-            m_start, n_start = m_end, 0
-            m_end, n_end = m, n
+    m_start, n_start = 0, 0
+    m_end, n_end = m, n
+    while True:
         dm = m_end - m_start
         dn = n_end - n_start
-#         if dn > dm:
-#             m_start, m_end, n_start, n_end = n_start, n_end, m_start, m_end
-#             dm, dn = dn, dm
+        if dn > dm:
+            m_start, m_end, n_start, n_end = n_start, n_end, m_start, m_end
+            dm, dn = dn, dm
         m_level = largest_sqare_tile(m_end - m_start)
         n_level = largest_sqare_tile(n_end - n_start)
-#         m_start, n_start = 0, 0
         m_end = m_start + divmod(dm, 8**m_level)[0] * 8**m_level
         n_end = n_start + divmod(dn, 8**n_level)[0] * 8**n_level
         origin = m_start | n_start
         donate_time += tile_time(m_start, m_end, n_start, n_end, origin, m_level, l, t)
+        m_start, n_start = m_end, 0
+        m_end, n_end = m, n
     return donate_time
 
 def largest_sqare_tile(size):
@@ -67,16 +64,11 @@ def tile_time(m_start, m_end, n_start, n_end, origin, level, l, t):
     dm = m_end - m_start
     dn = n_end - n_start
     if level == 0:
-#         xor_arr = np.add(np.multiply(index, 8**level * 8**level), origin)
         xor_arr = np.multiply(index, 8**level * 8**level)
     else:
         square_size = 8**(level - 1)
         m_quo = divmod(dm, square_size)[0] if dm < 8**level else 8**level
         n_quo = divmod(dn, square_size)[0] if dn < 8**level else 8**level
-        # 8**0 = 1x1 = 1
-        # 8**1 = 8x8 = 512
-        # 8**2 = 64x64 = 262144
-#         base_origin = tile_time(0, 8**level, 0, 8**level, 0, level - 1, l, t)
         xor_arr = np.add(np.multiply(index, m_quo * square_size * n_quo * square_size), origin)
     val_col = 1 if dm < 8**level else divmod(dm, 8**level)[0]
     val_row = 1 if dn < 8**level else divmod(dn, 8**level)[0]
