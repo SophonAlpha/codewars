@@ -25,15 +25,13 @@ def elder_age(m, n, l, t):
     while True:
         dm = m_end - m_start
         dn = n_end - n_start
-        if dn > dm:
-            m_start, m_end, n_start, n_end = n_start, n_end, m_start, m_end
-            dm, dn = dn, dm
         m_level = largest_sqare_tile(m_end - m_start)
         n_level = largest_sqare_tile(n_end - n_start)
+        level = m_level if m_level >= n_level else n_level
         m_end = m_start + divmod(dm, 8**m_level)[0] * 8**m_level
         n_end = n_start + divmod(dn, 8**n_level)[0] * 8**n_level
         origin = m_start | n_start
-        donate_time += tile_time(m_start, m_end, n_start, n_end, origin, m_level, l, t)
+        donate_time += tile_time(m_start, m_end, n_start, n_end, origin, level, l, t)
         m_start, n_start = m_end, 0
         m_end, n_end = m, n
     return donate_time
@@ -52,15 +50,21 @@ def largest_sqare_tile(size):
 def tile_time(m_start, m_end, n_start, n_end, origin, level, l, t):
     if level > 0:
         sub_m_start = m_start
-        sub_m_end = sub_m_start + 8**level
-        sub_n_start = n_start
-        if (n_end - n_start) > (sub_m_end - sub_m_start):
-            sub_n_end = sub_n_start + sub_m_end - sub_m_start
+        if (m_end - m_start) >= 8**level:
+            sub_m_end = sub_m_start + 8**level
         else:
-            sub_n_end = sub_n_start + n_end
+            sub_m_end = m_end
+        sub_n_start = n_start
+        if (n_end - n_start) >= 8**level:
+            sub_n_end = sub_n_start + 8**level
+        else:
+            sub_n_end = n_end
         origin = tile_time(0, sub_m_end - sub_m_start, 0, sub_n_end - sub_n_start,
                            origin, level - 1, l, t)
-    index = np.arange(m_start, m_start + 8**(level + 1), 8**level)
+    seg_start = divmod(m_start, 8**(level+1))[0] * 8**(level+1)
+    index = np.arange(seg_start, seg_start + 8**(level + 1), 8**level)
+    i, = np.where(index == m_start)[0]
+    index = index[VALUE_MAP[i, :]]
     dm = m_end - m_start
     dn = n_end - n_start
     if level == 0:
