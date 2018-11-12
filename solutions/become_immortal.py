@@ -22,18 +22,21 @@ def elder_age(m, n, l, t):
     m, n = (m, n) if m > n else (n, m)
     m_start, n_start = 0, 0
     m_end, n_end = m, n
-    while True:
+    while m_start != m_end and n_start != n_end:
         dm = m_end - m_start
         dn = n_end - n_start
-        m_level = largest_sqare_tile(m_end - m_start)
-        n_level = largest_sqare_tile(n_end - n_start)
-        level = m_level if m_level >= n_level else n_level
+        m_level = largest_sqare_tile(dm)
+        n_level = largest_sqare_tile(dn)
         m_end = m_start + divmod(dm, 8**m_level)[0] * 8**m_level
         n_end = n_start + divmod(dn, 8**n_level)[0] * 8**n_level
         origin = m_start | n_start
+        level = max(m_level, n_level)
         donate_time += tile_time(m_start, m_end, n_start, n_end, origin, level, l, t)
-        m_start, n_start = m_end, 0
-        m_end, n_end = m, n
+        m_start = m_end
+        m_end = m
+        if m_start == m_end:
+            m_start, n_start = 0, n_end
+            m_end, n_end = m, n
     return donate_time
 
 def largest_sqare_tile(size):
@@ -61,10 +64,14 @@ def tile_time(m_start, m_end, n_start, n_end, origin, level, l, t):
             sub_n_end = n_end
         origin = tile_time(0, sub_m_end - sub_m_start, 0, sub_n_end - sub_n_start,
                            origin, level - 1, l, t)
-    seg_start = divmod(m_start, 8**(level+1))[0] * 8**(level+1)
+    seg_start = divmod(m_start, 8**(level + 1))[0] * 8**(level + 1)
     index = np.arange(seg_start, seg_start + 8**(level + 1), 8**level)
     i, = np.where(index == m_start)[0]
     index = index[VALUE_MAP[i, :]]
+    # ----- consider n ------
+    i_n, = np.where(index == n_start)[0]
+    index_n = index[VALUE_MAP[i_n, :]]
+    # -----------------------
     dm = m_end - m_start
     dn = n_end - n_start
     if level == 0:
