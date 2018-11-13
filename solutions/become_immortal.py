@@ -31,12 +31,11 @@ def elder_age(m, n, l, t):
         dn = divmod(dn, 8**n_level)[0] * 8**n_level
         origin = m_start | n_start
         level = max(m_level, n_level)
-        donate_time += tile_time(m_start, dm, n_start, dn,
-                                 origin, level, l, t)
+        donate_time += tile_time(m_start, dm, n_start, dn, origin, level, l, t)
         m_start = m_start + dm
         m_end = m
         if m_start == m_end:
-            m_start, n_start = 0, n_end
+            m_start, n_start = 0, n_start + dn
             m_end, n_end = m, n
     return donate_time
 
@@ -53,14 +52,8 @@ def largest_sqare_tile(size):
 
 def tile_time(m_start, dm, n_start, dn, origin, level, l, t):
     if level > 0:
-        if dm >= 8**level:
-            sub_dm = 8**level
-        else:
-            sub_dm = dm
-        if dn >= 8**level:
-            sub_dn = 8**level
-        else:
-            sub_dn = dn
+        sub_dm = min(dm, 8**level)
+        sub_dn = min(dn, 8**level)
         origin = tile_time(m_start, sub_dm, n_start, sub_dn,
                            origin, level - 1, l, t)
     seg_start = divmod(m_start, 8**(level + 1))[0] * 8**(level + 1)
@@ -68,7 +61,7 @@ def tile_time(m_start, dm, n_start, dn, origin, level, l, t):
     i, = np.where(index == m_start)[0]
     index = index[VALUE_MAP[i, :]]
     if level == 0:
-        xor_arr = np.multiply(index, 8**level * 8**level)
+        xor_arr = np.multiply(np.arange(0, 8), 8**level * 8**level)
     else:
         square_size = 8**(level - 1)
         m_quo = divmod(dm, square_size)[0] if dm < 8**level else 8**level
@@ -78,7 +71,6 @@ def tile_time(m_start, dm, n_start, dn, origin, level, l, t):
     val_row = 1 if dn < 8**level else divmod(dn, 8**level)[0]
     time = np.sum(xor_arr[VALUE_MAP[:val_row, :val_col]])
     return time
-
 
 def tile_time2(m_start, m_end, n_start, n_end, origin, level, l, t):
     if level > 0:
