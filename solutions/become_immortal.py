@@ -27,12 +27,13 @@ def elder_age(m, n, l, t):
         dn = n_end - n_start
         m_level = largest_sqare_tile(dm)
         n_level = largest_sqare_tile(dn)
-        m_end = m_start + divmod(dm, 8**m_level)[0] * 8**m_level
-        n_end = n_start + divmod(dn, 8**n_level)[0] * 8**n_level
+        dm = divmod(dm, 8**m_level)[0] * 8**m_level
+        dn = divmod(dn, 8**n_level)[0] * 8**n_level
         origin = m_start | n_start
         level = max(m_level, n_level)
-        donate_time += tile_time(m_start, m_end, n_start, n_end, origin, level, l, t)
-        m_start = m_end
+        donate_time += tile_time(m_start, dm, n_start, dn,
+                                 origin, level, l, t)
+        m_start = m_start + dm
         m_end = m
         if m_start == m_end:
             m_start, n_start = 0, n_end
@@ -50,7 +51,36 @@ def largest_sqare_tile(size):
         exp += 1
     return exp
 
-def tile_time(m_start, m_end, n_start, n_end, origin, level, l, t):
+def tile_time(m_start, dm, n_start, dn, origin, level, l, t):
+    if level > 0:
+        if dm >= 8**level:
+            sub_dm = 8**level
+        else:
+            sub_dm = dm
+        if dn >= 8**level:
+            sub_dn = 8**level
+        else:
+            sub_dn = dn
+        origin = tile_time(m_start, sub_dm, n_start, sub_dn,
+                           origin, level - 1, l, t)
+    seg_start = divmod(m_start, 8**(level + 1))[0] * 8**(level + 1)
+    index = np.arange(seg_start, seg_start + 8**(level + 1), 8**level)
+    i, = np.where(index == m_start)[0]
+    index = index[VALUE_MAP[i, :]]
+    if level == 0:
+        xor_arr = np.multiply(index, 8**level * 8**level)
+    else:
+        square_size = 8**(level - 1)
+        m_quo = divmod(dm, square_size)[0] if dm < 8**level else 8**level
+        n_quo = divmod(dn, square_size)[0] if dn < 8**level else 8**level
+        xor_arr = np.add(np.multiply(index, m_quo * square_size * n_quo * square_size), origin)
+    val_col = 1 if dm < 8**level else divmod(dm, 8**level)[0]
+    val_row = 1 if dn < 8**level else divmod(dn, 8**level)[0]
+    time = np.sum(xor_arr[VALUE_MAP[:val_row, :val_col]])
+    return time
+
+
+def tile_time2(m_start, m_end, n_start, n_end, origin, level, l, t):
     if level > 0:
         sub_m_start = m_start
         if (m_end - m_start) >= 8**level:
@@ -62,16 +92,12 @@ def tile_time(m_start, m_end, n_start, n_end, origin, level, l, t):
             sub_n_end = sub_n_start + 8**level
         else:
             sub_n_end = n_end
-        origin = tile_time(0, sub_m_end - sub_m_start, 0, sub_n_end - sub_n_start,
+        origin = tile_time2(0, sub_m_end - sub_m_start, 0, sub_n_end - sub_n_start,
                            origin, level - 1, l, t)
     seg_start = divmod(m_start, 8**(level + 1))[0] * 8**(level + 1)
     index = np.arange(seg_start, seg_start + 8**(level + 1), 8**level)
     i, = np.where(index == m_start)[0]
     index = index[VALUE_MAP[i, :]]
-    # ----- consider n ------
-    i_n, = np.where(index == n_start)[0]
-    index_n = index[VALUE_MAP[i_n, :]]
-    # -----------------------
     dm = m_end - m_start
     dn = n_end - n_start
     if level == 0:
