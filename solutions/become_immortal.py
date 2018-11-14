@@ -58,8 +58,9 @@ def tile_time(m_start, dm, n_start, dn, origin, level, l, t):
                            origin, level - 1, l, t)
     seg_start = divmod(m_start, 8**(level + 1))[0] * 8**(level + 1)
     index = np.arange(seg_start, seg_start + 8**(level + 1), 8**level)
-    i, = np.where(index == m_start)[0]
-    index = index[VALUE_MAP[i, :]]
+    index = np.bitwise_xor(index, n_start)
+#     i, = np.where(index == m_start)[0]
+#     index = index[VALUE_MAP[i, :]]
     if level == 0:
         xor_arr = np.multiply(np.arange(0, 8), 8**level * 8**level)
     else:
