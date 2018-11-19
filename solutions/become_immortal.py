@@ -37,6 +37,8 @@ def elder_age(m, n, l, t):
         if m_start == m_end:
             m_start, n_start = 0, n_start + dn
             m_end, n_end = m, n
+    total_loss = (l**2 + l)/2 * min(m, n)
+    donate_time = donate_time - total_loss
     donate_time = donate_time % t
     return donate_time
 
