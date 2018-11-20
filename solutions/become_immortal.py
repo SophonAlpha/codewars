@@ -37,7 +37,8 @@ def elder_age(m, n, l, t):
         if m_start == m_end:
             m_start, n_start = 0, n_start + dn
             m_end, n_end = m, n
-    total_loss = (l**2 + l)/2 * min(m, n)
+    max_l = min(l, max(m, n))
+    total_loss = ((max_l**2 + max_l)/2 + (max(m, n) - 1 - max_l) * max_l) * min(m, n)
     donate_time = donate_time - total_loss
     donate_time = donate_time % t
     return donate_time
@@ -98,6 +99,6 @@ if __name__ == "__main__":
     m, n, l, t = 19, 53, 0, 100000
     m, n, l, t = 19, 58, 0, 100000
     m, n, l, t = 20, 91, 0, 100000
-    m, n, l, t = 8, 5, 1, 100
+    m, n, l, t = 8, 5, 10, 100
     print(elder_age(m, n, l, t))
     print(tile(m, n, l, t**2))
