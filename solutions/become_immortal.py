@@ -61,8 +61,11 @@ def tile_time(m_start, dm, n_start, dn, origin, level):
         origin = np.int64(tile_time(m_start, sub_dm, n_start, sub_dn,
                                     origin, level - 1))
     seg_start = divmod(m_start, 8**(level + 1))[0] * 8**(level + 1)
-    index = np.arange(seg_start, seg_start + 8**(level + 1), 8**level,
-                      dtype=np.int64)
+    m_level = largest_sqare_tile(dm)
+    n_level = largest_sqare_tile(dn)
+    sub_level = max(m_level, n_level)
+    index = np.arange(seg_start, seg_start + 8**sub_level,
+                      8**(sub_level -1), dtype=np.int64)
     index = np.bitwise_xor(index, n_start)
     i, = np.where(index == m_start ^ n_start)[0]
     val_col = 1 if dm < 8**level else divmod(dm, 8**level)[0]
@@ -101,6 +104,7 @@ if __name__ == "__main__":
     m, n, l, t = 19, 58, 0, 100000
     m, n, l, t = 20, 91, 0, 100000
     m, n, l, t = 8, 5, 10, 100
+    m, n, l, t = 20, 65, 0, 100000
     m, n, l, t = 545, 435, 342, 1000007
     print(elder_age(m, n, l, t))
     print(tile(m, n, l, t**2))
