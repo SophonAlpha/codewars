@@ -37,10 +37,10 @@ def elder_age(m, n, l, t):
         if m_start == m_end:
             m_start, n_start = 0, n_start + dn
             m_end, n_end = m, n
-    max_l = min(l, max(m, n))
-    total_loss = ((max_l**2 + max_l)/2 + (max(m, n) - 1 - max_l) * max_l) * min(m, n)
-    donate_time = donate_time - total_loss
-    donate_time = donate_time % t
+#     max_l = min(l, max(m, n))
+#     total_loss = ((max_l**2 + max_l)/2 + (max(m, n) - 1 - max_l) * max_l) * min(m, n)
+#     donate_time = donate_time - total_loss
+#     donate_time = donate_time % t
     return donate_time
 
 def largest_sqare_tile(size):
@@ -61,11 +61,11 @@ def tile_time(m_start, dm, n_start, dn, origin, level):
         origin = np.int64(tile_time(m_start, sub_dm, n_start, sub_dn,
                                     origin, level - 1))
     seg_start = divmod(m_start, 8**(level + 1))[0] * 8**(level + 1)
-    m_level = largest_sqare_tile(dm)
-    n_level = largest_sqare_tile(dn)
-    sub_level = max(m_level, n_level)
-    index = np.arange(seg_start, seg_start + 8**sub_level,
-                      8**(sub_level -1), dtype=np.int64)
+#     m_level = largest_sqare_tile(dm)
+#     n_level = largest_sqare_tile(dn)
+#     sub_level = max(m_level, n_level)
+    index = np.arange(seg_start, seg_start + 8**(level + 1), 8**level,
+                      dtype=np.int64)
     index = np.bitwise_xor(index, n_start)
     i, = np.where(index == m_start ^ n_start)[0]
     val_col = 1 if dm < 8**level else divmod(dm, 8**level)[0]
@@ -85,12 +85,19 @@ def tile_time(m_start, dm, n_start, dn, origin, level):
     return time
 
 def tile(m_s, m_e, n_s, n_e, l, t):
-    rows, cols = np.array(np.meshgrid(np.arange(n_s, n_e), np.arange(m_s, m_e))).reshape(2, -1)
+    rows, cols = np.array(np.meshgrid(np.arange(n_s, n_e, dtype=np.int64),
+                                      np.arange(m_s, m_e, dtype=np.int64))).reshape(2, -1)
     xor_arr = np.bitwise_xor(rows, cols)
     trans_loss = np.subtract(xor_arr, l)
     trans_loss[trans_loss < 0] = 0
     donate_time = np.sum(trans_loss) % t
     return donate_time
+
+def xor_sum(m_s, m_e, n_s, n_e):
+    rows, cols = np.array(np.meshgrid(np.arange(n_s, n_e, dtype=np.int64), np.arange(m_s, m_e, dtype=np.int64)))
+    xor_arr = np.bitwise_xor(rows, cols)
+    sum = np.sum(xor_arr)
+    return sum
 
 if __name__ == "__main__":
     m, n, l, t = 28827050410, 35165045587, 7109602, 13719506
@@ -106,5 +113,9 @@ if __name__ == "__main__":
     m, n, l, t = 8, 5, 10, 100
     m, n, l, t = 20, 65, 0, 100000
     m, n, l, t = 545, 435, 342, 1000007
+    check_sum = xor_sum(0, 513, 0, 8)
+    m, n, l, t = 513, 8, 0, 1000007
+    m, n, l, t = 64, 8, 0, 1000007
+    m, n, l, t = 72, 72, 0, 1000007
     print(elder_age(m, n, l, t))
     print(tile(m, n, l, t**2))
