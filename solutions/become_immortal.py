@@ -55,19 +55,20 @@ def largest_sqare_tile(size):
     return exp
 
 def tile_time(m_start, dm, n_start, dn, origin, level):
+    if dn > dm:
+        m_start, dm, n_start, dn = n_start, dn, m_start, dm
     if level > 0:
         sub_dm = min(dm, 8**level)
         sub_dn = min(dn, 8**level)
         origin = np.int64(tile_time(m_start, sub_dm, n_start, sub_dn,
                                     origin, level - 1))
+        if sub_dn < sub_dm:
+            return origin
     seg_start = divmod(m_start, 8**(level + 1))[0] * 8**(level + 1)
-#     m_level = largest_sqare_tile(dm)
-#     n_level = largest_sqare_tile(dn)
-#     sub_level = max(m_level, n_level)
     index = np.arange(seg_start, seg_start + 8**(level + 1), 8**level,
                       dtype=np.int64)
     index = np.bitwise_xor(index, n_start)
-    i, = np.where(index == m_start ^ n_start)[0]
+
     val_col = 1 if dm < 8**level else divmod(dm, 8**level)[0]
     val_row = 1 if dn < 8**level else divmod(dn, 8**level)[0]
     if level == 0:
@@ -80,7 +81,7 @@ def tile_time(m_start, dm, n_start, dn, origin, level):
         n_quo = divmod(dn, square_size)[0] if dn < 8**level else 8**level
         xor_arr = np.add(np.multiply(index, m_quo * square_size * n_quo * square_size), 
                          origin)
-    xor_arr = xor_arr[VALUE_MAP[:val_row, i:i + val_col]]
+    xor_arr = xor_arr[VALUE_MAP[:val_row, :val_col]]
     time = np.sum(xor_arr)
     return time
 
@@ -117,5 +118,6 @@ if __name__ == "__main__":
     m, n, l, t = 513, 8, 0, 1000007
     m, n, l, t = 64, 8, 0, 1000007
     m, n, l, t = 72, 72, 0, 1000007
+    m, n, l, t = 25, 31, 0, 100007
     print(elder_age(m, n, l, t))
     print(tile(m, n, l, t**2))
