@@ -37,10 +37,10 @@ def elder_age(m, n, l, t):
         if m_start == m_end:
             m_start, n_start = 0, n_start + dn
             m_end, n_end = m, n
-#     max_l = min(l, max(m, n))
-#     total_loss = ((max_l**2 + max_l)/2 + (max(m, n) - 1 - max_l) * max_l) * min(m, n)
-#     donate_time = donate_time - total_loss
-#     donate_time = donate_time % t
+    max_l = min(l, max(m, n))
+    total_loss = ((max_l**2 + max_l)/2 + (max(m, n) - 1 - max_l) * max_l) * min(m, n)
+    donate_time = donate_time - total_loss
+    donate_time = donate_time % t
     return donate_time
 
 def largest_sqare_tile(size):
@@ -62,7 +62,7 @@ def tile_time(m_start, dm, n_start, dn, origin, level):
         sub_dn = min(dn, 8**level)
         origin = np.int64(tile_time(m_start, sub_dm, n_start, sub_dn,
                                     origin, level - 1))
-        if sub_dn < sub_dm:
+        if level > 1 and sub_dn != sub_dm:
             return origin
     seg_start = divmod(m_start, 8**(level + 1))[0] * 8**(level + 1)
     index = np.arange(seg_start, seg_start + 8**(level + 1), 8**level,
@@ -113,11 +113,11 @@ if __name__ == "__main__":
     m, n, l, t = 20, 91, 0, 100000
     m, n, l, t = 8, 5, 10, 100
     m, n, l, t = 20, 65, 0, 100000
-    m, n, l, t = 545, 435, 342, 1000007
     check_sum = xor_sum(0, 513, 0, 8)
     m, n, l, t = 513, 8, 0, 1000007
     m, n, l, t = 64, 8, 0, 1000007
     m, n, l, t = 72, 72, 0, 1000007
     m, n, l, t = 25, 31, 0, 100007
+    m, n, l, t = 545, 435, 342, 1000007
     print(elder_age(m, n, l, t))
     print(tile(m, n, l, t**2))
