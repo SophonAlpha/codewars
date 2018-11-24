@@ -62,8 +62,8 @@ def tile_time(m_start, dm, n_start, dn, origin, level):
         sub_dn = min(dn, 8**level)
         origin = np.int64(tile_time(m_start, sub_dm, n_start, sub_dn,
                                     origin, level - 1))
-        if level > 1 and sub_dn != sub_dm:
-            return origin
+#         if level > 1 and sub_dn != sub_dm:
+#             return origin
     seg_start = divmod(m_start, 8**(level + 1))[0] * 8**(level + 1)
     index = np.arange(seg_start, seg_start + 8**(level + 1), 8**level,
                       dtype=np.int64)
@@ -76,11 +76,17 @@ def tile_time(m_start, dm, n_start, dn, origin, level):
         if dm < 8 and dn < 8:
             xor_arr = index
     else:
-        square_size = 8**(level - 1)
-        m_quo = divmod(dm, square_size)[0] if dm < 8**level else 8**level
-        n_quo = divmod(dn, square_size)[0] if dn < 8**level else 8**level
-        xor_arr = np.add(np.multiply(index, m_quo * square_size * n_quo * square_size), 
-                         origin)
+        num_m_cells = 8**level
+        num_n_cells = dn if dn < 8**level else 8**level
+        # the origin added here needs to be calculated at the upper left
+        # corner of the array. Not at m_start, n_start!  
+        xor_arr = np.add(np.multiply(index, num_m_cells * num_n_cells), origin)
+#         square_size = 8**(level - 1)
+#         m_quo = divmod(dm, square_size)[0] if dm < 8**level else 8**level
+#         n_quo = divmod(dn, square_size)[0] if dn < 8**level else 8**level
+#         xor_arr = np.add(np.multiply(index, m_quo * square_size * n_quo * square_size), 
+#                          origin)
+#         xor_arr = np.add(np.multiply(index, 8**level * 8**level), origin)
     xor_arr = xor_arr[VALUE_MAP[:val_row, :val_col]]
     time = np.sum(xor_arr)
     return time
@@ -119,5 +125,6 @@ if __name__ == "__main__":
     m, n, l, t = 72, 72, 0, 1000007
     m, n, l, t = 25, 31, 0, 100007
     m, n, l, t = 545, 435, 342, 1000007
+    m, n, l, t = 512, 513, 342, 1000007
     print(elder_age(m, n, l, t))
     print(tile(m, n, l, t**2))
