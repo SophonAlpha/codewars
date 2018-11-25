@@ -63,10 +63,10 @@ def tile_time(m_start, dm, n_start, dn, origin, level):
     index = np.arange(seg_start, seg_start + 8**(level + 1), 8**level,
                       dtype=np.int64)
     index = np.bitwise_xor(index, n_start)
-    val_col = 1 if dm < 8**level or level == 0 else divmod(dm, 8**level)[0]
-    val_row = 1 if dn < 8**level or level == 0 else divmod(dn, 8**level)[0]
-    num_m_cells = 8**level
-    num_n_cells = dn if dn < 8**level else 8**level
+    val_col = 1 # if dm < 8**level or level == 0 else divmod(dm, 8**level)[0]
+    val_row = 1 # if dn < 8**level or level == 0 else divmod(dn, 8**level)[0]
+    num_m_cells = dm if level == 0 else 8**level
+    num_n_cells = dn if dn < 8**level or level == 0 else 8**level
     xor_arr = np.add(np.multiply(index, num_m_cells * num_n_cells), origin)
     xor_arr = xor_arr[VALUE_MAP[:val_row, :val_col]]
     time = np.sum(xor_arr)
@@ -163,5 +163,8 @@ if __name__ == "__main__":
     m, n, l, t = 545, 435, 342, 1000007
     m, n, l, t = 512, 513, 342, 1000007
     m, n, l, t = 7, 4, 1, 100
+    m, n, l, t = 25, 31, 0, 100007
+    m, n, l, t = 5, 45, 3, 1000007
+    m, n, l, t = 31, 39, 7, 2345
     print(elder_age(m, n, l, t))
     print(tile(m, n, l, t**2))
