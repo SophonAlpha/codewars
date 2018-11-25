@@ -57,6 +57,42 @@ def largest_sqare_tile(size):
 def tile_time(m_start, dm, n_start, dn, origin, level):
     if dn > dm:
         m_start, dm, n_start, dn = n_start, dn, m_start, dm
+    origin = sum_origin_tile(dm, dn, 0, level)
+
+    seg_start = divmod(m_start, 8**(level + 1))[0] * 8**(level + 1)
+    index = np.arange(seg_start, seg_start + 8**(level + 1), 8**level,
+                      dtype=np.int64)
+    index = np.bitwise_xor(index, n_start)
+    val_col = 1 if dm < 8**level or level == 0 else divmod(dm, 8**level)[0]
+    val_row = 1 if dn < 8**level or level == 0 else divmod(dn, 8**level)[0]
+    num_m_cells = 8**level
+    num_n_cells = dn if dn < 8**level else 8**level
+    xor_arr = np.add(np.multiply(index, num_m_cells * num_n_cells), origin)
+    xor_arr = xor_arr[VALUE_MAP[:val_row, :val_col]]
+    time = np.sum(xor_arr)
+    return time
+
+def sum_origin_tile(dm, dn, origin, level):
+    if level > 0:
+        sub_dm = min(dm, 8**level)
+        sub_dn = min(dn, 8**level)
+        origin = np.int64(sum_origin_tile(sub_dm, sub_dn, origin, level - 1))
+    index = np.arange(0, 8**(level + 1), 8**level, dtype=np.int64)
+    val_col = 1 if dm < 8**level else divmod(dm, 8**level)[0]
+    val_row = 1 if dn < 8**level else divmod(dn, 8**level)[0]
+    if level == 0:
+        xor_arr = index
+    else:
+        num_m_cells = 8**level
+        num_n_cells = dn if dn < 8**level else 8**level
+        xor_arr = np.add(np.multiply(index, num_m_cells * num_n_cells), origin)
+    xor_arr = xor_arr[VALUE_MAP[:val_row, :val_col]]
+    time = np.sum(xor_arr)
+    return time
+
+def tile_time_v1(m_start, dm, n_start, dn, origin, level):
+    if dn > dm:
+        m_start, dm, n_start, dn = n_start, dn, m_start, dm
     if level > 0:
         sub_dm = min(dm, 8**level)
         sub_dn = min(dn, 8**level)
@@ -126,5 +162,6 @@ if __name__ == "__main__":
     m, n, l, t = 25, 31, 0, 100007
     m, n, l, t = 545, 435, 342, 1000007
     m, n, l, t = 512, 513, 342, 1000007
+    m, n, l, t = 7, 4, 1, 100
     print(elder_age(m, n, l, t))
     print(tile(m, n, l, t**2))
