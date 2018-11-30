@@ -58,6 +58,42 @@ def tile_time(m_start, dm, n_start, dn, origin, level):
     if dn > dm:
         m_start, dm, n_start, dn = n_start, dn, m_start, dm
     if level > 0:
+        origin = sum_origin_tile(dm, dn, n_start, 0, level - 1)
+    else:
+        origin = sum_origin_tile(dm, dn, n_start, 0, 0)
+#     index = np.bitwise_xor(np.arange(0, 8**(level + 1), 8**level,
+#                                      dtype=np.int64), n_start)
+    rows = 8 if dn > 8 else dn
+    xor_arr = np.add(np.multiply(np.arange(0, 8), 8**(level + 1) * rows), origin)
+    val_col = 1 if dm < 8**level or level == 0 else divmod(dm, 8**level)[0]
+    val_row = 1 if dn < 8**level or level == 0 else divmod(dn, 8**level)[0]
+#     num_m_cells = dm if level == 0 else 8**level
+#     num_n_cells = dn if dn < 8**level or level == 0 else 8**level
+#     xor_arr = np.add(np.multiply(index, num_m_cells * num_n_cells), origin)
+    xor_arr = xor_arr[VALUE_MAP[:val_row, :val_col]]
+    time = np.sum(xor_arr)
+    return time
+
+def sum_origin_tile(dm, dn, n_start, origin, level):
+    if level > 1:
+        sub_dm = min(dm, 8**level)
+        sub_dn = min(dn, 8**level)
+        origin = np.int64(sum_origin_tile(sub_dm, sub_dn,
+                                          n_start, origin, level - 1))
+    index = np.bitwise_xor(np.arange(0, 8**level, 8**(level - 1), 
+                                     dtype=np.int64), n_start)
+    rows = 8 if dn > 8 else dn
+#     if level == 1:
+#         index = np.add(np.arange(0, 8), n_start)
+    if level > 1:
+        index = np.add(np.multiply(np.arange(0, 8), 8**level * rows), origin)
+    time = np.sum(index) * rows
+    return time
+
+def tile_timev2(m_start, dm, n_start, dn, origin, level):
+    if dn > dm:
+        m_start, dm, n_start, dn = n_start, dn, m_start, dm
+    if level > 0:
         origin = sum_origin_tile(dm, dn, 0, level - 1)
     else:
         origin = sum_origin_tile(dm, dn, 0, 0)
@@ -77,7 +113,7 @@ def tile_time(m_start, dm, n_start, dn, origin, level):
     time = np.sum(xor_arr)
     return time
 
-def sum_origin_tile(dm, dn, origin, level):
+def sum_origin_tilev2(dm, dn, origin, level):
     if level > 0:
         sub_dm = min(dm, 8**(level))
         sub_dn = min(dn, 8**(level))
