@@ -57,16 +57,21 @@ def largest_sqare_tile(size):
 def tile_time(m_start, dm, n_start, dn, origin, level):
     if dn > dm:
         m_start, dm, n_start, dn = n_start, dn, m_start, dm
-    origin = sum_origin_tile(dm, dn, 0, level)
+    if level > 0:
+        origin = sum_origin_tile(dm, dn, 0, level - 1)
+    else:
+        origin = sum_origin_tile(dm, dn, 0, 0)
 
     seg_start = divmod(m_start, 8**(level + 1))[0] * 8**(level + 1)
     index = np.arange(seg_start, seg_start + 8**(level + 1), 8**level,
                       dtype=np.int64)
     index = np.bitwise_xor(index, n_start)
-    val_col = 1 # if dm < 8**level or level == 0 else divmod(dm, 8**level)[0]
-    val_row = 1 # if dn < 8**level or level == 0 else divmod(dn, 8**level)[0]
+    val_col = 1 if dm < 8**level or level == 0 else divmod(dm, 8**level)[0]
+    val_row = 1 if dn < 8**level or level == 0 else divmod(dn, 8**level)[0]
     num_m_cells = dm if level == 0 else 8**level
     num_n_cells = dn if dn < 8**level or level == 0 else 8**level
+#     num_m_cells = num_m_cells if num_m_cells <= 8 else 8
+#     num_n_cells = num_n_cells if num_n_cells <= 8 else 8
     xor_arr = np.add(np.multiply(index, num_m_cells * num_n_cells), origin)
     xor_arr = xor_arr[VALUE_MAP[:val_row, :val_col]]
     time = np.sum(xor_arr)
@@ -74,12 +79,14 @@ def tile_time(m_start, dm, n_start, dn, origin, level):
 
 def sum_origin_tile(dm, dn, origin, level):
     if level > 0:
-        sub_dm = min(dm, 8**level)
-        sub_dn = min(dn, 8**level)
+        sub_dm = min(dm, 8**(level))
+        sub_dn = min(dn, 8**(level))
         origin = np.int64(sum_origin_tile(sub_dm, sub_dn, origin, level - 1))
     index = np.arange(0, 8**(level + 1), 8**level, dtype=np.int64)
     val_col = 1 if dm < 8**level else divmod(dm, 8**level)[0]
     val_row = 1 if dn < 8**level else divmod(dn, 8**level)[0]
+    val_col = val_col if val_col <= 8 else 8
+    val_row = val_row if val_row <= 8 else 8
     if level == 0:
         xor_arr = index
     else:
@@ -144,7 +151,6 @@ def xor_sum(m_s, m_e, n_s, n_e):
 
 if __name__ == "__main__":
     m, n, l, t = 28827050410, 35165045587, 7109602, 13719506
-    m, n, l, t = 545, 435, 342, 1000007
     m, n, l, t = 64, 64, 0, 100000
     m, n, l, t = 1024, 512, 0, 100000
     m, n, l, t = 67, 67, 0, 100000
@@ -160,11 +166,11 @@ if __name__ == "__main__":
     m, n, l, t = 64, 8, 0, 1000007
     m, n, l, t = 72, 72, 0, 1000007
     m, n, l, t = 25, 31, 0, 100007
-    m, n, l, t = 545, 435, 342, 1000007
     m, n, l, t = 512, 513, 342, 1000007
     m, n, l, t = 7, 4, 1, 100
     m, n, l, t = 25, 31, 0, 100007
     m, n, l, t = 5, 45, 3, 1000007
     m, n, l, t = 31, 39, 7, 2345
+    m, n, l, t = 545, 435, 342, 1000007
     print(elder_age(m, n, l, t))
     print(tile(m, n, l, t**2))
