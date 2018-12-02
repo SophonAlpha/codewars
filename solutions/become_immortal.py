@@ -31,7 +31,11 @@ def elder_age(m, n, l, t):
         dn = divmod(dn, 8**n_level)[0] * 8**n_level
         origin = np.int64(m_start ^ n_start)
         level = max(m_level, n_level)
-        donate_time += tile_time(m_start, dm, n_start, dn, origin, level)
+        time = tile_time(m_start, dm, n_start, dn, origin, level)
+        # TODO: remove debug check
+#         time_check = time == xor_sum(m_start, m_start + dm, n_start, n_start + dn)
+        # --------------------------
+        donate_time += time
         m_start = m_start + dm
         m_end = m
         if m_start == m_end:
@@ -57,117 +61,51 @@ def largest_sqare_tile(size):
 def tile_time(m_start, dm, n_start, dn, origin, level):
     if dn > dm:
         m_start, dm, n_start, dn = n_start, dn, m_start, dm
+    index = np.bitwise_xor(np.arange(m_start, m_start + 8**(level + 1), 8**level), n_start)
     if level > 0:
-        origin = sum_origin_tile(dm, dn, n_start, 0, level - 1)
+        sub_m_start = m_start + index.argmin() * 8**level
+        origin = sum_origin_tile(dm, dn, sub_m_start, n_start, 0, level)
     else:
-        origin = sum_origin_tile(dm, dn, n_start, 0, 0)
-#     index = np.bitwise_xor(np.arange(0, 8**(level + 1), 8**level,
-#                                      dtype=np.int64), n_start)
-    rows = 8 if dn > 8 else dn
-    xor_arr = np.add(np.multiply(np.arange(0, 8), 8**(level + 1) * rows), origin)
-    val_col = 1 if dm < 8**level or level == 0 else divmod(dm, 8**level)[0]
-    val_row = 1 if dn < 8**level or level == 0 else divmod(dn, 8**level)[0]
-#     num_m_cells = dm if level == 0 else 8**level
-#     num_n_cells = dn if dn < 8**level or level == 0 else 8**level
-#     xor_arr = np.add(np.multiply(index, num_m_cells * num_n_cells), origin)
-    xor_arr = xor_arr[VALUE_MAP[:val_row, :val_col]]
-    time = np.sum(xor_arr)
+        origin = np.bitwise_xor(m_start, n_start)
+    if dm > 8**level:
+        positions = np.int64(np.divide(np.subtract(index, index.min()), 8**level))
+        rows = min(dn, 8**level)
+        delta = np.sum(np.arange(8**level, 8**level + 8**level)) * rows - np.sum(np.arange(0, 8**level)) * rows
+        xor_arr = np.add(np.multiply(positions, delta), origin)
+        val_col = divmod(dm, 8**level)[0]
+        val_row = max(1, divmod(dn, 8**level)[0])
+        xor_arr = xor_arr[VALUE_MAP[:val_row, :val_col]]
+        time = np.sum(xor_arr)
+    else:
+        time = origin
     return time
 
-def sum_origin_tile(dm, dn, n_start, origin, level):
+def sum_origin_tile(dm, dn, m_start, n_start, origin, level):
     if level > 1:
+        index = np.bitwise_xor(np.arange(m_start, m_start + 8**level, 8**(level - 1), 
+                                         dtype=np.int64), n_start)
         sub_dm = min(dm, 8**level)
         sub_dn = min(dn, 8**level)
-        origin = np.int64(sum_origin_tile(sub_dm, sub_dn,
+        sub_m_start = m_start + index.argmin() * 8**(level - 1)
+        origin = np.int64(sum_origin_tile(sub_dm, sub_dn, sub_m_start,
                                           n_start, origin, level - 1))
-    index = np.bitwise_xor(np.arange(0, 8**level, 8**(level - 1), 
-                                     dtype=np.int64), n_start)
-    rows = 8 if dn > 8 else dn
-#     if level == 1:
-#         index = np.add(np.arange(0, 8), n_start)
+        positions = np.int64(np.divide(np.subtract(index, index.min()), 8**(level - 1)))
+    else:
+        index = np.bitwise_xor(np.arange(m_start, m_start + 8, dtype=np.int64), n_start)
+    # TODO: find a better solution for sub indexing the index array
+    if dn > 8:
+        if divmod(dn, 8**(level - 1))[0] == 0:
+            tile_rows = 1
+        else:
+            tile_rows = min(8, divmod(dn, 8**(level - 1))[0])
+        cell_rows = min(dn, 8**(level - 1))
+    else:
+        tile_rows = max(1, divmod(dn, 8**(level - 1))[0])
+        cell_rows = dn
     if level > 1:
-        index = np.add(np.multiply(np.arange(0, 8), 8**level * rows), origin)
-    time = np.sum(index) * rows
-    return time
-
-def tile_timev2(m_start, dm, n_start, dn, origin, level):
-    if dn > dm:
-        m_start, dm, n_start, dn = n_start, dn, m_start, dm
-    if level > 0:
-        origin = sum_origin_tile(dm, dn, 0, level - 1)
-    else:
-        origin = sum_origin_tile(dm, dn, 0, 0)
-
-    seg_start = divmod(m_start, 8**(level + 1))[0] * 8**(level + 1)
-    index = np.arange(seg_start, seg_start + 8**(level + 1), 8**level,
-                      dtype=np.int64)
-    index = np.bitwise_xor(index, n_start)
-    val_col = 1 if dm < 8**level or level == 0 else divmod(dm, 8**level)[0]
-    val_row = 1 if dn < 8**level or level == 0 else divmod(dn, 8**level)[0]
-    num_m_cells = dm if level == 0 else 8**level
-    num_n_cells = dn if dn < 8**level or level == 0 else 8**level
-#     num_m_cells = num_m_cells if num_m_cells <= 8 else 8
-#     num_n_cells = num_n_cells if num_n_cells <= 8 else 8
-    xor_arr = np.add(np.multiply(index, num_m_cells * num_n_cells), origin)
-    xor_arr = xor_arr[VALUE_MAP[:val_row, :val_col]]
-    time = np.sum(xor_arr)
-    return time
-
-def sum_origin_tilev2(dm, dn, origin, level):
-    if level > 0:
-        sub_dm = min(dm, 8**(level))
-        sub_dn = min(dn, 8**(level))
-        origin = np.int64(sum_origin_tile(sub_dm, sub_dn, origin, level - 1))
-    index = np.arange(0, 8**(level + 1), 8**level, dtype=np.int64)
-    val_col = 1 if dm < 8**level else divmod(dm, 8**level)[0]
-    val_row = 1 if dn < 8**level else divmod(dn, 8**level)[0]
-    val_col = val_col if val_col <= 8 else 8
-    val_row = val_row if val_row <= 8 else 8
-    if level == 0:
-        xor_arr = index
-    else:
-        num_m_cells = 8**level
-        num_n_cells = dn if dn < 8**level else 8**level
-        xor_arr = np.add(np.multiply(index, num_m_cells * num_n_cells), origin)
-    xor_arr = xor_arr[VALUE_MAP[:val_row, :val_col]]
-    time = np.sum(xor_arr)
-    return time
-
-def tile_time_v1(m_start, dm, n_start, dn, origin, level):
-    if dn > dm:
-        m_start, dm, n_start, dn = n_start, dn, m_start, dm
-    if level > 0:
-        sub_dm = min(dm, 8**level)
-        sub_dn = min(dn, 8**level)
-        origin = np.int64(tile_time(m_start, sub_dm, n_start, sub_dn,
-                                    origin, level - 1))
-#         if level > 1 and sub_dn != sub_dm:
-#             return origin
-    seg_start = divmod(m_start, 8**(level + 1))[0] * 8**(level + 1)
-    index = np.arange(seg_start, seg_start + 8**(level + 1), 8**level,
-                      dtype=np.int64)
-    index = np.bitwise_xor(index, n_start)
-
-    val_col = 1 if dm < 8**level else divmod(dm, 8**level)[0]
-    val_row = 1 if dn < 8**level else divmod(dn, 8**level)[0]
-    if level == 0:
-        xor_arr = np.multiply(np.arange(0, 8), 8**level * 8**level)
-        if dm < 8 and dn < 8:
-            xor_arr = index
-    else:
-        num_m_cells = 8**level
-        num_n_cells = dn if dn < 8**level else 8**level
-        # the origin added here needs to be calculated at the upper left
-        # corner of the array. Not at m_start, n_start!  
-        xor_arr = np.add(np.multiply(index, num_m_cells * num_n_cells), origin)
-#         square_size = 8**(level - 1)
-#         m_quo = divmod(dm, square_size)[0] if dm < 8**level else 8**level
-#         n_quo = divmod(dn, square_size)[0] if dn < 8**level else 8**level
-#         xor_arr = np.add(np.multiply(index, m_quo * square_size * n_quo * square_size), 
-#                          origin)
-#         xor_arr = np.add(np.multiply(index, 8**level * 8**level), origin)
-    xor_arr = xor_arr[VALUE_MAP[:val_row, :val_col]]
-    time = np.sum(xor_arr)
+        delta = np.sum(np.arange(8**(level - 1), 8**(level - 1) + 8**(level - 1))) * cell_rows - np.sum(np.arange(0, 8**(level - 1))) * cell_rows
+        index = np.add(np.multiply(positions, delta), origin)
+    time = np.sum(index) * tile_rows
     return time
 
 def tile(m_s, m_e, n_s, n_e, l, t):
@@ -208,5 +146,6 @@ if __name__ == "__main__":
     m, n, l, t = 5, 45, 3, 1000007
     m, n, l, t = 31, 39, 7, 2345
     m, n, l, t = 545, 435, 342, 1000007
+    m, n, l, t = 28827050410, 35165045587, 7109602, 13719506
     print(elder_age(m, n, l, t))
     print(tile(m, n, l, t**2))
