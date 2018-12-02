@@ -103,10 +103,18 @@ def sum_origin_tile(dm, dn, m_start, n_start, origin, level):
         tile_rows = max(1, divmod(dn, 8**(level - 1))[0])
         cell_rows = dn
     if level > 1:
-        delta = np.sum(np.arange(8**(level - 1), 8**(level - 1) + 8**(level - 1))) * cell_rows - np.sum(np.arange(0, 8**(level - 1))) * cell_rows
+        delta = (sum_seq(8**(level - 1), 8**(level - 1) + 8**(level - 1) - 1) - \
+                 sum_seq(0, 8**(level - 1) - 1)) * cell_rows
         index = np.add(np.multiply(positions, delta), origin)
     time = np.sum(index) * tile_rows
     return time
+
+def sum_seq(a_1, a_n):
+    """
+    Calculate sum of arithmetic sequence.
+    """
+    n = a_n - a_1 + 1
+    return int((n * (a_1 + a_n)) / 2)
 
 def tile(m_s, m_e, n_s, n_e, l, t):
     rows, cols = np.array(np.meshgrid(np.arange(n_s, n_e, dtype=np.int64),
@@ -124,7 +132,6 @@ def xor_sum(m_s, m_e, n_s, n_e):
     return sum
 
 if __name__ == "__main__":
-    m, n, l, t = 28827050410, 35165045587, 7109602, 13719506
     m, n, l, t = 64, 64, 0, 100000
     m, n, l, t = 1024, 512, 0, 100000
     m, n, l, t = 67, 67, 0, 100000
@@ -135,7 +142,6 @@ if __name__ == "__main__":
     m, n, l, t = 20, 91, 0, 100000
     m, n, l, t = 8, 5, 10, 100
     m, n, l, t = 20, 65, 0, 100000
-    check_sum = xor_sum(0, 513, 0, 8)
     m, n, l, t = 513, 8, 0, 1000007
     m, n, l, t = 64, 8, 0, 1000007
     m, n, l, t = 72, 72, 0, 1000007
