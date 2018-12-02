@@ -32,9 +32,6 @@ def elder_age(m, n, l, t):
         origin = np.int64(m_start ^ n_start)
         level = max(m_level, n_level)
         time = tile_time(m_start, dm, n_start, dn, origin, level)
-        # TODO: remove debug check
-#         time_check = time == xor_sum(m_start, m_start + dm, n_start, n_start + dn)
-        # --------------------------
         donate_time += time
         m_start = m_start + dm
         m_end = m
@@ -70,7 +67,8 @@ def tile_time(m_start, dm, n_start, dn, origin, level):
     if dm > 8**level:
         positions = np.int64(np.divide(np.subtract(index, index.min()), 8**level))
         rows = min(dn, 8**level)
-        delta = np.sum(np.arange(8**level, 8**level + 8**level)) * rows - np.sum(np.arange(0, 8**level)) * rows
+        delta = (sum_seq(8**level, 8**level + 8**level - 1) - \
+                 sum_seq(0, 8**level - 1)) * rows
         xor_arr = np.add(np.multiply(positions, delta), origin)
         val_col = divmod(dm, 8**level)[0]
         val_row = max(1, divmod(dn, 8**level)[0])
@@ -154,4 +152,3 @@ if __name__ == "__main__":
     m, n, l, t = 545, 435, 342, 1000007
     m, n, l, t = 28827050410, 35165045587, 7109602, 13719506
     print(elder_age(m, n, l, t))
-    print(tile(m, n, l, t**2))
