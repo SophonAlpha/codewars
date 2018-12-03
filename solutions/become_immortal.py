@@ -17,6 +17,9 @@ VALUE_MAP = np.array([[0, 1, 2, 3, 4, 5, 6, 7],
                       [6, 7, 4, 5, 2, 3, 0, 1],
                       [7, 6, 5, 4, 3, 2, 1, 0]])
 
+# TODO: change to dtype=object for numpy formulas 
+# https://stackoverflow.com/questions/37271654/stocking-large-numbers-into-numpy-array
+
 def elder_age(m, n, l, t):
     donate_time = 0
     m, n = (m, n) if m > n else (n, m)
@@ -29,7 +32,7 @@ def elder_age(m, n, l, t):
         n_level = largest_sqare_tile(dn)
         dm = divmod(dm, 8**m_level)[0] * 8**m_level
         dn = divmod(dn, 8**n_level)[0] * 8**n_level
-        origin = np.int64(m_start ^ n_start)
+        origin = m_start ^ n_start
         level = max(m_level, n_level)
         time = tile_time(m_start, dm, n_start, dn, origin, level)
         donate_time += time
@@ -58,14 +61,14 @@ def largest_sqare_tile(size):
 def tile_time(m_start, dm, n_start, dn, origin, level):
     if dn > dm:
         m_start, dm, n_start, dn = n_start, dn, m_start, dm
-    index = np.bitwise_xor(np.arange(m_start, m_start + 8**(level + 1), 8**level), n_start)
+    index = np.bitwise_xor(np.arange(m_start, m_start + 8**(level + 1), 8**level, dtype=object), n_start)
     if level > 0:
         sub_m_start = m_start + index.argmin() * 8**level
         origin = sum_origin_tile(dm, dn, sub_m_start, n_start, 0, level)
     else:
         origin = np.bitwise_xor(m_start, n_start)
     if dm > 8**level:
-        positions = np.int64(np.divide(np.subtract(index, index.min()), 8**level))
+        positions = np.divide(np.subtract(index, index.min()), 8**level)
         rows = min(dn, 8**level)
         delta = (sum_seq(8**level, 8**level + 8**level - 1) - \
                  sum_seq(0, 8**level - 1)) * rows
@@ -81,15 +84,14 @@ def tile_time(m_start, dm, n_start, dn, origin, level):
 def sum_origin_tile(dm, dn, m_start, n_start, origin, level):
     if level > 1:
         index = np.bitwise_xor(np.arange(m_start, m_start + 8**level, 8**(level - 1), 
-                                         dtype=np.int64), n_start)
+                                         dtype=object), n_start)
         sub_dm = min(dm, 8**level)
         sub_dn = min(dn, 8**level)
         sub_m_start = m_start + index.argmin() * 8**(level - 1)
-        origin = np.int64(sum_origin_tile(sub_dm, sub_dn, sub_m_start,
-                                          n_start, origin, level - 1))
-        positions = np.int64(np.divide(np.subtract(index, index.min()), 8**(level - 1)))
+        origin = sum_origin_tile(sub_dm, sub_dn, sub_m_start, n_start, origin, level - 1)
+        positions = np.divide(np.subtract(index, index.min()), 8**(level - 1))
     else:
-        index = np.bitwise_xor(np.arange(m_start, m_start + 8, dtype=np.int64), n_start)
+        index = np.bitwise_xor(np.arange(m_start, m_start + 8, dtype=object), n_start)
     # TODO: find a better solution for sub indexing the index array
     if dn > 8:
         if divmod(dn, 8**(level - 1))[0] == 0:
@@ -115,8 +117,8 @@ def sum_seq(a_1, a_n):
     return int((n * (a_1 + a_n)) / 2)
 
 def tile(m_s, m_e, n_s, n_e, l, t):
-    rows, cols = np.array(np.meshgrid(np.arange(n_s, n_e, dtype=np.int64),
-                                      np.arange(m_s, m_e, dtype=np.int64))).reshape(2, -1)
+    rows, cols = np.array(np.meshgrid(np.arange(n_s, n_e, dtype=object),
+                                      np.arange(m_s, m_e, dtype=object))).reshape(2, -1)
     xor_arr = np.bitwise_xor(rows, cols)
     trans_loss = np.subtract(xor_arr, l)
     trans_loss[trans_loss < 0] = 0
@@ -124,7 +126,7 @@ def tile(m_s, m_e, n_s, n_e, l, t):
     return donate_time
 
 def xor_sum(m_s, m_e, n_s, n_e):
-    rows, cols = np.array(np.meshgrid(np.arange(n_s, n_e, dtype=np.int64), np.arange(m_s, m_e, dtype=np.int64)))
+    rows, cols = np.array(np.meshgrid(np.arange(n_s, n_e, dtype=object), np.arange(m_s, m_e, dtype=object)))
     xor_arr = np.bitwise_xor(rows, cols)
     sum = np.sum(xor_arr)
     return sum
