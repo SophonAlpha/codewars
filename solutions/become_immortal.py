@@ -50,15 +50,15 @@ def largest_sqare_tile(size):
 def tile_time(m_start, dm, n_start, dn, sub_sum, level):
     if dn > dm:
         m_start, dm, n_start, dn = n_start, dn, m_start, dm
-    index = [value ^ n_start 
-             for value in range(m_start, m_start + 8**(level + 1), 8**level)]
+    xor_arr = [value ^ n_start 
+               for value in range(m_start, m_start + 8**(level + 1), 8**level)]
     if level > 0:
-        sub_m_start = m_start + index.index(min(index)) * 8**level
+        sub_m_start = m_start + xor_arr.index(min(xor_arr)) * 8**level
         sub_sum = sub_tile_sum(dm, dn, sub_m_start, n_start, 0, level)
     else:
         sub_sum = m_start ^ n_start
     if dm > 8**level:
-        positions = [(value - min(index))//8**level for value in index]
+        positions = [(value - min(xor_arr))//8**level for value in xor_arr]
         rows = min(dn, 8**level)
         delta = (sum_seq(8**level, 8**level + 8**level - 1) - \
                  sum_seq(0, 8**level - 1)) * rows
@@ -73,35 +73,28 @@ def tile_time(m_start, dm, n_start, dn, sub_sum, level):
 
 def sub_tile_sum(dm, dn, m_start, n_start, sub_sum, level):
     if level > 1:
-        index = [value ^ n_start 
+        xor_arr = [value ^ n_start 
                  for value in range(m_start, m_start + 8**level,
                                     8**(level - 1))]
         sub_dm = min(dm, 8**level)
         sub_dn = min(dn, 8**level)
-        sub_m_start = m_start + index.index(min(index)) * 8**(level - 1)
+        sub_m_start = m_start + xor_arr.index(min(xor_arr)) * 8**(level - 1)
         sub_sum = sub_tile_sum(sub_dm, sub_dn, sub_m_start, n_start, 
                                sub_sum, level - 1)
-        positions = [(value - min(index))//8**(level - 1) for value in index]
+        positions = [(value - min(xor_arr))//8**(level - 1) for value in xor_arr]
     else:
-        index = [value ^ n_start for value in range(m_start, m_start + 8)]
-    # TODO: find a better solution for sub indexing the index array
-    if dn > 8:
-        if divmod(dn, 8**(level - 1))[0] == 0:
-            tile_rows = 1
-        else:
-            tile_rows = min(8, divmod(dn, 8**(level - 1))[0])
-        cell_rows = min(dn, 8**(level - 1))
-    else:
-        tile_rows = max(1, divmod(dn, 8**(level - 1))[0])
-        cell_rows = dn
+        xor_arr = [value ^ n_start for value in range(m_start, m_start + 8)]
+    tile_rows = divmod(dn, 8**(level - 1))[0]
+    tile_rows = 1 if tile_rows == 0 else tile_rows
+    tile_rows = 8 if tile_rows > 8 else tile_rows
+    cell_rows = min(dn, 8**(level - 1))
     if level > 1:
         delta = (sum_seq(8**(level - 1),
                          8**(level - 1) + 8**(level - 1) - 1) - \
                  sum_seq(0, 
                          8**(level - 1) - 1)) * cell_rows
-        index = [(value * delta) + sub_sum for value in positions]
-        
-    time = sum(index) * tile_rows
+        xor_arr = [(value * delta) + sub_sum for value in positions]
+    time = sum(xor_arr) * tile_rows
     return time
 
 def map_row_to_array(row, num_rows, num_cols):
