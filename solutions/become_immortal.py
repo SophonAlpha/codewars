@@ -95,6 +95,12 @@ def sub_tile_sum(dm, dn, m_start, n_start, sub_sum, level):
                          8**(level - 1) - 1)) * cell_rows
         xor_arr = [(value * delta) + sub_sum for value in positions]
     time = sum(xor_arr) * tile_rows
+    """
+     sum_seq(0, 5)
+    
+    
+    """
+    
     return time
 
 def map_row_to_array(row, num_rows, num_cols):
@@ -120,5 +126,11 @@ def sum_seq(a_1, a_n):
     n = a_n - a_1 + 1
     return int((n * (a_1 + a_n)) / 2)
 
+def xor_sum(m_s, m_e, n_s, n_e):
+    rows, cols = np.array(np.meshgrid(np.arange(n_s, n_e, dtype=object), np.arange(m_s, m_e, dtype=object)))
+    xor_arr = np.bitwise_xor(rows, cols)
+    sum = np.sum(xor_arr)
+    return sum
+
 if __name__ == "__main__":
-    print(elder_age(28827050410, 35165045587, 7109602, 13719506))
+    print(elder_age(57, 59, 15, 129))

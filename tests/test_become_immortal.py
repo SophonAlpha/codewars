@@ -6,8 +6,41 @@ https://www.codewars.com/kata/become-immortal
 """
 
 import pytest
-
+import random
 from solutions.become_immortal import elder_age
+
+"""
+100 test cases
+m,n: 2^5 - 2^10
+l: 0 - 19
+t: 2^5 - 2^15
+
+300 test cases
+m,n: 2^8 - 2^20
+l: 0 - 9999
+t: 2^10 - 2^20
+
+500 test cases
+m,n: 2^32 - 2^64
+l: 0 - 9999999
+t: 2^16 - 2^32
+"""
+
+def generate_100_test_cases():
+    """
+    100 test cases
+    m,n: 2^5 - 2^10
+    l: 0 - 19
+    t: 2^5 - 2^15
+    """
+    tests = []
+    for _ in range(0,100):
+        m = random.randint(2**5, 2**10)
+        n = random.randint(2**5, 2**10)
+        l = random.randint(0, 19)
+        t = random.randint(2**5, 2**15)
+        tests.append(tests)
+    return tests
 
 TESTS = [(8, 5, 1, 100, 5),
          (7, 4, 1, 100, 66),
