@@ -23,7 +23,7 @@ def elder_age(m, n, l, t):
         dn = divmod(dn, 8**n_level)[0] * 8**n_level
         cell_value = m_start ^ n_start
         level = max(m_level, n_level)
-        time = tile_time(m_start, dm, n_start, dn, cell_value, level)
+        time = tile_time(m_start, dm, n_start, dn, cell_value, level, l)
         donate_time += time
         m_start = m_start + dm
         m_end = m
@@ -47,7 +47,7 @@ def largest_sqare_tile(size):
         exp += 1
     return exp
 
-def tile_time(m_start, dm, n_start, dn, sub_sum, level):
+def tile_time(m_start, dm, n_start, dn, sub_sum, level, l):
     if dn > dm:
         m_start, dm, n_start, dn = n_start, dn, m_start, dm
     xor_arr = [value ^ n_start 
@@ -65,11 +65,15 @@ def tile_time(m_start, dm, n_start, dn, sub_sum, level):
         xor_arr = [(value * delta) + sub_sum for value in positions]
         val_col = divmod(dm, 8**level)[0]
         val_row = max(1, divmod(dn, 8**level)[0])
+        loss_arr = calculate_loss(level, l, xor_arr)
         xor_arr = map_row_to_array(xor_arr, val_row, val_col)
+        loss_arr = map_row_to_array(loss_arr, val_row, val_col)
         time = sum([sum(row) for row in xor_arr])
+        loss = sum([sum(row) for row in loss_arr])
     else:
+        loss = calculate_loss(level, l, [sub_sum])
         time = sub_sum
-    return time
+    return time, loss
 
 def sub_tile_sum(dm, dn, m_start, n_start, sub_sum, level):
     if level > 1:
@@ -95,12 +99,6 @@ def sub_tile_sum(dm, dn, m_start, n_start, sub_sum, level):
                          8**(level - 1) - 1)) * cell_rows
         xor_arr = [(value * delta) + sub_sum for value in positions]
     time = sum(xor_arr) * tile_rows
-    """
-     sum_seq(0, 5)
-    
-    
-    """
-    
     return time
 
 def map_row_to_array(row, num_rows, num_cols):
@@ -118,6 +116,12 @@ def map_row_to_array(row, num_rows, num_cols):
                    for col_index in range(0, num_cols)]
         array.append(new_row)
     return array
+
+def calculate_loss(level, l, xor_arr):
+    loss = 8**level * 8**level * l
+    loss_arr = [loss if (value - loss) > 0 else value
+                  for value in xor_arr]
+    return loss_arr
 
 def sum_seq(a_1, a_n):
     """
