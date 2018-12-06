@@ -11,6 +11,7 @@ np.seterr(over='raise')
 
 def elder_age(m, n, l, t):
     donate_time = 0
+    total_loss = 0
     m, n = (m, n) if m > n else (n, m)
     m_start, n_start = 0, 0
     m_end, n_end = m, n
@@ -23,15 +24,14 @@ def elder_age(m, n, l, t):
         dn = divmod(dn, 8**n_level)[0] * 8**n_level
         cell_value = m_start ^ n_start
         level = max(m_level, n_level)
-        time = tile_time(m_start, dm, n_start, dn, cell_value, level, l)
+        time, loss = tile_time(m_start, dm, n_start, dn, cell_value, level, l)
         donate_time += time
+        total_loss += loss
         m_start = m_start + dm
         m_end = m
         if m_start == m_end:
             m_start, n_start = 0, n_start + dn
             m_end, n_end = m, n
-    max_l = min(l, max(m, n))
-    total_loss = ((max_l**2 + max_l)//2 + (max(m, n) - 1 - max_l) * max_l) * min(m, n)
     donate_time = donate_time - total_loss
     donate_time = donate_time % t
     return donate_time
@@ -65,13 +65,16 @@ def tile_time(m_start, dm, n_start, dn, sub_sum, level, l):
         xor_arr = [(value * delta) + sub_sum for value in positions]
         val_col = divmod(dm, 8**level)[0]
         val_row = max(1, divmod(dn, 8**level)[0])
-        loss_arr = calculate_loss(level, l, xor_arr)
+        loss_arr = calculate_loss(level, dn, l, xor_arr)
         xor_arr = map_row_to_array(xor_arr, val_row, val_col)
         loss_arr = map_row_to_array(loss_arr, val_row, val_col)
         time = sum([sum(row) for row in xor_arr])
         loss = sum([sum(row) for row in loss_arr])
     else:
-        loss = calculate_loss(level, l, [sub_sum])
+        loss_arr = calculate_loss(0, dn, l,
+                                  range(m_start, m_start + dm))
+        loss_arr = map_row_to_array(loss_arr, dn, dm)
+        loss = sum([sum(row) for row in loss_arr])
         time = sub_sum
     return time, loss
 
@@ -117,8 +120,8 @@ def map_row_to_array(row, num_rows, num_cols):
         array.append(new_row)
     return array
 
-def calculate_loss(level, l, xor_arr):
-    loss = 8**level * 8**level * l
+def calculate_loss(level, dn, l, xor_arr):
+    loss = 8**level * 8**level * l if dn >= 8 or level == 0 else 8**level * dn * l
     loss_arr = [loss if (value - loss) > 0 else value
                   for value in xor_arr]
     return loss_arr
@@ -136,5 +139,14 @@ def xor_sum(m_s, m_e, n_s, n_e):
     sum = np.sum(xor_arr)
     return sum
 
+def loss_array(m_s, m_e, n_s, n_e, l, t):
+    rows, cols = np.array(np.meshgrid(np.arange(n_s, n_e, dtype=object), np.arange(m_s, m_e, dtype=object)))
+    xor_arr = np.bitwise_xor(rows, cols)
+    trans_loss = np.subtract(xor_arr, l)
+    trans_loss[trans_loss < 0] = 0
+    loss = np.sum(xor_arr) - np.sum(trans_loss)
+    donate_time = np.sum(trans_loss) % t
+    return np.sum(xor_arr), loss, donate_time
+
 if __name__ == "__main__":
-    print(elder_age(57, 59, 15, 129))
+    print(elder_age(5, 45, 3, 1000007))
