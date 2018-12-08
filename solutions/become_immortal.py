@@ -126,7 +126,7 @@ def calculate_loss(m_start, dm, n_start, dn, level, l):
         all_above_loss = ((seq_start + dm) - (min(l, seq_start + dm) + 1)) * l
     else:
         all_above_loss = dm * l
-    no_rows = 8**level if dn >= 8 else dn
+    no_rows = dn
     loss = (all_below_loss + all_above_loss) * no_rows
     return loss
 
@@ -153,4 +153,4 @@ def loss_array(m_s, m_e, n_s, n_e, l, t):
     return np.sum(xor_arr), loss, donate_time
 
 if __name__ == "__main__":
-    print(elder_age(31, 39, 7, 2345))
+    print(elder_age(545, 435, 342, 1000007))
