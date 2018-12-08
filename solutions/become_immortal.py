@@ -65,17 +65,11 @@ def tile_time(m_start, dm, n_start, dn, sub_sum, level, l):
         xor_arr = [(value * delta) + sub_sum for value in positions]
         val_col = divmod(dm, 8**level)[0]
         val_row = max(1, divmod(dn, 8**level)[0])
-        loss_arr = calculate_loss(level, dn, l, xor_arr)
         xor_arr = map_row_to_array(xor_arr, val_row, val_col)
-        loss_arr = map_row_to_array(loss_arr, val_row, val_col)
         time = sum([sum(row) for row in xor_arr])
-        loss = sum([sum(row) for row in loss_arr])
     else:
-        loss_arr = calculate_loss(0, dn, l,
-                                  range(m_start, m_start + dm))
-        loss_arr = map_row_to_array(loss_arr, dn, dm)
-        loss = sum([sum(row) for row in loss_arr])
         time = sub_sum
+    loss = calculate_loss(m_start, dm, n_start, dn, level, l)
     return time, loss
 
 def sub_tile_sum(dm, dn, m_start, n_start, sub_sum, level):
@@ -120,11 +114,21 @@ def map_row_to_array(row, num_rows, num_cols):
         array.append(new_row)
     return array
 
-def calculate_loss(level, dn, l, xor_arr):
-    loss = 8**level * 8**level * l if dn >= 8 or level == 0 else 8**level * dn * l
-    loss_arr = [loss if (value - loss) > 0 else value
-                  for value in xor_arr]
-    return loss_arr
+def calculate_loss(m_start, dm, n_start, dn, level, l):
+    cols = divmod(dm, 8**level)[0]
+    cols = cols if cols > 0 else 1
+    xor_arr = [value ^ n_start
+               for value in range(m_start, m_start + 8**(level + 1), 8**level)]
+    seq_start = min(xor_arr[:cols])
+    seq_end = min(l, seq_start + dm)
+    all_below_loss = sum_seq(seq_start, seq_end) if seq_end > seq_start else 0
+    if seq_end > seq_start:
+        all_above_loss = ((seq_start + dm) - (min(l, seq_start + dm) + 1)) * l
+    else:
+        all_above_loss = dm * l
+    no_rows = 8**level if dn >= 8 else dn
+    loss = (all_below_loss + all_above_loss) * no_rows
+    return loss
 
 def sum_seq(a_1, a_n):
     """
@@ -144,9 +148,9 @@ def loss_array(m_s, m_e, n_s, n_e, l, t):
     xor_arr = np.bitwise_xor(rows, cols)
     trans_loss = np.subtract(xor_arr, l)
     trans_loss[trans_loss < 0] = 0
-    loss = np.sum(xor_arr) - np.sum(trans_loss)
+    loss = np.subtract(np.sum(xor_arr), np.sum(trans_loss))
     donate_time = np.sum(trans_loss) % t
     return np.sum(xor_arr), loss, donate_time
 
 if __name__ == "__main__":
-    print(elder_age(5, 45, 3, 1000007))
+    print(elder_age(31, 39, 7, 2345))
