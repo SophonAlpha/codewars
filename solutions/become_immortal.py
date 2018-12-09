@@ -75,8 +75,8 @@ def tile_time(m_start, dm, n_start, dn, sub_sum, level, l):
 def sub_tile_sum(dm, dn, m_start, n_start, sub_sum, level):
     if level > 1:
         xor_arr = [value ^ n_start 
-                 for value in range(m_start, m_start + 8**level,
-                                    8**(level - 1))]
+                   for value in range(m_start, m_start + 8**level,
+                                      8**(level - 1))]
         sub_dm = min(dm, 8**level)
         sub_dn = min(dn, 8**level)
         sub_m_start = m_start + xor_arr.index(min(xor_arr)) * 8**(level - 1)
@@ -119,6 +119,15 @@ def calculate_loss(m_start, dm, n_start, dn, level, l):
     cols = cols if cols > 0 else 1
     xor_arr = [value ^ n_start
                for value in range(m_start, m_start + 8**(level + 1), 8**level)]
+
+    for value in xor_arr[:cols]:
+        if value <= l <= value + 8**level - 1:
+            sub_m_start = value
+            break
+    sub_dm = min(dm, 8**level)
+    sub_dn = min(dn, 8**level)
+    calculate_loss(sub_m_start, sub_dm, n_start, sub_dn, level - 1, l)
+
     seq_start = min(xor_arr[:cols])
     seq_end = min(l, seq_start + dm)
     all_below_loss = sum_seq(seq_start, seq_end) if seq_end > seq_start else 0
