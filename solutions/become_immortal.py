@@ -119,24 +119,27 @@ def calculate_loss(m_start, dm, n_start, dn, level, l):
     cols = cols if cols > 0 else 1
     xor_arr = [value ^ n_start
                for value in range(m_start, m_start + 8**(level + 1), 8**level)]
-
-    for value in xor_arr[:cols]:
-        if value <= l <= value + 8**level - 1:
-            sub_m_start = value
-            break
-    sub_dm = min(dm, 8**level)
-    sub_dn = min(dn, 8**level)
-    calculate_loss(sub_m_start, sub_dm, n_start, sub_dn, level - 1, l)
-
-    seq_start = min(xor_arr[:cols])
-    seq_end = min(l, seq_start + dm)
-    all_below_loss = sum_seq(seq_start, seq_end) if seq_end > seq_start else 0
-    if seq_end > seq_start:
-        all_above_loss = ((seq_start + dm) - (min(l, seq_start + dm) + 1)) * l
+    if level > 1:
+        for index, value in enumerate(xor_arr[:cols]):
+            if value <= l <= value + 8**level - 1:
+                sub_m_start = value
+                break
+        sub_dm = min(dm, 8**level)
+        sub_dn = min(dn, 8**level)
+        sub_loss = calculate_loss(sub_m_start, sub_dm, n_start, sub_dn, level - 1, l)
+        loss = sub_loss + \
+               (cols - 1 - index) * 8**(level - 1)**2 * l * \
+               dn
     else:
-        all_above_loss = dm * l
-    no_rows = dn
-    loss = (all_below_loss + all_above_loss) * no_rows
+        seq_start = min(xor_arr[:cols])
+        seq_end = min(l, seq_start + dm)
+        all_below_loss = sum_seq(seq_start, seq_end) if seq_end > seq_start else 0
+        if seq_end > seq_start:
+            all_above_loss = ((seq_start + dm) - (min(l, seq_start + dm) + 1)) * l
+        else:
+            all_above_loss = dm * l
+        no_rows = dn
+        loss = (all_below_loss + all_above_loss) * no_rows
     return loss
 
 def sum_seq(a_1, a_n):
