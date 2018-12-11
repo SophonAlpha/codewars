@@ -54,7 +54,7 @@ def tile_time(m_start, dm, n_start, dn, sub_sum, level, l):
                for value in range(m_start, m_start + 8**(level + 1), 8**level)]
     if level > 0:
         sub_m_start = m_start + xor_arr.index(min(xor_arr)) * 8**level
-        sub_sum = sub_tile_sum(dm, dn, sub_m_start, n_start, 0, level)
+        sub_sum = sub_tile_sum(dm, dn, sub_m_start, n_start, 0, level, l)
     else:
         sub_sum = m_start ^ n_start
     if dm > 8**level:
@@ -72,7 +72,7 @@ def tile_time(m_start, dm, n_start, dn, sub_sum, level, l):
     loss = calculate_loss(m_start, dm, n_start, dn, level, l)
     return time, loss
 
-def sub_tile_sum(dm, dn, m_start, n_start, sub_sum, level):
+def sub_tile_sum(dm, dn, m_start, n_start, sub_sum, level, l):
     if level > 1:
         xor_arr = [value ^ n_start 
                    for value in range(m_start, m_start + 8**level,
@@ -85,6 +85,7 @@ def sub_tile_sum(dm, dn, m_start, n_start, sub_sum, level):
         positions = [(value - min(xor_arr))//8**(level - 1) for value in xor_arr]
     else:
         xor_arr = [value ^ n_start for value in range(m_start, m_start + 8)]
+        xor_sums = xor_arr
     tile_rows = divmod(dn, 8**(level - 1))[0]
     tile_rows = 1 if tile_rows == 0 else tile_rows
     tile_rows = 8 if tile_rows > 8 else tile_rows
@@ -94,9 +95,10 @@ def sub_tile_sum(dm, dn, m_start, n_start, sub_sum, level):
                          8**(level - 1) + 8**(level - 1) - 1) - \
                  sum_seq(0, 
                          8**(level - 1) - 1)) * cell_rows
-        xor_arr = [(value * delta) + sub_sum for value in positions]
-    time = sum(xor_arr) * tile_rows
-    return time
+        xor_sums = [(value * delta) + sub_sum for value in positions]
+    time = sum(xor_sums) * tile_rows
+    loss = calculate_loss(m_start, dm, n_start, dn, level, l)
+    return time, loss
 
 def map_row_to_array(row, num_rows, num_cols):
     VALUE_MAP = [[0, 1, 2, 3, 4, 5, 6, 7],
@@ -115,6 +117,10 @@ def map_row_to_array(row, num_rows, num_cols):
     return array
 
 def calculate_loss(m_start, dm, n_start, dn, level, l):
+    pass
+    return loss
+
+def calculate_loss_v1(m_start, dm, n_start, dn, level, l):
     cols = divmod(dm, 8**level)[0]
     cols = cols if cols > 0 else 1
     xor_arr = [value ^ n_start
@@ -139,7 +145,6 @@ def calculate_loss(m_start, dm, n_start, dn, level, l):
         num_rows = min(dn, divmod(dn, 8**level)[0])
         sub_loss = (all_below_loss + all_above_loss) * num_rows
     loss = sub_loss + \
-           # calculate for all the tiles that are lower than then the index 
            (cols - 1 - index) * (8**level)**2 * l * \
            num_rows
     return loss
