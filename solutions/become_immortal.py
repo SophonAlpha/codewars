@@ -129,6 +129,8 @@ def tile_loss(m_start, dm, n_start, dn, level, l):
                           for value in xor_arr[:cols]]
     sub_dm = min(dm, 8**level)
     sub_dn = min(dn, 8**level)
+    sub_num_rows = divmod(sub_dn, 8**(level - 1))[0]
+    sub_num_rows = sub_num_rows if sub_num_rows > 0 else 1
 #     num_rows = divmod(min(dn, 8**level), 8**(level - 1))[0]
     num_rows = divmod(dn, 8**level)[0]
     num_rows = num_rows if num_rows > 0 else 1
@@ -166,7 +168,7 @@ def tile_loss(m_start, dm, n_start, dn, level, l):
                                    n_start, sub_dn, 0, level)
         sub_loss = 0
         tiles_some_loss = 0
-    loss = (tiles_all_loss + sub_loss + tiles_some_loss) * num_rows
+    loss = (tiles_all_loss + sub_loss + tiles_some_loss) * sub_num_rows
     return loss
 
 def sub_tile_loss(m_start, dm, n_start, dn, level, l):
@@ -177,8 +179,9 @@ def sub_tile_loss(m_start, dm, n_start, dn, level, l):
     xor_arr_boundaries = [divmod(value, 8**level)[0] * 8**level for value in xor_arr[:cols]]
     sub_dm = min(dm, 8**level)
     sub_dn = min(dn, 8**level)
+    sub_num_rows = divmod(sub_dn, 8**(level - 1))[0]
+    sub_num_rows = sub_num_rows if sub_num_rows > 0 else 1
     num_rows = divmod(dn, 8**level)[0]
-    # TODO: fix num_rows calculation
     num_rows = num_rows if num_rows > 0 else 1
     # lifetime lower than range
     if l < min(xor_arr_boundaries):
@@ -217,7 +220,7 @@ def sub_tile_loss(m_start, dm, n_start, dn, level, l):
                                    n_start, sub_dn, 0, level)
         sub_loss = 0
         tiles_some_loss = 0
-    sub_loss = (tiles_all_loss + sub_loss + tiles_some_loss) * num_rows
+    sub_loss = (tiles_all_loss + sub_loss + tiles_some_loss) * sub_num_rows
     tiles_all_loss = tile_time(m_start, len(xor_arr[:index]) * 8**level,
                                n_start, sub_dn, 0, level)
     tiles_some_loss = (cols - 1 - index) * (8**level) * sub_dn * l
