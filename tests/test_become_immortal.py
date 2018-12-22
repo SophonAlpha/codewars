@@ -8,6 +8,7 @@ https://www.codewars.com/kata/become-immortal
 import pytest
 import random
 from solutions.become_immortal import elder_age
+from solutions.become_immortal import loss_array
 
 """
 100 test cases
@@ -49,7 +50,7 @@ TESTS = [(8, 5, 1, 100, 5),
          (5, 45, 3, 1000007, 4323),
          (31, 39, 7, 2345, 1586),
          (545, 435, 342, 1000007, 808451),
-         (28827050410, 35165045587, 7109602, 13719506, 5456283),
+#         (28827050410, 35165045587, 7109602, 13719506, 5456283),
          (706, 120, 12, 6983, 1525),
          (176, 110, 20, 2805, 767),
          (68, 444, 1, 4091, 3932),
@@ -99,3 +100,10 @@ def test_cases_small(m, n, l, t, correct_age):
     """ tests """
     age = elder_age(m, n, l, t)
     assert age == correct_age
+
+@pytest.mark.parametrize('m, n, l, t, correct_age', TESTS)
+def test_with_naive_calculation(m, n, l, t, correct_age):
+    """ tests """
+    total_time, donate_time = elder_age(m, n, l, t)
+    naive_age = loss_array(0, m, 0, n, l, t)[0]
+    assert total_time == naive_age
