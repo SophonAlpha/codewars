@@ -27,9 +27,9 @@ def elder_age(m, n, l, t):
         cell_value = m_start ^ n_start
         level = max(m_level, n_level)
         time = tile_time(m_start, dm, n_start, dn, cell_value, level)
-#        loss = tile_loss(m_start, dm, n_start, dn, level, l)
+        loss = tile_loss(m_start, dm, n_start, dn, level, l)
         total_time += time
-#        total_loss += loss
+        total_loss += loss
         m_start = m_start + dm
         m_end = m
         if m_start == m_end:
@@ -55,7 +55,6 @@ def tile_time(m_start, dm, n_start, dn, sub_sum, level):
         return 0
     if dn > dm:
         m_start, dm, n_start, dn = n_start, dn, m_start, dm
-    cols = divmod(dm, 8**level)[0]
     m_values = range(m_start, m_start + 8**(level + 1), 8**level)
     xor_arr = [value ^ n_start 
                for value in m_values]
@@ -82,22 +81,20 @@ def sub_tile_time(dm, dn, m_start, n_start, sub_sum, level):
     if level > 1:
         m_values = range(m_start, m_start + 8**level, 8**(level - 1))        
         xor_arr = [value ^ n_start for value in m_values]
+        positions = [(value - min(xor_arr)) // 8**(level - 1) 
+                     for value in xor_arr]
         sub_dm = min(dm, 8**level)
         sub_dn = min(dn, 8**level)
         sub_m_start = m_start + xor_arr.index(min(xor_arr)) * 8**(level - 1)
         sub_sum = sub_tile_time(sub_dm, sub_dn, sub_m_start, n_start, 
                                 sub_sum, level - 1)
-        positions = [(value - min(xor_arr)) // 8**(level - 1) 
-                     for value in xor_arr]
     else:
         m_values = range(m_start, m_start + 8)
         xor_arr = [value ^ n_start for value in m_values]
         xor_sums = xor_arr
-    tile_rows = divmod(dn, 8**(level - 1))[0]
-    tile_rows = 1 if tile_rows == 0 else tile_rows
-    tile_rows = 8 if tile_rows > 8 else tile_rows
-    cell_rows = min(dn, 8**(level - 1))
+    tile_rows = clamp(divmod(dn, 8**(level - 1))[0], 1, 8)
     if level > 1:
+        cell_rows = min(dn, 8**(level - 1))
         delta = (sum_seq(8**(level - 1),
                          8**(level - 1) + 8**(level - 1) - 1) - \
                  sum_seq(0, 
@@ -122,15 +119,16 @@ def map_row_to_array(first_row, num_rows, num_cols):
         array.append(new_row)
     return array
 
+def clamp(n, smallest, largest):
+    return max(smallest, min(n, largest))
+
 def tile_loss(m_start, dm, n_start, dn, level, l):
     if dn > dm:
         m_start, dm, n_start, dn = n_start, dn, m_start, dm
     cols = divmod(dm, 8**level)[0]
     cols = cols if cols > 0 else 1
-    xor_arr = [value ^ n_start
-               for value in range(m_start,
-                                  m_start + 8**(level + 1), 
-                                  8**level)][:cols]
+    m_values = range(m_start, m_start + 8**(level + 1), 8**level)
+    xor_arr = [value ^ n_start for value in m_values][:cols]
     xor_arr_sorted = sorted(xor_arr)
     xor_arr_boundaries = [divmod(value, 8**level)[0] * 8**level
                           for value in xor_arr]
@@ -156,17 +154,6 @@ def tile_loss(m_start, dm, n_start, dn, level, l):
             sub_loss, \
             tiles_some_loss = sub_tile_loss(sub_m_start, sub_dm, n_start, sub_dn,
                                             level - 1, l)
-#         else:
-#             # calculate loss for smallest array, max. 8x8 cells
-#             seq_start = xor_arr[index]
-#             seq_end = min(l, seq_start + 8**level - 1)
-#             all_below_loss = sum_seq(seq_start, seq_end) if seq_end > seq_start else 0
-#             if seq_end > seq_start:
-#                 all_above_loss = ((seq_start + 8**level) - (seq_end + 1)) * l
-#             else:
-#                 all_above_loss = dm * l
-#             loss = (all_below_loss + all_above_loss) * num_rows
-#             return loss
         loss = (tiles_all_loss + sub_loss + tiles_some_loss) * sub_num_rows
     # lifetime threshold larger than range
     if max(xor_arr_boundaries) + 8**level <= l:
@@ -176,10 +163,8 @@ def tile_loss(m_start, dm, n_start, dn, level, l):
 def sub_tile_loss(m_start, dm, n_start, dn, level, l):
     cols = divmod(dm, 8**level)[0]
     cols = cols if cols > 0 else 1
-    xor_arr = [value ^ n_start
-               for value in range(m_start,
-                                  m_start + 8**(level + 1),
-                                  8**level)][:cols]
+    m_values = range(m_start, m_start + 8**(level + 1), 8**level)
+    xor_arr = [value ^ n_start for value in m_values][:cols]
     xor_arr_sorted = sorted(xor_arr)
     xor_arr_boundaries = [divmod(value, 8**level)[0] * 8**level
                           for value in xor_arr]
@@ -229,11 +214,10 @@ def sub_tile_loss(m_start, dm, n_start, dn, level, l):
     sub_loss = (tiles_all_loss + sub_loss + tiles_some_loss) * sub_num_rows
     num_tiles = xor_arr_sorted.index(xor_arr[index])
     tiles_some_loss = (cols - 1 - num_tiles) * (8**level) * sub_dn * l
-    # TODO: tile_time doesn't work for freely positioned tiles
-    tile_sums = [tile_time(value, 8**level, n_start, sub_dn, 0, level)
-                 for value in range(m_start,
-                                    m_start + 8**(level + 1),
-                                    8**level)]
+    tile_sums = [tile_time(m_start, 8**level, n_start, sub_dn, m_start ^ n_start, level)
+                 for m_start in [m_values[idx] 
+                                 for idx in [xor_arr.index(value) 
+                                             for value in xor_arr_sorted[:index]]]]
     tiles_all_loss = sum(tile_sums)
     return tiles_all_loss, sub_loss, tiles_some_loss
 
@@ -260,5 +244,5 @@ def loss_array(m_s, m_e, n_s, n_e, l, t):
     return np.sum(xor_arr), loss, donate_time
 
 if __name__ == "__main__":
-    print(elder_age(706, 120, 12, 6983))
+    print(elder_age(545, 435, 342, 1000007))
 
