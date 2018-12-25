@@ -98,8 +98,8 @@ TESTS = [(8, 5, 1, 100, 5),
 @pytest.mark.parametrize('m, n, l, t, correct_age', TESTS)
 def test_cases_small(m, n, l, t, correct_age):
     """ tests """
-    age = elder_age(m, n, l, t)
-    assert age == correct_age
+    total_time, donate_time = elder_age(m, n, l, t)
+    assert donate_time == correct_age
 
 @pytest.mark.parametrize('m, n, l, t, correct_age', TESTS)
 def test_with_naive_calculation(m, n, l, t, correct_age):

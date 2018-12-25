@@ -129,7 +129,6 @@ def tile_loss(m_start, dm, n_start, dn, level, l):
     cols = cols if cols > 0 else 1
     m_values = range(m_start, m_start + 8**(level + 1), 8**level)
     xor_arr = [value ^ n_start for value in m_values][:cols]
-    xor_arr_sorted = sorted(xor_arr)
     xor_arr_boundaries = [divmod(value, 8**level)[0] * 8**level
                           for value in xor_arr]
     sub_dm = min(dm, 8**level)
@@ -153,7 +152,14 @@ def tile_loss(m_start, dm, n_start, dn, level, l):
             sub_loss, \
             tiles_some_loss = sub_tile_loss(sub_m_start, sub_dm, n_start, sub_dn,
                                             level - 1, l)
-        loss = (tiles_all_loss + sub_loss + tiles_some_loss) * sub_num_rows
+            loss = (tiles_all_loss + sub_loss + tiles_some_loss) * sub_num_rows
+        else:
+            tiles_all_loss, \
+            sub_loss, \
+            tiles_some_loss = loss_8x8_tile(m_start, dm, n_start, dn, level,
+                                            l, cols, dn, xor_arr,
+                                            index, xor_arr_boundaries)
+            loss = tiles_all_loss + sub_loss + tiles_some_loss
     # lifetime threshold larger than range
     if max(xor_arr_boundaries) + 8**level <= l:
         loss, _ = tile_time(m_start, cols * 8**level, n_start, sub_dn, 0, level)
@@ -164,9 +170,6 @@ def sub_tile_loss(m_start, dm, n_start, dn, level, l):
     cols = cols if cols > 0 else 1
     m_values = range(m_start, m_start + 8**(level + 1), 8**level)
     xor_arr = [value ^ n_start for value in m_values][:cols]
-    sorted_pos = [(value - min(xor_arr)) // 8**level
-                  for value in xor_arr]
-    xor_arr_sorted = sorted(xor_arr)
     xor_arr_boundaries = [divmod(value, 8**level)[0] * 8**level
                           for value in xor_arr]
     sub_dm = min(dm, 8**level)
@@ -194,34 +197,70 @@ def sub_tile_loss(m_start, dm, n_start, dn, level, l):
                                             level - 1, l)
         else:
             # calculate loss for smallest array, max. 8x8 cells
-            seq_start = xor_arr[index]
-            seq_end = min(l, seq_start + 8**level - 1)
-            all_below_loss = sum_seq(seq_start, seq_end) if seq_end > seq_start else 0
-            if seq_end > seq_start:
-                all_above_loss = ((seq_start + 8**level) - (seq_end + 1)) * l
-            else:
-                all_above_loss = dm * l
-            sub_loss = (all_below_loss + all_above_loss) * sub_num_rows
-            tiles_all_loss, _ = tile_time(m_start, len(xor_arr[:index]) * 8**level,
-                                       n_start, sub_dn, 0, level)
-            tiles_some_loss = (cols - 1 - index) * (8**level) * sub_dn * l
+            tiles_all_loss, \
+            sub_loss, \
+            tiles_some_loss = loss_8x8_tile(m_start, dm, n_start, sub_dn, level,
+                                            l, cols, sub_num_rows, xor_arr,
+                                            index, xor_arr_boundaries)
+
+#             seq_start = xor_arr[index]
+#             seq_end = min(l, seq_start + 8**level - 1)
+#             all_below_loss = sum_seq(seq_start, seq_end) if seq_end > seq_start else 0
+#             if seq_end > seq_start:
+#                 all_above_loss = ((seq_start + 8**level) - (seq_end + 1)) * l
+#             else:
+#                 all_above_loss = dm * l
+#             sub_loss = (all_below_loss + all_above_loss) * sub_num_rows            
+#             _, sum_arr = tile_time(m_start, cols * 8**level, n_start, sub_dn,
+#                                    m_start ^ n_start, level)
+#             tiles_some_loss_idxs = [xor_arr_boundaries.index(value)
+#                                     for value in xor_arr_boundaries 
+#                                     if value >= l]
+#             tiles_all_loss_idxs = [xor_arr_boundaries.index(value) 
+#                                    for value in xor_arr_boundaries 
+#                                    if value + 8**level < l]
+#             tiles_some_loss = len(tiles_some_loss_idxs) * (8**level) * sub_dn * l
+#             tiles_all_loss = sum([sum_arr[0][idx] for idx in tiles_all_loss_idxs])
             return tiles_all_loss, sub_loss, tiles_some_loss
         sub_loss = (tiles_all_loss + sub_loss + tiles_some_loss) * sub_num_rows
-        num_tiles = xor_arr_sorted.index(xor_arr[index])
-        tiles_some_loss = (cols - 1 - num_tiles) * (8**level) * sub_dn * l
         _, sum_arr = tile_time(m_start, cols * 8**level, n_start, sub_dn,
                                m_start ^ n_start, level)
-        tiles_all_loss = sum([sum_arr[0][sorted_pos.index(pos)]
-                              for pos in sorted_pos if pos < num_tiles])
-        tiles_all_loss = sum([sum_arr[0][xor_arr_boundaries.index(value)] 
+        tiles_some_loss_idxs = [xor_arr_boundaries.index(value)
+                                for value in xor_arr_boundaries 
+                                if value >= l]
+        tiles_all_loss_idxs = [xor_arr_boundaries.index(value) 
                               for value in xor_arr_boundaries 
-                              if value + 8**level < l])
+                              if value + 8**level < l]
+        tiles_some_loss = len(tiles_some_loss_idxs) * (8**level) * sub_dn * l
+        tiles_all_loss = sum([sum_arr[0][idx] for idx in tiles_all_loss_idxs])
     # lifetime threshold larger than range
     if max(xor_arr_boundaries) + 8**level <= l:
         tiles_all_loss, _ = tile_time(m_start, 8 * 8**level, n_start, sub_dn, 0, level)
         sub_loss = 0
         tiles_some_loss = 0
     return tiles_all_loss, sub_loss, tiles_some_loss
+
+def loss_8x8_tile(m_start, dm, n_start, sub_dn, level, l,
+                  cols, sub_num_rows, xor_arr, index, xor_arr_boundaries):
+    seq_start = xor_arr[index]
+    seq_end = min(l, seq_start + 8**level - 1)
+    all_below_loss = sum_seq(seq_start, seq_end) if seq_end > seq_start else 0
+    if seq_end > seq_start:
+        all_above_loss = ((seq_start + 8**level) - (seq_end + 1)) * l
+    else:
+        all_above_loss = dm * l
+    sub_loss = (all_below_loss + all_above_loss) * sub_num_rows            
+    _, sum_arr = tile_time(m_start, cols * 8**level, n_start, sub_dn,
+                           m_start ^ n_start, level)
+    tiles_some_loss_idxs = [xor_arr_boundaries.index(value)
+                            for value in xor_arr_boundaries 
+                            if value >= l]
+    tiles_all_loss_idxs = [xor_arr_boundaries.index(value) 
+                           for value in xor_arr_boundaries 
+                           if value + 8**level < l]
+    tiles_some_loss = len(tiles_some_loss_idxs) * (8**level) * sub_dn * l
+    tiles_all_loss = sum([sum_arr[0][idx] for idx in tiles_all_loss_idxs])
+    return tiles_all_loss, sub_loss, tiles_some_loss    
 
 def sum_seq(a_1, a_n):
     """
@@ -246,5 +285,5 @@ def loss_array(m_s, m_e, n_s, n_e, l, t):
     return np.sum(xor_arr), loss, donate_time
 
 if __name__ == "__main__":
-    print(elder_age(545, 435, 342, 1000007))
+    print(elder_age(7, 4, 1, 100)) # 66
 
