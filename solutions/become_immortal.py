@@ -202,25 +202,6 @@ def sub_tile_loss(m_start, dm, n_start, dn, level, l):
             tiles_some_loss = loss_8x8_tile(m_start, dm, n_start, sub_dn, level,
                                             l, cols, sub_num_rows, xor_arr,
                                             index, xor_arr_boundaries)
-
-#             seq_start = xor_arr[index]
-#             seq_end = min(l, seq_start + 8**level - 1)
-#             all_below_loss = sum_seq(seq_start, seq_end) if seq_end > seq_start else 0
-#             if seq_end > seq_start:
-#                 all_above_loss = ((seq_start + 8**level) - (seq_end + 1)) * l
-#             else:
-#                 all_above_loss = dm * l
-#             sub_loss = (all_below_loss + all_above_loss) * sub_num_rows            
-#             _, sum_arr = tile_time(m_start, cols * 8**level, n_start, sub_dn,
-#                                    m_start ^ n_start, level)
-#             tiles_some_loss_idxs = [xor_arr_boundaries.index(value)
-#                                     for value in xor_arr_boundaries 
-#                                     if value >= l]
-#             tiles_all_loss_idxs = [xor_arr_boundaries.index(value) 
-#                                    for value in xor_arr_boundaries 
-#                                    if value + 8**level < l]
-#             tiles_some_loss = len(tiles_some_loss_idxs) * (8**level) * sub_dn * l
-#             tiles_all_loss = sum([sum_arr[0][idx] for idx in tiles_all_loss_idxs])
             return tiles_all_loss, sub_loss, tiles_some_loss
         sub_loss = (tiles_all_loss + sub_loss + tiles_some_loss) * sub_num_rows
         _, sum_arr = tile_time(m_start, cols * 8**level, n_start, sub_dn,
@@ -244,8 +225,8 @@ def loss_8x8_tile(m_start, dm, n_start, sub_dn, level, l,
                   cols, sub_num_rows, xor_arr, index, xor_arr_boundaries):
     seq_start = xor_arr[index]
     seq_end = min(l, seq_start + 8**level - 1)
-    all_below_loss = sum_seq(seq_start, seq_end) if seq_end > seq_start else 0
-    if seq_end > seq_start:
+    all_below_loss = sum_seq(seq_start, seq_end) if seq_end >= seq_start else 0
+    if seq_end >= seq_start:
         all_above_loss = ((seq_start + 8**level) - (seq_end + 1)) * l
     else:
         all_above_loss = dm * l
@@ -285,5 +266,7 @@ def loss_array(m_s, m_e, n_s, n_e, l, t):
     return np.sum(xor_arr), loss, donate_time
 
 if __name__ == "__main__":
+    print(elder_age(545, 435, 342, 1000007)) # 808451
+    print(elder_age(8, 5, 1, 100)) # 5
     print(elder_age(7, 4, 1, 100)) # 66
 
