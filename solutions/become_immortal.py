@@ -123,6 +123,7 @@ def clamp(n, smallest, largest):
     return max(smallest, min(n, largest))
 
 def tile_loss(m_start, dm, n_start, dn, level, l):
+    level = max(1, level)
     if dn > dm:
         m_start, dm, n_start, dn = n_start, dn, m_start, dm
     cols = divmod(dm, 8**level)[0]
@@ -139,7 +140,7 @@ def tile_loss(m_start, dm, n_start, dn, level, l):
     num_rows = num_rows if num_rows > 0 else 1
     # lifetime lower than range
     if l < min(xor_arr_boundaries):
-        loss = cols * (8**level) * dn * l
+        loss = cols * min(dm, 8**level) * dn * l
     # lifetime threshold within range
     if min(xor_arr_boundaries) <= l < max(xor_arr_boundaries) + 8**level:
         index = 0
@@ -227,11 +228,11 @@ def loss_8x8_tile(m_start, dm, n_start, sub_dn, level, l,
     seq_end = min(l, seq_start + 8**level - 1)
     all_below_loss = sum_seq(seq_start, seq_end) if seq_end >= seq_start else 0
     if seq_end >= seq_start:
-        all_above_loss = ((seq_start + 8**level) - (seq_end + 1)) * l
+        all_above_loss = ((seq_start + min(dm, 8**level)) - (seq_end + 1)) * l
     else:
         all_above_loss = dm * l
     sub_loss = (all_below_loss + all_above_loss) * sub_num_rows            
-    _, sum_arr = tile_time(m_start, cols * 8**level, n_start, sub_dn,
+    _, sum_arr = tile_time(m_start, cols * min(dm, 8**level), n_start, sub_dn,
                            m_start ^ n_start, level)
     tiles_some_loss_idxs = [xor_arr_boundaries.index(value)
                             for value in xor_arr_boundaries 
@@ -241,7 +242,7 @@ def loss_8x8_tile(m_start, dm, n_start, sub_dn, level, l,
                            if value + 8**level < l]
     tiles_some_loss = len(tiles_some_loss_idxs) * (8**level) * sub_dn * l
     tiles_all_loss = sum([sum_arr[0][idx] for idx in tiles_all_loss_idxs])
-    return tiles_all_loss, sub_loss, tiles_some_loss    
+    return tiles_all_loss, sub_loss, tiles_some_loss
 
 def sum_seq(a_1, a_n):
     """
@@ -266,6 +267,8 @@ def loss_array(m_s, m_e, n_s, n_e, l, t):
     return np.sum(xor_arr), loss, donate_time
 
 if __name__ == "__main__":
+    print(elder_age(176, 110, 20, 2805)) # 767
+    print(elder_age(706, 120, 12, 6983)) # 1525
     print(elder_age(545, 435, 342, 1000007)) # 808451
     print(elder_age(8, 5, 1, 100)) # 5
     print(elder_age(7, 4, 1, 100)) # 66
