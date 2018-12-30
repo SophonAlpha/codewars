@@ -178,7 +178,7 @@ def tile_loss(m_start, dm, n_start, dn, level, l):
         loss = sum([sum(row) for row in loss_arr])
     # lifetime threshold larger than range
     if max(xor_arr_boundaries) + 8**level <= l:
-        loss, _ = tile_time(m_start, num_cols * 8**level, n_start, sub_dn,
+        loss, _ = tile_time(m_start, num_cols * 8**level, n_start, num_rows,
                             m_start ^ n_start, level)
     return loss
 
