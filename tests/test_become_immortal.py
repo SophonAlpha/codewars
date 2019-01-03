@@ -35,7 +35,7 @@ def generate_test_cases():
     for _ in range(0,300):
         m = random.randint(2**5, 2**10)
         n = random.randint(2**5, 2**10)
-        l = random.randint(0, 19)
+        l = random.randint(0, 9999)
         t = random.randint(2**5, 2**15)
         tests.append((m, n, l, t))
     return tests
@@ -92,7 +92,8 @@ FIXED_TESTS = [(8, 5, 1, 100, 5),
                (139, 951, 12, 24426, 20772),
                (78, 59, 3, 451, 437)]
 
-LARGE_TESTS = [(28827050410, 35165045587, 7109602, 13719506, 5456283)]
+LARGE_TESTS = [(28827050410, 35165045587, 7109602, 13719506, 5456283),
+               (14894658662517258, 2079750097359417088, 5876922, 6920851, 5331202)]
 
 @pytest.mark.parametrize('m, n, l, t, correct_age', FIXED_TESTS)
 def test_fixed(m, n, l, t, correct_age):

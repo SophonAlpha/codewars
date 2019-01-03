@@ -1,5 +1,4 @@
 """
-
 My solution for Become Immortal kata:
 https://www.codewars.com/kata/become-immortal
 
@@ -7,8 +6,9 @@ Level: 1 kyu
 
 performance statistics:
 
-    baseline: 'elder_age', 0.14357590786395225 s
-
+    baseline:                                  'elder_age', 0.14357590786395225 s
+    optimised tile_time() function:            'elder_age', 0.09438958444985779 s
+    optimised with sum of arithmetic sequence: 'elder_age', 0.05584444502951191 s
 """
 import numpy as np
 np.seterr(over='raise')
@@ -26,8 +26,8 @@ def elder_age(m, n, l, t):
     while n_start != n_end:
         dm, dn = m_end - m_start, n_end - n_start
         m_level, n_level = largest_sqare_tile(dm), largest_sqare_tile(dn)
-        dm = divmod(dm, 8**m_level)[0] * 8**m_level
-        dn = divmod(dn, 8**n_level)[0] * 8**n_level
+        dm = clamp(divmod(dm, 8**m_level)[0], 1, 8) * 8**m_level
+        dn = clamp(divmod(dn, 8**n_level)[0], 1, 8) * 8**n_level
         cell_value = m_start ^ n_start
         level = max(m_level, n_level)
         time, _ = tile_time(m_start, dm, n_start, dn, cell_value, level)
@@ -55,6 +55,7 @@ def largest_sqare_tile(size):
         exp += 1
     return exp
 
+# @Profile(stats=PERFORMANCE_STATS)
 def tile_time(m_start, dm, n_start, dn, tile_sum, level):
     if dm < 1 or dn < 1:
         return 0
@@ -76,8 +77,9 @@ def tile_time(m_start, dm, n_start, dn, tile_sum, level):
         sub_m_start = m_start + xor_arr.index(min(xor_arr)) * 8**level
         sub_dm = min(dm, 8**level)
         sub_dn = min(dn, 8**level)
-        sub_tile_sum, _ = tile_time(sub_m_start, sub_dm, n_start, sub_dn,
-                                    tile_sum, level - 1)
+        tile_start_row = (n_start // 8**level) * 8**level
+        sub_tile_sum = sum_seq(sub_m_start ^ tile_start_row,
+                               (sub_m_start + sub_dm - 1) ^ tile_start_row) * sub_dn
     else:
         sub_tile_sum = m_start ^ n_start
     # calculate the sum for the other tiles based on the sub_tile_sum
@@ -90,60 +92,6 @@ def tile_time(m_start, dm, n_start, dn, tile_sum, level):
     else:
         time = sub_tile_sum
     return time, xor_arr
-
-# @Profile(stats=PERFORMANCE_STATS)
-def tile_time_v1(m_start, dm, n_start, dn, cell_value, level):
-    if dm < 1 or dn < 1:
-        return 0
-    m_start, dm, n_start, dn = swap_width_height(m_start, dm, n_start, dn)
-    m_values = range(m_start, m_start + 8**(level + 1), 8**level)
-    xor_arr = [value ^ n_start for value in m_values]
-    positions = [(value - min(xor_arr)) // 8**level for value in xor_arr]
-    if level > 0:
-        sub_m_start = m_start + xor_arr.index(min(xor_arr)) * 8**level
-        cell_value = sub_tile_time(sub_m_start, dm, n_start, dn,
-                                   cell_value, level)
-    else:
-        cell_value = m_start ^ n_start
-    if dm >= 8**level:
-        rows = min(dn, 8**level)
-        delta = (sum_seq(8**level, 8**level + 8**level - 1) - \
-                 sum_seq(0, 8**level - 1)) * rows
-        xor_arr = [(value * delta) + cell_value for value in positions]
-        val_col = divmod(dm, 8**level)[0]
-        val_row = max(1, divmod(dn, 8**level)[0])
-        xor_arr = map_row_to_array(xor_arr, val_row, val_col)
-        time = sum([sum(row) for row in xor_arr])
-    else:
-        time = cell_value
-    return time, xor_arr
-
-# @Profile(stats=PERFORMANCE_STATS)
-def sub_tile_time(m_start, dm, n_start, dn, sub_sum, level):
-    if level > 1:
-        m_values = range(m_start, m_start + 8**level, 8**(level - 1))        
-        xor_arr = [value ^ n_start for value in m_values]
-        positions = [(value - min(xor_arr)) // 8**(level - 1)
-                     for value in xor_arr]
-        sub_dm = min(dm, 8**level)
-        sub_dn = min(dn, 8**level)
-        sub_m_start = m_start + xor_arr.index(min(xor_arr)) * 8**(level - 1)
-        sub_sum = sub_tile_time(sub_m_start, sub_dm, n_start, sub_dn, 
-                                sub_sum, level - 1)
-    else:
-        m_values = range(m_start, m_start + 8)
-        xor_arr = [value ^ n_start for value in m_values]
-        xor_sums = xor_arr
-    tile_rows = clamp(divmod(dn, 8**(level - 1))[0], 1, 8)
-    if level > 1:
-        cell_rows = min(dn, 8**(level - 1))
-        delta = (sum_seq(8**(level - 1),
-                         8**(level - 1) + 8**(level - 1) - 1) - \
-                 sum_seq(0, 
-                         8**(level - 1) - 1)) * cell_rows
-        xor_sums = [(value * delta) + sub_sum for value in positions]
-    time = sum(xor_sums) * tile_rows
-    return time
 
 # @Profile(stats=PERFORMANCE_STATS)
 def map_row_to_array(first_row, num_rows, num_cols):
@@ -174,10 +122,6 @@ def clamp(n, smallest, largest):
 
 # @Profile(stats=PERFORMANCE_STATS)
 def tile_loss(m_start, dm, n_start, dn, level, l):
-    # down-level if the width is exactly the level tile size, this is 
-    # needed to ensure the xor_arr calculation works
-    if dm == 8**level and level > 0:
-        level -= 1    
     # ensure width is always bigger than height
     m_start, dm, n_start, dn = swap_width_height(m_start, dm, n_start, dn)
     # calculate the xor sum values and the boundaries
@@ -230,8 +174,7 @@ def tile_loss(m_start, dm, n_start, dn, level, l):
         loss = sum([sum(row) for row in loss_arr])
     # lifetime threshold larger than range
     if max(xor_arr_boundaries) + 8**level <= l:
-        loss, _ = tile_time(m_start, num_cols * 8**level, n_start, num_rows,
-                            m_start ^ n_start, level)
+        loss, _ = tile_time(m_start, dm, n_start, dn, m_start ^ n_start, level)
     return loss
 
 # @Profile(stats=PERFORMANCE_STATS)
@@ -253,9 +196,5 @@ def loss_array(m_s, m_e, n_s, n_e, l, t):
     return np.sum(xor_arr), loss, donate_time
 
 if __name__ == "__main__":
-#     print(elder_age(8, 5, 1, 100)) # 5
-#     print(elder_age(7, 4, 1, 100)) # 66
-    print(elder_age(706, 120, 12, 6983)) # 1525
-    print(elder_age(545, 435, 342, 1000007)) # 808451
-#     print(elder_age(28827050410, 35165045587, 7109602, 13719506)) # 5456283
-    print(PERFORMANCE_STATS)
+    print(elder_age(14894658662517258, 2079750097359417088, 5876922, 6920851)) # 5331202
+#    print(PERFORMANCE_STATS)
