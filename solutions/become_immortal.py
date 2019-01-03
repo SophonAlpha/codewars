@@ -255,6 +255,7 @@ def loss_array(m_s, m_e, n_s, n_e, l, t):
 if __name__ == "__main__":
 #     print(elder_age(8, 5, 1, 100)) # 5
 #     print(elder_age(7, 4, 1, 100)) # 66
+    print(elder_age(706, 120, 12, 6983)) # 1525
     print(elder_age(545, 435, 342, 1000007)) # 808451
 #     print(elder_age(28827050410, 35165045587, 7109602, 13719506)) # 5456283
     print(PERFORMANCE_STATS)
