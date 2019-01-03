@@ -28,9 +28,8 @@ def elder_age(m, n, l, t):
         m_level, n_level = largest_sqare_tile(dm), largest_sqare_tile(dn)
         dm = clamp(divmod(dm, 8**m_level)[0], 1, 8) * 8**m_level
         dn = clamp(divmod(dn, 8**n_level)[0], 1, 8) * 8**n_level
-        cell_value = m_start ^ n_start
         level = max(m_level, n_level)
-        time, _ = tile_time(m_start, dm, n_start, dn, cell_value, level)
+        time, _ = tile_time(m_start, dm, n_start, dn, level)
         loss = tile_loss(m_start, dm, n_start, dn, level, l)
         total_time += time
         total_loss += loss
@@ -56,7 +55,7 @@ def largest_sqare_tile(size):
     return exp
 
 # @Profile(stats=PERFORMANCE_STATS)
-def tile_time(m_start, dm, n_start, dn, tile_sum, level):
+def tile_time(m_start, dm, n_start, dn, level):
     if dm < 1 or dn < 1:
         return 0
     m_start, dm, n_start, dn = swap_width_height(m_start, dm, n_start, dn)
@@ -156,8 +155,7 @@ def tile_loss(m_start, dm, n_start, dn, level, l):
         else:
             sub_loss = xor_arr[index]
         # calculate the loss array
-        _, sum_arr = tile_time(m_start, 8 * 8**level, n_start, sub_dn,
-                               m_start ^ n_start, level)
+        _, sum_arr = tile_time(m_start, 8 * 8**level, n_start, sub_dn, level)
         tiles_some_loss_idxs = [xor_arr_boundaries.index(value)
                                 for value in xor_arr_boundaries
                                 if value >= l]
@@ -174,7 +172,7 @@ def tile_loss(m_start, dm, n_start, dn, level, l):
         loss = sum([sum(row) for row in loss_arr])
     # lifetime threshold larger than range
     if max(xor_arr_boundaries) + 8**level <= l:
-        loss, _ = tile_time(m_start, dm, n_start, dn, m_start ^ n_start, level)
+        loss, _ = tile_time(m_start, dm, n_start, dn, level)
     return loss
 
 # @Profile(stats=PERFORMANCE_STATS)
