@@ -59,10 +59,6 @@ def tile_time(m_start, dm, n_start, dn, tile_sum, level):
     if dm < 1 or dn < 1:
         return 0
     m_start, dm, n_start, dn = swap_width_height(m_start, dm, n_start, dn)
-#     # down-level if the width is exactly the level tile size, this is 
-#     # needed to ensure the xor_arr calculation works
-#     if dm == 8**level and level > 1:
-#         level -= 1
     # calculate the xor sum values and the boundaries
     if level == 0:
         m_values = range(m_start, m_start + 8)
@@ -78,10 +74,10 @@ def tile_time(m_start, dm, n_start, dn, tile_sum, level):
     if level > 0:
         # calculate start, width and height for next smaller tile
         sub_m_start = m_start + xor_arr.index(min(xor_arr)) * 8**level
-        sub_dm = min(dm, 8**(level - 1))
-        sub_dn = min(dn, 8**(level - 1))
-        sub_tile_sum = tile_time(sub_m_start, sub_dm, n_start, sub_dn,
-                                 tile_sum, level - 1)
+        sub_dm = min(dm, 8**level)
+        sub_dn = min(dn, 8**level)
+        sub_tile_sum, _ = tile_time(sub_m_start, sub_dm, n_start, sub_dn,
+                                    tile_sum, level - 1)
     else:
         sub_tile_sum = m_start ^ n_start
     # calculate the sum for the other tiles based on the sub_tile_sum
