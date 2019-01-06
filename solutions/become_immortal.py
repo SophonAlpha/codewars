@@ -14,6 +14,8 @@ import numpy as np
 np.seterr(over='raise')
 from solutions.performance import Profile
 
+from collections import deque
+
 PERFORMANCE_STATS = []
 
 @Profile(stats=PERFORMANCE_STATS)
@@ -42,8 +44,30 @@ def elder_age(m, n, l, t):
     donate_time = donate_time % t
     return total_time, donate_time
 
-# @Profile(stats=PERFORMANCE_STATS)
 def tile_generator(m, n):
+    save_m_start = 0
+    m, n = (m, n) if m > n else (n, m)
+    m_start, n_start = 0, 0
+    while n_start != n:
+        dm, dn = m - m_start, n - n_start
+        m_level, n_level = largest_sqare_tile(dm), largest_sqare_tile(dn)
+        if m_level >= n_level:
+            dm = 8**m_level
+            dn = min(dn, 8**m_level)
+        else:
+            dm = min(dm, 8**n_level)
+            dn = 8**n_level
+        yield m_start, dm, n_start, dn
+        if n_start + dn < n and save_m_start == 0:
+            save_m_start = m_start
+        m_start += dm
+        if m_start == m:
+            n_start += dn
+            m_start = save_m_start
+            save_m_start = 0
+
+# @Profile(stats=PERFORMANCE_STATS)
+def tile_generator_v1(m, n):
     m, n = (m, n) if m > n else (n, m)
     m_start, n_start = 0, 0
     m_end, n_end = m, n
@@ -100,7 +124,7 @@ def largest_sqare_tile(size):
         return 0
     while True:
         fit, _ = divmod(size, 8**(exp + 1))
-        if fit <= 1:
+        if fit == 0:
             break
         exp += 1
     return exp
@@ -256,6 +280,8 @@ def loss_array(m_s, m_e, n_s, n_e, l, t):
     return np.sum(xor_arr), loss, donate_time
 
 if __name__ == "__main__":
+    for tile in tile_generator(545, 435):
+        print(tile)
     print(elder_age(545, 435, 342, 1000007)) # 808451
     print(elder_age(14894658662517258, 2079750097359417088, 5876922, 6920851)) # 5331202
 #    print(PERFORMANCE_STATS)
