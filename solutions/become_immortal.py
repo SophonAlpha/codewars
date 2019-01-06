@@ -29,7 +29,7 @@ def elder_age(m, n, l, t):
         dm = clamp(divmod(dm, 8**m_level)[0], 1, 8) * 8**m_level
         dn = clamp(divmod(dn, 8**n_level)[0], 1, 8) * 8**n_level
         level = max(m_level, n_level)
-        time, _ = tile_time(m_start, dm, n_start, dn, level)
+        time, _ = tile_time(m_start, dm, n_start, dn, level, l)
         loss = tile_loss(m_start, dm, n_start, dn, level, l)
         total_time += time
         total_loss += loss
@@ -41,6 +41,57 @@ def elder_age(m, n, l, t):
     donate_time = total_time - total_loss
     donate_time = donate_time % t
     return total_time, donate_time
+
+# @Profile(stats=PERFORMANCE_STATS)
+def tile_generator(m, n):
+    m, n = (m, n) if m > n else (n, m)
+    m_start, n_start = 0, 0
+    m_end, n_end = m, n
+    while n_start != n_end:
+        dm, dn = m_end - m_start, n_end - n_start
+        m_level, n_level = largest_sqare_tile(dm), largest_sqare_tile(dn)
+        dm = clamp(divmod(dm, 8**m_level)[0], 1, 8) * 8**m_level
+        dn = clamp(divmod(dn, 8**n_level)[0], 1, 8) * 8**n_level
+        yield m_start, dm, n_start, dn
+        m_start = m_start + dm
+        m_end = m
+        if m_start == m_end:
+            m_start, n_start = 0, n_start + dn
+            m_end, n_end = m, n
+
+"""
+545, 435
+
+    512 x 435;
+1.)    m_start = 0, dm = 512, n_start = 0, dn = 435; seq_sum(0 ^ 0, 512 ^ 0) * 435
+    33 x 435; split to 6 x 33 x 64;
+2.)    m_start = 512, dm = 33, n_start = 0, dn = 64;
+    m_start = 512, dm = 33, n_start = 64, dn = 64;
+    m_start = 512, dm = 33, n_start = 128, dn = 64;
+    m_start = 512, dm = 33, n_start = 192, dn = 64;
+    m_start = 512, dm = 33, n_start = 256, dn = 64;
+    m_start = 512, dm = 33, n_start = 320, dn = 64;
+    33 x 51, split into 4 x 8 x 8 and 1 x 1 x 8
+8.) m_start = 512, dm = 8, n_start = 384, dn = 8;
+    m_start = 520, dm = 8, n_start = 384, dn = 8;
+    m_start = 528, dm = 8, n_start = 384, dn = 8;
+    m_start = 536, dm = 8, n_start = 384, dn = 8;
+    m_start = 544, dm = 1, n_start = 384, dn = 8;
+    33 x 43
+13.)5 sub tiles
+    33 x 35
+18.)5 sub tiles
+    33 x 27
+23.)5 sub tiles
+    33 x 19
+28.)5 sub tiles
+    33 x 11
+33.)5 sub tiles
+    33 x 3
+38.)5 sub tiles
+    ...
+42.)
+"""
 
 # @Profile(stats=PERFORMANCE_STATS)
 def largest_sqare_tile(size):
@@ -55,7 +106,7 @@ def largest_sqare_tile(size):
     return exp
 
 # @Profile(stats=PERFORMANCE_STATS)
-def tile_time(m_start, dm, n_start, dn, level):
+def tile_time(m_start, dm, n_start, dn, level, l):
     if dm < 1 or dn < 1:
         return 0
     m_start, dm, n_start, dn = swap_width_height(m_start, dm, n_start, dn)
@@ -72,13 +123,17 @@ def tile_time(m_start, dm, n_start, dn, level):
     tile_cols = divmod(dm, 8**level)[0]
     tile_cols = tile_cols if tile_cols > 0 else 1
     if level > 0:
-        # calculate start, width and height for next smaller tile
+        # calculate sum of next smaller tile
         sub_m_start = m_start + xor_arr.index(min(xor_arr)) * 8**level
         sub_dm = min(dm, 8**level)
         sub_dn = min(dn, 8**level)
         tile_start_row = (n_start // 8**level) * 8**level
-        sub_tile_sum = sum_seq(sub_m_start ^ tile_start_row,
-                               (sub_m_start + sub_dm - 1) ^ tile_start_row) * sub_dn
+        seq_start = sub_m_start ^ tile_start_row
+        seq_end = (sub_m_start + sub_dm - 1) ^ tile_start_row
+        if seq_end <= l:
+            sub_tile_sum = 0
+        else:
+            sub_tile_sum = sum_seq(max(seq_start, l), seq_end) * sub_dn
     else:
         sub_tile_sum = m_start ^ n_start
     # calculate the sum for the other tiles based on the sub_tile_sum
@@ -175,6 +230,13 @@ def tile_loss(m_start, dm, n_start, dn, level, l):
         loss, _ = tile_time(m_start, dm, n_start, dn, level)
     return loss
 
+def xor_arr_sum(m, n):
+    sum = sum_seq(0, m - 1) * n
+    return sum
+
+def test_xor_arr_sum(m, n):
+    return sum([sum([col ^ row for col in range(0, m)]) for row in range(0, n)])
+
 # @Profile(stats=PERFORMANCE_STATS)
 def sum_seq(a_1, a_n):
     """
@@ -194,5 +256,6 @@ def loss_array(m_s, m_e, n_s, n_e, l, t):
     return np.sum(xor_arr), loss, donate_time
 
 if __name__ == "__main__":
+    print(elder_age(545, 435, 342, 1000007)) # 808451
     print(elder_age(14894658662517258, 2079750097359417088, 5876922, 6920851)) # 5331202
 #    print(PERFORMANCE_STATS)
