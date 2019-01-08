@@ -46,7 +46,6 @@ def elder_age(m, n, l, t):
 
 def tile_generator(m, n):
     queue = deque()
-    m, n = (m, n) if m > n else (n, m)
     m_start, n_start = 0, 0
     queue.append((m_start, m, n_start, n))
     while True:
@@ -62,11 +61,14 @@ def tile_generator(m, n):
         elif m_level < n_level:
             sub_m = min(m, 8**n_level)
             sub_n = 8**n_level
+        else:
+            sub_m = m
+            sub_n = n
         yield m_start, sub_m, n_start, sub_n
         # lower right sub tile
         if m_start + sub_m < m_start + m and n_start + sub_n < n_start + n:
-            tile = (m_start + sub_m, m - (m_start + sub_m),
-                    n_start + sub_n, n - (n_start + sub_n))
+            tile = (m_start + sub_m, (m_start + m) - (m_start + sub_m),
+                    n_start + sub_n, (n_start + n) - (n_start + sub_n))
             if not tile in queue: queue.append(tile) 
         # upper right sub tile
         if m_start + sub_m < m_start + m:
@@ -259,8 +261,8 @@ def loss_array(m_s, m_e, n_s, n_e, l, t):
     return np.sum(xor_arr), loss, donate_time
 
 if __name__ == "__main__":
-    for tile in tile_generator(545, 435):
-        print(tile)
+    for index, tile in enumerate(tile_generator(28827050410, 35165045587)):
+        print('{}.) {}'.format(index, tile))
 #     print(elder_age(545, 435, 342, 1000007)) # 808451
 #     print(elder_age(14894658662517258, 2079750097359417088, 5876922, 6920851)) # 5331202
 #    print(PERFORMANCE_STATS)

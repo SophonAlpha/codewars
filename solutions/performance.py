@@ -3,7 +3,6 @@ Decorator library for code performance and efficiency measurements.
 """
 
 import functools
-import time
 
 class _Profile:
     def __init__(self, func, stats=None):
@@ -25,14 +24,3 @@ def Profile(stats=None):
     def wrapper_Profile(func):
         return _Profile(func, stats)
     return wrapper_Profile
-
-data = []
-
-@Profile(stats=data)
-def waste_some_time():
-    time.sleep(1)
-
-waste_some_time()
-
-        
-    

@@ -22,6 +22,7 @@ t: 2^16 - 2^32
 
 import pytest
 import random
+from solutions.become_immortal import tile_generator
 from solutions.become_immortal import elder_age
 from solutions.become_immortal import loss_array
 
@@ -94,6 +95,18 @@ FIXED_TESTS = [(8, 5, 1, 100, 5),
 
 LARGE_TESTS = [(28827050410, 35165045587, 7109602, 13719506, 5456283),
                (14894658662517258, 2079750097359417088, 5876922, 6920851, 5331202)]
+
+@pytest.mark.parametrize('m, n, l, t, correct_age', FIXED_TESTS)
+def test_tile_generator_fixed(m, n, l, t, correct_age):
+    """ tests """
+    array_size = sum([dm * dn for _, dm, _, dn in tile_generator(m, n)])
+    assert array_size == m * n
+
+@pytest.mark.parametrize('m, n, l, t, correct_age', LARGE_TESTS)
+def test_tile_generator_large_fixed(m, n, l, t, correct_age):
+    """ tests """
+    array_size = sum([dm * dn for _, dm, _, dn in tile_generator(m, n)])
+    assert array_size == m * n
 
 @pytest.mark.parametrize('m, n, l, t, correct_age', FIXED_TESTS)
 def test_fixed(m, n, l, t, correct_age):
