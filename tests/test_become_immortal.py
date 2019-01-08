@@ -24,7 +24,7 @@ import pytest
 import random
 from solutions.become_immortal import tile_generator
 from solutions.become_immortal import elder_age
-from solutions.become_immortal import loss_array
+from solutions.become_immortal import xor_sum
 
 def generate_test_cases():
     """
@@ -111,7 +111,7 @@ def test_tile_generator_large_fixed(m, n, l, t, correct_age):
 @pytest.mark.parametrize('m, n, l, t, correct_age', FIXED_TESTS)
 def test_fixed(m, n, l, t, correct_age):
     """ tests """
-    _, donate_time = elder_age(m, n, l, t)
+    donate_time = elder_age(m, n, l, t)
     assert donate_time == correct_age
 
 @pytest.mark.parametrize('m, n, l, t, correct_age', LARGE_TESTS)
@@ -120,16 +120,9 @@ def test_large_fixed(m, n, l, t, correct_age):
     _, donate_time = elder_age(m, n, l, t)
     assert donate_time == correct_age
 
-@pytest.mark.parametrize('m, n, l, t, correct_age', FIXED_TESTS)
-def test_total_time_calculation(m, n, l, t, correct_age):
-    """ tests """
-    total_time, _ = elder_age(m, n, l, t)
-    naive_total_time = loss_array(0, m, 0, n, l, t)[0]
-    assert total_time == naive_total_time
-
 @pytest.mark.parametrize('m, n, l, t', generate_test_cases())
 def test_random_tests(m, n, l, t):
     """ tests """
-    _, donate_time = elder_age(m, n, l, t)
-    _, _, naive_donate_time = loss_array(0, m, 0, n, l, t)
+    donate_time = elder_age(m, n, l, t)
+    _, _, naive_donate_time = xor_sum(0, m, 0, n, l, t)
     assert donate_time == naive_donate_time

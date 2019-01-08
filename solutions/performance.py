@@ -3,6 +3,7 @@ Decorator library for code performance and efficiency measurements.
 """
 
 import functools
+import time
 
 class _Profile:
     def __init__(self, func, stats=None):
