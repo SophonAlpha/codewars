@@ -64,7 +64,7 @@ def tile_generator(m, n):
             sub_n = 8**n_level
         yield m_start, sub_m, n_start, sub_n
         # lower right sub tile
-        if m_start + sub_m < m and n_start + sub_n < n:
+        if m_start + sub_m < m_start + m and n_start + sub_n < n_start + n:
             tile = (m_start + sub_m, m - (m_start + sub_m),
                     n_start + sub_n, n - (n_start + sub_n))
             if not tile in queue: queue.append(tile) 
