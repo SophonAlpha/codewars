@@ -51,27 +51,33 @@ def tile_generator(m, n):
     queue.append((m_start, m, n_start, n))
     while True:
         try:
-            sub_m_start, sub_m, sub_n_start, sub_n = queue.popleft()
+            m_start, m, n_start, n = queue.pop()
         except IndexError:
             break
-        m_level, n_level = largest_sqare_tile(sub_m), largest_sqare_tile(sub_n)
+        # upper left sub tile
+        m_level, n_level = largest_sqare_tile(m), largest_sqare_tile(n)
         if m_level >= n_level and m_level > 0:
             sub_m = 8**m_level
-            sub_n = min(sub_n, 8**m_level)
+            sub_n = min(n, 8**m_level)
         elif m_level < n_level:
-            sub_m = min(sub_m, 8**n_level)
+            sub_m = min(m, 8**n_level)
             sub_n = 8**n_level
-        yield sub_m_start, sub_m, sub_n_start, sub_n
-        # calculate sub tiles
-        if sub_m_start + sub_m < m:
-            queue.append((sub_m_start + sub_m, m - (sub_m_start + sub_m),
-                          sub_n_start, sub_n))
-        if sub_n_start + sub_n < n:
-            queue.append((sub_m_start, sub_m,
-                          sub_n_start + sub_n, n - (sub_n_start + sub_n)))
-        if sub_m_start + sub_m < m and sub_n_start + sub_n < n:
-            queue.append((sub_m_start + sub_m, m - (sub_m_start + sub_m),
-                          sub_n_start + sub_n, n - (sub_n_start + sub_n)))
+        yield m_start, sub_m, n_start, sub_n
+        # lower right sub tile
+        if m_start + sub_m < m and n_start + sub_n < n:
+            tile = (m_start + sub_m, m - (m_start + sub_m),
+                    n_start + sub_n, n - (n_start + sub_n))
+            if not tile in queue: queue.append(tile) 
+        # upper right sub tile
+        if m_start + sub_m < m_start + m:
+            tile = (m_start + sub_m, (m_start + m) - (m_start + sub_m),
+                    n_start, sub_n)
+            if not tile in queue: queue.append(tile)
+        # lower left sub tile
+        if n_start + sub_n < n_start + n:
+            tile = (m_start, sub_m,
+                    n_start + sub_n, (n_start + n) - (n_start + sub_n))
+            if not tile in queue: queue.append(tile)
 
 # @Profile(stats=PERFORMANCE_STATS)
 def tile_generator_v1(m, n):
@@ -89,40 +95,6 @@ def tile_generator_v1(m, n):
         if m_start == m_end:
             m_start, n_start = 0, n_start + dn
             m_end, n_end = m, n
-
-"""
-545, 435
-
-    512 x 435;
-1.)    m_start = 0, dm = 512, n_start = 0, dn = 435; seq_sum(0 ^ 0, 512 ^ 0) * 435
-    33 x 435; split to 6 x 33 x 64;
-2.)    m_start = 512, dm = 33, n_start = 0, dn = 64;
-    m_start = 512, dm = 33, n_start = 64, dn = 64;
-    m_start = 512, dm = 33, n_start = 128, dn = 64;
-    m_start = 512, dm = 33, n_start = 192, dn = 64;
-    m_start = 512, dm = 33, n_start = 256, dn = 64;
-    m_start = 512, dm = 33, n_start = 320, dn = 64;
-    33 x 51, split into 4 x 8 x 8 and 1 x 1 x 8
-8.) m_start = 512, dm = 8, n_start = 384, dn = 8;
-    m_start = 520, dm = 8, n_start = 384, dn = 8;
-    m_start = 528, dm = 8, n_start = 384, dn = 8;
-    m_start = 536, dm = 8, n_start = 384, dn = 8;
-    m_start = 544, dm = 1, n_start = 384, dn = 8;
-    33 x 43
-13.)5 sub tiles
-    33 x 35
-18.)5 sub tiles
-    33 x 27
-23.)5 sub tiles
-    33 x 19
-28.)5 sub tiles
-    33 x 11
-33.)5 sub tiles
-    33 x 3
-38.)5 sub tiles
-    ...
-42.)
-"""
 
 # @Profile(stats=PERFORMANCE_STATS)
 def largest_sqare_tile(size):
@@ -287,8 +259,8 @@ def loss_array(m_s, m_e, n_s, n_e, l, t):
     return np.sum(xor_arr), loss, donate_time
 
 if __name__ == "__main__":
-    for tile in tile_generator(9, 9):
+    for tile in tile_generator(545, 435):
         print(tile)
-    print(elder_age(545, 435, 342, 1000007)) # 808451
-    print(elder_age(14894658662517258, 2079750097359417088, 5876922, 6920851)) # 5331202
+#     print(elder_age(545, 435, 342, 1000007)) # 808451
+#     print(elder_age(14894658662517258, 2079750097359417088, 5876922, 6920851)) # 5331202
 #    print(PERFORMANCE_STATS)
