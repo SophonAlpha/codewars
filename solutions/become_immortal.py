@@ -4,11 +4,13 @@ https://www.codewars.com/kata/become-immortal
 
 Level: 1 kyu
 
-performance statistics:
+performance statistics for
+m = 28827050410, n = 35165045587, l = 7109602, t = 13719506, age = 5456283
 
     baseline:                                  'elder_age', 0.14357590786395225 s
     optimised tile_time() function:            'elder_age', 0.09438958444985779 s
     optimised with sum of arithmetic sequence: 'elder_age', 0.05584444502951191 s
+    new tile_generator(), sub tile at 8**x:    'elder_age', 0.00657040719656825 s
 """
 import numpy as np
 np.seterr(over='raise')
@@ -88,9 +90,13 @@ def tile_time(m_start, dm, n_start, dn, l):
         seq_end = (m_start + dm - 1) ^ n_start
         if seq_end <= l:
             tile_sum = 0
+        elif seq_start <= l < seq_end:
+            tile_sum = sum_seq(seq_start, seq_end) * dn
+            loss = (sum_seq(seq_start, l - 1) + (seq_end - (l - 1)) * l) * dn
+            tile_sum -= loss
         else:
             tile_sum = sum_seq(seq_start, seq_end) * dn
-            loss = (seq_end - (l - 1)) * l * dn
+            loss = dm * l * dn
             tile_sum -= loss
     return tile_sum
 
@@ -108,9 +114,10 @@ def sum_seq(a_1, a_n):
     n = a_n - a_1 + 1
     return int((n * (a_1 + a_n)) / 2)
 
-def small_tile_sum(m_s, m_e, n_s, n_e, l):
-    rows, cols = np.array(np.meshgrid(np.arange(n_s, n_e, dtype=object),
-                                      np.arange(m_s, m_e, dtype=object)))
+# @Profile(stats=PERFORMANCE_STATS)
+def small_tile_sum(m_start, m, n_start, n, l):
+    rows, cols = np.array(np.meshgrid(np.arange(n_start, n_start + n, dtype=object),
+                                      np.arange(m_start, m_start + m, dtype=object)))
     xor_arr = np.bitwise_xor(rows, cols)
     trans_loss = np.subtract(xor_arr, l)
     trans_loss[trans_loss < 0] = 0
@@ -128,6 +135,5 @@ def xor_sum(m_s, m_e, n_s, n_e, l, t):
     return np.sum(xor_arr), loss, donate_time
 
 if __name__ == "__main__":
-    print(elder_age(8, 8, 0, 100007)) # 224
-#     print(elder_age(14894658662517258, 2079750097359417088, 5876922, 6920851)) # 5331202
-#    print(PERFORMANCE_STATS)
+    print(elder_age(28827050410, 35165045587, 7109602, 13719506)) # 5456283
+    print(PERFORMANCE_STATS)

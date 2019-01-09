@@ -3,21 +3,6 @@
 Test suite Become Immortal kata:
 https://www.codewars.com/kata/become-immortal
 
-100 test cases
-m,n: 2^5 - 2^10
-l: 0 - 19
-t: 2^5 - 2^15
-
-300 test cases
-m,n: 2^8 - 2^20
-l: 0 - 9999
-t: 2^10 - 2^20
-
-500 test cases
-m,n: 2^32 - 2^64
-l: 0 - 9999999
-t: 2^16 - 2^32
-
 """
 
 import pytest
@@ -117,7 +102,7 @@ def test_fixed(m, n, l, t, correct_age):
 @pytest.mark.parametrize('m, n, l, t, correct_age', LARGE_TESTS)
 def test_large_fixed(m, n, l, t, correct_age):
     """ tests """
-    _, donate_time = elder_age(m, n, l, t)
+    donate_time = elder_age(m, n, l, t)
     assert donate_time == correct_age
 
 @pytest.mark.parametrize('m, n, l, t', generate_test_cases())
