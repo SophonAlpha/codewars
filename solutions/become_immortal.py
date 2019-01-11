@@ -7,10 +7,11 @@ Level: 1 kyu
 performance statistics for
 m = 28827050410, n = 35165045587, l = 7109602, t = 13719506, age = 5456283
 
-    baseline:                                  'elder_age', 0.14357590786395225 s
-    optimised tile_time() function:            'elder_age', 0.09438958444985779 s
-    optimised with sum of arithmetic sequence: 'elder_age', 0.05584444502951191 s
-    new tile_generator(), sub tile at 8**x:    'elder_age', 0.00657040719656825 s
+    baseline:                                  'elder_age', 0.14358 s
+    optimised tile_time() function:            'elder_age', 0.09439 s
+    optimised with sum of arithmetic sequence: 'elder_age', 0.05584 s
+    new tile_generator(), sub tile at 8**x:    'elder_age', 0.00657 s
+    small_tile_sum() as list comprehension:    'elder_age', 0.00208 s
 """
 from solutions.performance import Profile
 import numpy as np
@@ -123,7 +124,7 @@ def sum_seq(a_1, a_n):
 
 # @Profile(stats=PERFORMANCE_STATS)
 def small_tile_sum(m_start, m, n_start, n, l):
-    tile_sum = sum([((row ^ col) - l) if ((row ^ col) - l) > l else 0
+    tile_sum = sum([((row ^ col) - l) if (row ^ col) > l else 0
                     for row in range(n_start, n_start + n)
                     for col in range(m_start, m_start + m)])
     return tile_sum
@@ -149,7 +150,11 @@ def xor_sum(m_s, m_e, n_s, n_e, l, t):
     return np.sum(xor_arr), loss, donate_time
 
 if __name__ == "__main__":
-    print(elder_age(593, 440, 5, 2743)) # 2398
-    print(elder_age(4281761696346, 6885192207, 9233980, 3683876590)) # 1181102073
-    print(elder_age(117259061559039872, 863690871818, 7733286, 356165)) # 261426
+    print(elder_age(28827050410, 35165045587, 7109602, 13719506)) # 5456283
+#     print(elder_age(133, 481, 347, 7412)) # 4005
+#     print(elder_age(310, 38, 159, 14107)) # 12604
+#     print(elder_age(931, 708, 235, 12518)) # 3898
+#     print(elder_age(593, 440, 5, 2743)) # 2398
+#     print(elder_age(4281761696346, 6885192207, 9233980, 3683876590)) # 1181102073
+#     print(elder_age(117259061559039872, 863690871818, 7733286, 356165)) # 261426
     print(PERFORMANCE_STATS)
