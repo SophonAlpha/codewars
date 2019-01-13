@@ -78,14 +78,6 @@ def largest_sqare_tile(size):
         exp += 1
     return exp
 
-# TODO: remove this test function in final version
-def sub_sizes(size):
-    while size > 0:
-        level = largest_sqare_tile(size)
-        sub_size = 8**level if level > 0 else size
-        print(sub_size)
-        size = size - sub_size
-
 # @Profile(stats=PERFORMANCE_STATS)
 def tile_time(m_start, dm, n_start, dn, l):
     if dm < 1 or dn < 1:
@@ -149,12 +141,35 @@ def xor_sum(m_s, m_e, n_s, n_e, l, t):
     donate_time = np.sum(trans_loss) % t
     return np.sum(xor_arr), loss, donate_time
 
+# TODO: remove this test function in final version
+def sub_sizes(size):
+    while size > 0:
+        level = largest_sqare_tile(size)
+        sub_size = 8**level if level > 0 else size
+        print(sub_size)
+        size = size - sub_size
+
+# TODO: remove this test function in final version
+def modulo(long_int, mod_int):
+    """
+    xy (mod a) = ((x (mod a) * y) (mod a))
+    """
+#     result = int(str(long_int)[0]) % mod_int 
+#     for num in str(long_int)[1:]:
+#         result = (result * int(num)) % mod_int
+#     
+    result = 0
+    for pos in range(0, len(str(long_int))): 
+        result = (result * 10 + int(str(long_int)[pos])) % mod_int    
+    return result
+
 if __name__ == "__main__":
-    print(elder_age(28827050410, 35165045587, 7109602, 13719506)) # 5456283
+#     modulo(117259061559039872, 356165)
+#     print(elder_age(28827050410, 35165045587, 7109602, 13719506)) # 5456283
 #     print(elder_age(133, 481, 347, 7412)) # 4005
 #     print(elder_age(310, 38, 159, 14107)) # 12604
 #     print(elder_age(931, 708, 235, 12518)) # 3898
 #     print(elder_age(593, 440, 5, 2743)) # 2398
-#     print(elder_age(4281761696346, 6885192207, 9233980, 3683876590)) # 1181102073
-#     print(elder_age(117259061559039872, 863690871818, 7733286, 356165)) # 261426
+    print(elder_age(14894658662517258, 2079750097359417088, 5876922, 6920851)) # 5331202
+    print(elder_age(117259061559039872, 863690871818, 7733286, 356165)) # 261426
     print(PERFORMANCE_STATS)

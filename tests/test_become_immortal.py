@@ -18,7 +18,7 @@ def generate_test_cases():
     t: 2^5 - 2^15
     """
     tests = []
-    for _ in range(0,3000):
+    for _ in range(0, 3000):
         m = random.randint(2**5, 8**4)
         n = random.randint(2**5, 8**4)
         l = random.randint(0, 99999)
