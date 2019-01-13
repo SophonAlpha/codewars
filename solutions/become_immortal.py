@@ -88,6 +88,7 @@ def tile_time(m_start, dm, n_start, dn, l):
     else:
         seq_start = m_start ^ n_start
         seq_end = (m_start + dm - 1) ^ n_start
+#         check_consecutiveness(seq_start, seq_end, dm)
         if seq_end <= l:
             tile_sum = 0
         elif seq_start <= l < seq_end:
@@ -121,16 +122,6 @@ def small_tile_sum(m_start, m, n_start, n, l):
                     for col in range(m_start, m_start + m)])
     return tile_sum
 
-# @Profile(stats=PERFORMANCE_STATS)
-def small_tile_sum_v1(m_start, m, n_start, n, l):
-    rows, cols = np.array(np.meshgrid(np.arange(n_start, n_start + n, dtype=object),
-                                      np.arange(m_start, m_start + m, dtype=object)))
-    xor_arr = np.bitwise_xor(rows, cols)
-    trans_loss = np.subtract(xor_arr, l)
-    trans_loss[trans_loss < 0] = 0
-    tile_sum = np.sum(trans_loss)
-    return tile_sum
-
 def xor_sum(m_s, m_e, n_s, n_e, l, t):
     rows, cols = np.array(np.meshgrid(np.arange(n_s, n_e, dtype=object),
                                       np.arange(m_s, m_e, dtype=object)))
@@ -140,6 +131,15 @@ def xor_sum(m_s, m_e, n_s, n_e, l, t):
     loss = np.subtract(np.sum(xor_arr), np.sum(trans_loss))
     donate_time = np.sum(trans_loss) % t
     return np.sum(xor_arr), loss, donate_time
+
+# TODO: remove this test function in final version
+def check_consecutiveness(seq_start, seq_end, dm):
+    level = largest_sqare_tile(dm)
+    diff = seq_end - (seq_start - 1)
+    if diff == dm and diff == 8**level:
+        print('ok = {}, level: {}'.format(dm, level))
+    else:
+        print('failure = {}, level: {}'.format(dm, level))
 
 # TODO: remove this test function in final version
 def sub_sizes(size):
@@ -157,12 +157,7 @@ def modulo(long_int, mod_int):
     return result
 
 if __name__ == "__main__":
-#     modulo(117259061559039872, 356165)
-#     print(elder_age(28827050410, 35165045587, 7109602, 13719506)) # 5456283
-#     print(elder_age(133, 481, 347, 7412)) # 4005
-#     print(elder_age(310, 38, 159, 14107)) # 12604
-#     print(elder_age(931, 708, 235, 12518)) # 3898
-#     print(elder_age(593, 440, 5, 2743)) # 2398
+    print(elder_age(16, 8, 8, 100000)) # 224
     print(elder_age(14894658662517258, 2079750097359417088, 5876922, 6920851)) # 5331202
-    print(elder_age(117259061559039872, 863690871818, 7733286, 356165)) # 261426
+    print(elder_age(145858900537694688, 9909527706292780, 8654247, 363101)) # 324438
     print(PERFORMANCE_STATS)

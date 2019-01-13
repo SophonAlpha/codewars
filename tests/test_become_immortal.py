@@ -22,14 +22,14 @@ def generate_test_cases():
     for _ in range(0, 3000):
         m = random.randint(2**5, 8**4)
         n = random.randint(2**5, 8**4)
-        l = random.randint(0, 99999)
-        t = random.randint(2**10, 8**4)
+        l = random.randint(0, 300000)
+        t = random.randint(2**5, 8**4)
         tests.append((m, n, l, t))
     return tests
 
 def generate_modulo_test_cases():
     tests = []
-    for _ in range(0, 10000):
+    for _ in range(0, 1000):
         m = random.randint(2**32, 2**128)
         t = random.randint(2**16, 2**32)
         tests.append((m, t))
