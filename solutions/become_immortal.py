@@ -151,13 +151,6 @@ def sub_sizes(size):
 
 # TODO: remove this test function in final version
 def modulo(long_int, mod_int):
-    """
-    xy (mod a) = ((x (mod a) * y) (mod a))
-    """
-#     result = int(str(long_int)[0]) % mod_int 
-#     for num in str(long_int)[1:]:
-#         result = (result * int(num)) % mod_int
-#     
     result = 0
     for pos in range(0, len(str(long_int))): 
         result = (result * 10 + int(str(long_int)[pos])) % mod_int    

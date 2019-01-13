@@ -10,6 +10,7 @@ import random
 from solutions.become_immortal import tile_generator
 from solutions.become_immortal import elder_age
 from solutions.become_immortal import xor_sum
+from solutions.become_immortal import modulo
 
 def generate_test_cases():
     """
@@ -24,6 +25,14 @@ def generate_test_cases():
         l = random.randint(0, 99999)
         t = random.randint(2**10, 8**4)
         tests.append((m, n, l, t))
+    return tests
+
+def generate_modulo_test_cases():
+    tests = []
+    for _ in range(0, 10000):
+        m = random.randint(2**32, 2**128)
+        t = random.randint(2**16, 2**32)
+        tests.append((m, t))
     return tests
 
 FIXED_TESTS = [(8, 5, 1, 100, 5),
@@ -118,3 +127,9 @@ def test_random_tests(m, n, l, t):
     donate_time = elder_age(m, n, l, t)
     _, _, naive_donate_time = xor_sum(0, m, 0, n, l, t)
     assert donate_time == naive_donate_time
+
+@pytest.mark.parametrize('m, t', generate_modulo_test_cases())
+def test_modulo(m, t):
+    """ tests """
+    donate_time = modulo(m, t)
+    assert donate_time == m % t
