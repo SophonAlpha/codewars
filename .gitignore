@@ -2,3 +2,6 @@ __pycache__
 .pytest_cache
 .coverage
 htmlcov
+solutions/~$become_immortal.xlsx
+solutions/trans_loss.csv
+solutions/notes.txt
