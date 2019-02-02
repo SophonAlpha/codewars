@@ -3,27 +3,14 @@
 Test suite Become Immortal kata:
 https://www.codewars.com/kata/become-immortal
 
-100 test cases
-m,n: 2^5 - 2^10
-l: 0 - 19
-t: 2^5 - 2^15
-
-300 test cases
-m,n: 2^8 - 2^20
-l: 0 - 9999
-t: 2^10 - 2^20
-
-500 test cases
-m,n: 2^32 - 2^64
-l: 0 - 9999999
-t: 2^16 - 2^32
-
 """
 
 import pytest
 import random
+from solutions.become_immortal import tile_generator
 from solutions.become_immortal import elder_age
-from solutions.become_immortal import loss_array
+from solutions.become_immortal import xor_sum
+from solutions.become_immortal import modulo
 
 def generate_test_cases():
     """
@@ -32,12 +19,20 @@ def generate_test_cases():
     t: 2^5 - 2^15
     """
     tests = []
-    for _ in range(0,300):
-        m = random.randint(2**5, 2**10)
-        n = random.randint(2**5, 2**10)
-        l = random.randint(0, 19)
-        t = random.randint(2**5, 2**15)
+    for _ in range(0, 3000):
+        m = random.randint(2**5, 8**4)
+        n = random.randint(2**5, 8**4)
+        l = random.randint(0, 300000)
+        t = random.randint(2**5, 8**4)
         tests.append((m, n, l, t))
+    return tests
+
+def generate_modulo_test_cases():
+    tests = []
+    for _ in range(0, 1000):
+        m = random.randint(2**32, 2**128)
+        t = random.randint(2**16, 2**32)
+        tests.append((m, t))
     return tests
 
 FIXED_TESTS = [(8, 5, 1, 100, 5),
@@ -46,7 +41,14 @@ FIXED_TESTS = [(8, 5, 1, 100, 5),
                (25, 31, 0, 100007, 11925),
                (5, 45, 3, 1000007, 4323),
                (31, 39, 7, 2345, 1586),
+               (310, 38, 159, 14107, 12604),
+               (931, 708, 235, 12518, 3898),
+               (177, 660, 462, 14783, 10656),
+               (665, 491, 459, 3053, 312),
+               (639, 282, 833, 20949, 7593),
+               (146, 186, 21, 7662, 6628),
                (545, 435, 342, 1000007, 808451),
+               (328, 334, 12, 27974, 13932),
                (706, 120, 12, 6983, 1525),
                (176, 110, 20, 2805, 767),
                (68, 444, 1, 4091, 3932),
@@ -91,30 +93,43 @@ FIXED_TESTS = [(8, 5, 1, 100, 5),
                (139, 951, 12, 24426, 20772),
                (78, 59, 3, 451, 437)]
 
-LARGE_TESTS = [(28827050410, 35165045587, 7109602, 13719506, 5456283)]
+LARGE_TESTS = [(28827050410, 35165045587, 7109602, 13719506, 5456283),
+               (14894658662517258, 2079750097359417088, 5876922, 6920851, 5331202),
+               (145858900537694688, 9909527706292780, 8654247, 363101, 324438)]
+
+@pytest.mark.parametrize('m, n, l, t, correct_age', FIXED_TESTS)
+def test_tile_generator_fixed(m, n, l, t, correct_age):
+    """ tests """
+    array_size = sum([dm * dn for _, dm, _, dn in tile_generator(m, n)])
+    assert array_size == m * n
+
+@pytest.mark.parametrize('m, n, l, t, correct_age', LARGE_TESTS)
+def test_tile_generator_large_fixed(m, n, l, t, correct_age):
+    """ tests """
+    array_size = sum([dm * dn for _, dm, _, dn in tile_generator(m, n)])
+    assert array_size == m * n
 
 @pytest.mark.parametrize('m, n, l, t, correct_age', FIXED_TESTS)
 def test_fixed(m, n, l, t, correct_age):
     """ tests """
-    _, donate_time = elder_age(m, n, l, t)
+    donate_time = elder_age(m, n, l, t)
     assert donate_time == correct_age
 
 @pytest.mark.parametrize('m, n, l, t, correct_age', LARGE_TESTS)
 def test_large_fixed(m, n, l, t, correct_age):
     """ tests """
-    _, donate_time = elder_age(m, n, l, t)
+    donate_time = elder_age(m, n, l, t)
     assert donate_time == correct_age
-
-@pytest.mark.parametrize('m, n, l, t, correct_age', FIXED_TESTS)
-def test_total_time_calculation(m, n, l, t, correct_age):
-    """ tests """
-    total_time, _ = elder_age(m, n, l, t)
-    naive_total_time = loss_array(0, m, 0, n, l, t)[0]
-    assert total_time == naive_total_time
 
 @pytest.mark.parametrize('m, n, l, t', generate_test_cases())
 def test_random_tests(m, n, l, t):
     """ tests """
-    _, donate_time = elder_age(m, n, l, t)
-    _, _, naive_donate_time = loss_array(0, m, 0, n, l, t)
+    donate_time = elder_age(m, n, l, t)
+    _, _, naive_donate_time = xor_sum(0, m, 0, n, l, t)
     assert donate_time == naive_donate_time
+
+@pytest.mark.parametrize('m, t', generate_modulo_test_cases())
+def test_modulo(m, t):
+    """ tests """
+    donate_time = modulo(m, t)
+    assert donate_time == m % t
