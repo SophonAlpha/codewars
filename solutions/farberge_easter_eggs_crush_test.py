@@ -6,7 +6,14 @@ Level: 3 kyu
 
 """
 
-def next_floor(floor, eggs, attempts):
-    max_attempts = min(eggs, attempts)
-    all_fail_floors = [2**attempt for attempt in range(max_attempts)]
-    return floor + 2**(max_attempts - 1) 
+def height(eggs, tries):
+    
+    
+    
+    floor = 0
+    while tries > 0 and eggs > 0:
+        max_attempts = min(eggs, tries)
+        floor += 2**(max_attempts - 1)
+        print(floor)
+        tries -= 1
+    return floor
