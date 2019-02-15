@@ -11,18 +11,17 @@ def height(floor, attempt, eggs, attempts_left):
     attempt += 1
     attempts_left -= 1
     eggs -= 1
-    if 0 <= eggs <= 1 or 0 >= attempts_left <= 1:
+    if 0 <= eggs <= 1 or 0 <= attempts_left <= 1:
         floor += attempts_left + 1
-        print(floor)
         if attempts_left > 0:
             floor = height(floor, attempt, eggs + 1, attempts_left)
-    else:
+    elif 0 <= eggs and 0 <= attempts_left:
         floor = height(floor, attempt, eggs, attempts_left)
         floor += 1
-        print(floor)
+        print(floor, attempt, eggs, attempts_left)
         if attempts_left > 0:
             floor = height(floor, attempt, eggs + 1, attempts_left)
     return floor
 
-print(height(0, 0, 7, 500))
+print(height(0, 0, 4, 5))
 
