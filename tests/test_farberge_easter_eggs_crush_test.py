@@ -22,4 +22,4 @@ FIXED_TESTS = [(0, 14, 0),
 @pytest.mark.parametrize('eggs, tries, floor', FIXED_TESTS)
 def test_throw_eggs(eggs, tries, floor):
     """ tests """
-    assert height(0, 0, eggs, tries) == floor
+    assert height(eggs, tries) == floor
