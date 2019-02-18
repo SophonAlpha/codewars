@@ -1,5 +1,5 @@
 # codewars code gymnastics
-Notes from playing with the codewars katas.
+Notes from solving the www.codewars.com katas.
 
 ### Four Pass Transport
 
