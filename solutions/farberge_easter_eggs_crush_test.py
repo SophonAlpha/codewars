@@ -8,17 +8,20 @@ Level: 3 kyu
 """
 
 def height(eggs, tries):
-    tower = [('-', '-', '-')] * 1000
+    tower = [('-', '-', '-', '-')] * 1000
+    tower.insert(0, (0, 0, eggs, tries))
     recur_lvl = 0
     floor = 0
     attempt = 0
     if eggs > 0 and tries > 0:
-        print('level, floor, attempt, eggs')
+        print('level, attempt, eggs, tries')
         tower, floor = get_floor(tower, recur_lvl, floor, attempt, eggs, tries)
         floor -= 1
-        for level, values in enumerate(tower[floor::-1]):
-            recur_lvl, cur_attempt, eggs = values
-            print('{}, {}, {}, {}'.format(recur_lvl, level, cur_attempt, eggs))
+        tower_rev = tower[floor::-1]
+#         tower_rev.reverse()
+        for level, values in enumerate(tower_rev):
+            recur_lvl, cur_attempt, eggs, tries = values
+            print('{}, {}, {}, {}'.format(recur_lvl, cur_attempt, eggs, tries))
     return floor
 
 def get_floor(tower, recur_lvl, floor, attempt, eggs, tries):
@@ -29,7 +32,7 @@ def get_floor(tower, recur_lvl, floor, attempt, eggs, tries):
     else:
         for cur_attempt in range(attempt + 1, tries + 1):
             tower, floor = get_floor(tower, recur_lvl, floor, cur_attempt, eggs - 1, tries)
-            tower.insert(floor, (recur_lvl, cur_attempt, eggs))
+            tower.insert(floor, (recur_lvl, cur_attempt, eggs, tries - cur_attempt))
         floor += 1
     return tower, floor
 
@@ -48,4 +51,4 @@ def get_floor_v1(recur_lvl, floor, attempt, eggs, tries):
         floor += 1
     return floor
 
-height(4, 5)
+print(height(5, 6))
