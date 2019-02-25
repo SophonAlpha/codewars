@@ -20,22 +20,14 @@ def height(eggs, tries):
     return floor
 
 def get_floor(tower, recur_lvl, floor, attempt, eggs, tries):
-    level_count = {}
-    max_segments = max(eggs, tries)
+    segments = max(eggs, tries)
     max_recurse = min(eggs, tries) - 1
-    level_count = {1: [1] * max_segments}
+    level_count = {1: [1] * segments}
     for recurse_lvl in range(2, max_recurse + 1):
-        max_recurse_lvl_segments = max_segments + 1 - recurse_lvl
-        for segment in range(max_recurse_lvl_segments, 0, -1):
-            # TODO: reverse order of segment processing
-#             if recurse_lvl == 1:
-#                 segment_count = 1
-#             else:
-            if segment == max_recurse_lvl_segments or segment == max_recurse_lvl_segments - 1:
-                num_segments = len(level_count[recurse_lvl - 1])
-                segment_count = sum(level_count[recurse_lvl - 1][2:])
-            else:
-                segment_count = sum(level_count[recurse_lvl - 1][segment: 0: -1])
+        segments = segments - 1
+        for segment in range(segments):
+            start = segment if segment < segments - 2 else segments - 2
+            segment_count = sum(level_count[recurse_lvl - 1][start:: -1])
             if recurse_lvl not in level_count:
                 level_count[recurse_lvl] = []
             level_count[recurse_lvl].append(segment_count)
