@@ -10,14 +10,19 @@ Level: 3 kyu
 import pprint
 
 def height(eggs, tries):
-    recur_lvl = 0
     floor = 0
-    attempt = 0
     if eggs > 0 and tries > 0:
+        recur_lvl = 0
+        floor = 0
+        attempt = 0
         floor = get_floor(recur_lvl, floor, attempt, eggs, tries)
-        print()
-        floor = get_floor_v1(recur_lvl, floor, attempt, eggs, tries) - 1
-        print(floor)
+#         print(floor)
+#         print()
+#         recur_lvl = 0
+#         floor = 0
+#         attempt = 0
+#         floor = get_floor_v1(recur_lvl, floor, attempt, eggs, tries) - 1
+#         print(floor)
     return floor
 
 def get_floor(recur_lvl, floor, attempt, eggs, tries):
@@ -36,14 +41,14 @@ def get_floor(recur_lvl, floor, attempt, eggs, tries):
             if level not in level_count:
                 level_count[level] = []
             level_count[level].append(segment_count)
-            if eggs - attempt <= 1 or tries - attempt <= 1:
+            if eggs - 1 <= 1 or tries - attempt <= 1:
                 floor_height = tries - attempt + 1
             else:
                 floor_height = 1
-            floor += floor_height
+            floor += floor_height * segment_count
         segments -= 1
-    pprint.pprint(level_count)
-    print(floor)
+        eggs -= 1
+#     pprint.pprint(level_count)
     return floor
 
 def get_floor_v1(recur_lvl, floor, attempt, eggs, tries):
@@ -54,10 +59,9 @@ def get_floor_v1(recur_lvl, floor, attempt, eggs, tries):
     else:
         for cur_attempt in range(attempt + 1, tries + 1):
             floor = get_floor_v1(recur_lvl, floor, cur_attempt, eggs - 1, tries)
-            print('lvl: {}, floor: {}, attempt: {}'.format(recur_lvl, floor, cur_attempt))
+#             print('lvl: {}, floor: {}, attempt: {}'.format(recur_lvl, floor, cur_attempt))
         floor += 1
     return floor
 
-height(5, 6)
-print()
-# height(7, 20) # 137979
+print(height(5, 6)) # 62
+print(height(7, 20)) # 137979
