@@ -7,25 +7,13 @@ Level: 3 kyu
 
 """
 
-import pprint
-
 def height(eggs, tries):
     floor = 0
     if eggs > 0 and tries > 0:
-        recur_lvl = 0
-        floor = 0
-        attempt = 0
-        floor = get_floor(recur_lvl, floor, attempt, eggs, tries)
-#         print(floor)
-#         print()
-#         recur_lvl = 0
-#         floor = 0
-#         attempt = 0
-#         floor = get_floor_v1(recur_lvl, floor, attempt, eggs, tries) - 1
-#         print(floor)
+        floor = get_floor(eggs, tries)
     return floor
 
-def get_floor(recur_lvl, floor, attempt, eggs, tries):
+def get_floor(eggs, tries):
     floor = 0
     segments = max(eggs, tries)
     max_level = min(eggs, tries) - 1
@@ -48,19 +36,6 @@ def get_floor(recur_lvl, floor, attempt, eggs, tries):
             floor += floor_height * segment_count
         segments -= 1
         eggs -= 1
-#     pprint.pprint(level_count)
-    return floor
-
-def get_floor_v1(recur_lvl, floor, attempt, eggs, tries):
-    recur_lvl += 1
-    attempts_left = tries - attempt
-    if eggs <= 1 or attempts_left <= 1:
-        floor += attempts_left + 1
-    else:
-        for cur_attempt in range(attempt + 1, tries + 1):
-            floor = get_floor_v1(recur_lvl, floor, cur_attempt, eggs - 1, tries)
-#             print('lvl: {}, floor: {}, attempt: {}'.format(recur_lvl, floor, cur_attempt))
-        floor += 1
     return floor
 
 print(height(5, 6)) # 62
