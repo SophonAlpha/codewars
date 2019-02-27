@@ -38,7 +38,7 @@ def get_floor(eggs, tries):
         eggs -= 1
     return floor
 
+print(height((19, 3))
 # print(height(5, 6)) # 62
 # print(height(7, 20)) # 137979
-# print(height(477, 500))
 # print(height(477, 10000))

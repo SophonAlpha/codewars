@@ -9,7 +9,8 @@ import random
 import pytest
 from solutions.farberge_easter_eggs_crush_test import height
 
-FIXED_TESTS = [(0, 14, 0),
+FIXED_TESTS = [(19, 3, 0),
+               (0, 14, 0),
                (2, 0, 0),
                (2, 14, 105),
                (7, 20, 137979),
@@ -27,8 +28,8 @@ def generate_test_cases():
     """
     tests = []
     for _ in range(0, 30):
-        eggs = random.randint(0, 300)
-        tries = random.randint(0, 300)
+        eggs = random.randint(0, 30)
+        tries = random.randint(0, 30)
         tests.append((eggs, tries))
     return tests
 
@@ -40,11 +41,23 @@ def test_fixed(eggs, tries, floor):
 @pytest.mark.parametrize('eggs, tries', generate_test_cases())
 def test_random(eggs, tries):
     """ tests """
-    assert height(eggs, tries) == get_floor(0, 0, 0, eggs, tries)
+    assert height(eggs, tries) == height_naive(eggs, tries)
 
-def get_floor(recur_lvl, floor, attempt, eggs, tries):
+def height_naive(eggs, tries):
     """
-    Naive approach for calculating highest floor.
+    Initialiser function for recursive calculation of highest floor.
+    """
+    floor = 0
+    if eggs > 0 and tries > 0:
+        recur_lvl = 0
+        floor = 0
+        attempt = 0
+        floor = get_floor_naive(recur_lvl, floor, attempt, eggs, tries)
+    return floor
+
+def get_floor_naive(recur_lvl, floor, attempt, eggs, tries):
+    """
+    Naive recursive approach for calculating highest floor.
     """
     recur_lvl += 1
     attempts_left = tries - attempt
@@ -52,6 +65,7 @@ def get_floor(recur_lvl, floor, attempt, eggs, tries):
         floor += attempts_left + 1
     else:
         for cur_attempt in range(attempt + 1, tries + 1):
-            floor = get_floor(recur_lvl, floor, cur_attempt, eggs - 1, tries)
+            floor = get_floor_naive(recur_lvl, floor, cur_attempt, eggs - 1, tries)
         floor += 1
+    floor -= 1 # the algorithm arrives at one floor to high
     return floor
