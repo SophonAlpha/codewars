@@ -22,6 +22,7 @@ def get_floor(eggs, tries):
         level_count_curr = []
         for segment in range(segments):
             attempt = segment + level
+#             print(level, attempt, eggs)
             if level > 1:
                 start = segment if segment < segments - 2 else segments - 2
                 segment_count = sum(level_count_prev[start:: -1])
@@ -39,8 +40,10 @@ def get_floor(eggs, tries):
     return floor
 
 if __name__ == "__main__":
-    print(height(5, 6))
-    print(height(19, 3))
+#     print(height(5, 6))
+#     print(height(19, 3))
+    print(height(477, 500))
+    print(height(477, 600))
     # print(height(5, 6)) # 62
     # print(height(7, 20)) # 137979
 #     print(height(477, 500))
