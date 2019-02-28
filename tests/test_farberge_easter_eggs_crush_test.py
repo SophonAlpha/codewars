@@ -9,7 +9,8 @@ import random
 import pytest
 from solutions.farberge_easter_eggs_crush_test import height
 
-FIXED_TESTS = [(19, 3, 0),
+FIXED_TESTS = [(5, 6, 62),
+               (19, 3, 7),
                (0, 14, 0),
                (2, 0, 0),
                (2, 14, 105),

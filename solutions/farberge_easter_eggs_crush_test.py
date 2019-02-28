@@ -15,10 +15,10 @@ def height(eggs, tries):
 
 def get_floor(eggs, tries):
     floor = 0
-    segments = max(eggs, tries)
-    max_level = min(eggs, tries) - 1
+    segments = tries
+    max_level = min(eggs, tries)
     level_count = {}
-    for level in range(1, max_level + 1):
+    for level in range(1, max_level):
         for segment in range(segments):
             attempt = segment + level
             if level > 1:
@@ -38,7 +38,9 @@ def get_floor(eggs, tries):
         eggs -= 1
     return floor
 
-print(height((19, 3))
-# print(height(5, 6)) # 62
-# print(height(7, 20)) # 137979
-# print(height(477, 10000))
+if __name__ == "__main__":
+#     print(height(5, 6))
+#     print(height(19, 3))
+    # print(height(5, 6)) # 62
+    # print(height(7, 20)) # 137979
+    print(height(477, 500))
