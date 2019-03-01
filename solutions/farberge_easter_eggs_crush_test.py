@@ -14,36 +14,42 @@ def height(eggs, tries):
     return floor
 
 def get_floor(eggs, tries):
-    floor = 0
+    total_floors = 0
     segments = tries
     max_level = min(eggs, tries)
     level_count_prev = []
-    for level in range(1, max_level):
+    for level in range(1, max_level + 1):
+#         if level == 1:
+#             floor += segments + (tries - segments) + 1
+#         else:
+#             floor += sum_arith_seq(segments - 1, level, segments - 1)
         level_count_curr = []
+        segment_floors = 0
         for segment in range(segments):
             attempt = segment + level
-#             print(level, attempt, eggs)
+            print(level, attempt, eggs)
             if level > 1:
-                start = segment if segment < segments - 2 else segments - 2
-                segment_count = sum(level_count_prev[start:: -1])
+                segment_count = sum(level_count_prev[segment:: -1])
             else:
                 segment_count = 1
             level_count_curr.append(segment_count)
-            if eggs - 1 <= 1 or tries - attempt <= 1:
-                floor_height = tries - attempt + 1
-            else:
-                floor_height = 1
-            floor += floor_height * segment_count
+            segment_floors += segment_count
+        total_floors += segment_floors
         level_count_prev = level_count_curr[:]
         segments -= 1
         eggs -= 1
-    return floor
+    return total_floors
+
+def sum_arith_seq(num, start, end):
+    return (num * (start + end)) / 2
 
 if __name__ == "__main__":
+    
+    print(height(5, 6))
 #     print(height(5, 6))
 #     print(height(19, 3))
-    print(height(477, 500))
-    print(height(477, 600))
+#     print(height(477, 500))
+#     print(height(477, 600))
     # print(height(5, 6)) # 62
     # print(height(7, 20)) # 137979
 #     print(height(477, 500))
