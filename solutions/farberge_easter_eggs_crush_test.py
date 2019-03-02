@@ -20,15 +20,14 @@ def get_floor(eggs, tries):
     level_count_prev = []
     for level in range(1, max_level + 1):
         level_count_curr = []
-        segment_floors = 0
         for segment in range(segments):
-            if level > 1:
-                segment_count = sum(level_count_prev[segment:: -1])
+            if level > 1 and segment > 0:
+                segment_count = level_count_curr[segment -1] + level_count_prev[segment]
             else:
                 segment_count = 1
             level_count_curr.append(segment_count)
             floor += segment_count
-        print('level {}: {}'.format(level, level_count_curr))
+#         print('level {}: {}'.format(level, level_count_curr))
         level_count_prev = level_count_curr[:]
         segments -= 1
         eggs -= 1
