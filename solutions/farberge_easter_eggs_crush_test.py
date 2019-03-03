@@ -7,6 +7,8 @@ Level: 3 kyu
 
 """
 
+import math
+
 def height(eggs, tries):
     floor = 0
     if eggs > 0 and tries > 0:
@@ -36,6 +38,16 @@ def get_floor(eggs, tries):
 
 def sum_arith_seq(num, start, end):
     return (num * (start + end)) / 2
+
+def transform_Catalans_tri(levels, segments):
+    for level in range(0, levels):
+        seq = [int(generate_Catalans_triangle(level, segment)) for segment in range(0, segments)]
+        print('level {}: {} = {}'.format(level, seq, sum(seq)))
+    return
+
+def generate_Catalans_triangle(n, k):
+    c = (math.factorial(n + k) * (n - k + 1)) / (math.factorial(k) * math.factorial(n + 1))
+    return c
 
 if __name__ == "__main__":
 
