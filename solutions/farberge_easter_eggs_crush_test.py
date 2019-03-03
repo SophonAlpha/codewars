@@ -40,18 +40,27 @@ def sum_arith_seq(num, start, end):
     return (num * (start + end)) / 2
 
 def transform_Catalans_tri(levels, segments):
-    for level in range(0, levels):
-        seq = [int(generate_Catalans_triangle(level, segment)) for segment in range(0, segments)]
-        print('level {}: {} = {}'.format(level, seq, sum(seq)))
+    for level in range(1, levels + 1):
+        level_sum = int(Catalans_trapezoid(level, segments - level))
+        print('level {}: {}'.format(level, level_sum))
     return
 
-def generate_Catalans_triangle(n, k):
+def Catalans_triangle(n, k):
     c = (math.factorial(n + k) * (n - k + 1)) / (math.factorial(k) * math.factorial(n + 1))
+    return c
+
+def Catalans_trapezoid(n, k):
+    """
+    Generalisation of Catalan's triangle = Catalan's trapezoid
+    https://en.wikipedia.org/wiki/Catalan%27s_triangle
+    """
+    c = (math.factorial(n + k) / math.factorial(n)) / math.factorial(k)
     return c
 
 if __name__ == "__main__":
 
     print(height(9, 9))
     print()
-    print(height(5, 7))
-    print()
+    transform_Catalans_tri(9, 9)
+#     print(height(5, 7))
+#     print()
