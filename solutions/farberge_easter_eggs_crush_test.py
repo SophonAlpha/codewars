@@ -22,12 +22,13 @@ def get_floor(eggs, tries):
         level_count_curr = []
         for segment in range(segments):
             if level > 1 and segment > 0:
-                segment_count = level_count_curr[segment -1] + level_count_prev[segment]
+                segment_count = level_count_curr[segment - 1] + \
+                                level_count_prev[segment]
             else:
                 segment_count = 1
             level_count_curr.append(segment_count)
             floor += segment_count
-#         print('level {}: {}'.format(level, level_count_curr))
+        print('level {}: {} = {}'.format(level, level_count_curr, sum(level_count_curr)))
         level_count_prev = level_count_curr[:]
         segments -= 1
         eggs -= 1
@@ -38,22 +39,7 @@ def sum_arith_seq(num, start, end):
 
 if __name__ == "__main__":
 
-#     print(height(6, 3))
-#     print()    
-#     print(height(6, 4))
-#     print()
-    print(height(5, 6))
+    print(height(9, 9))
     print()
     print(height(5, 7))
     print()
-#     print(height(6, 7))
-#     print()
-#     print(height(5, 8))
-#     print()
-#     print(height(5, 6))
-#     print(height(19, 3))
-#     print(height(477, 500))
-#     print(height(477, 600))
-    # print(height(5, 6)) # 62
-    # print(height(7, 20)) # 137979
-#     print(height(477, 500))
