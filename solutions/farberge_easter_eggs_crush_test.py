@@ -8,6 +8,24 @@ Level: 3 kyu
 """
 
 import math
+import pprint
+
+def show_matrix(max_eggs, max_tries):
+    results_1 = []
+    results_2 = []
+    for eggs in range(1, max_eggs + 1):
+        results_row = [get_floor(eggs, tries) for tries in range(1, max_tries + 1)]
+        results_1.append(results_row)
+        results_row = []
+        for tries in range(1, max_tries + 1):
+            eggs_2 = eggs if eggs <= tries  else tries
+            results_row.append(Catalans_trapezoid(eggs_2, tries - 1))
+        results_2.append(results_row)
+    pprint.pprint(results_1)
+    print()
+    pprint.pprint(results_2)
+
+              
 
 def height(eggs, tries):
     floor = 0
@@ -33,7 +51,7 @@ def get_floor(eggs, tries):
             level_count_curr.append(segment_count)
             floor += segment_count
 #         print('level {}: {} = {}'.format(level, level_count_curr, sum(level_count_curr)))
-        print('level {}: {}'.format(level, sum(level_count_curr)))
+#         print('level {}: {}'.format(level, sum(level_count_curr)))
 #         print('floor = {}',format(floor))
         level_count_prev = level_count_curr[:]
         segments -= 1
@@ -55,8 +73,11 @@ def Catalans_trapezoid(n, k):
     return c
 
 if __name__ == "__main__":
-    print(height(7, 8))
+    show_matrix(10,10)
     print()
-    print(height(7, 9))
-    print()
+    
+#     print(height(7, 8))
+#     print()
+#     print(height(7, 9))
+#     print()
 
