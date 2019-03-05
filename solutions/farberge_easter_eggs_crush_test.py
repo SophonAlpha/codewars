@@ -25,8 +25,6 @@ def show_matrix(max_eggs, max_tries):
     print()
     pprint.pprint(results_2)
 
-              
-
 def height(eggs, tries):
     floor = 0
     if eggs > 0 and tries > 0:
@@ -34,6 +32,18 @@ def height(eggs, tries):
 #         floor = calculate_Catalan_sums(eggs, tries)
         floor = get_floor(eggs, tries)
     return floor
+
+def get_floor_v2(eggs, tries):
+    if eggs == 1:
+        floor = tries
+    else:
+        current = list(range(1, tries + 1))
+        for level in range(1, eggs):
+            
+            
+            
+    
+    
 
 def get_floor(eggs, tries):
     floor = 0
