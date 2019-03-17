@@ -15,15 +15,16 @@ def show_matrix(max_eggs, max_tries):
     results_2 = []
     for eggs in range(1, max_eggs + 1):
         results_row = [get_floor(eggs, tries) for tries in range(1, max_tries + 1)]
+        print(results_row)
         results_1.append(results_row)
         results_row = []
         for tries in range(1, max_tries + 1):
             eggs_2 = eggs if eggs <= tries  else tries
             results_row.append(Catalans_trapezoid(eggs_2, tries - 1))
         results_2.append(results_row)
-    pprint.pprint(results_1)
-    print()
-    pprint.pprint(results_2)
+#     pprint.pprint(results_1)
+#     print()
+#     pprint.pprint(results_2)
 
 def height(eggs, tries):
     floor = 0
@@ -33,17 +34,41 @@ def height(eggs, tries):
         floor = get_floor(eggs, tries)
     return floor
 
+def height_v2(eggs, tries):
+    eggs = eggs if eggs <= tries else tries
+    to_do = [(eggs, tries)]
+    lookup = {}
+    while to_do:
+        floor = get_floor_v2(to_do[-1], tries)
+        if floor:
+            lookup[to_do[0]] = floor
+            to_do.pop()
+    floor_lookup = {}
+    floor_lookup[(eggs, eggs)] = 2**eggs - 1
+    floor_lookup[(eggs - 1, eggs)] = floor_lookup[(eggs, eggs)] - 1
+    floor_lookup[(eggs - 2, eggs)] = floor_lookup[(eggs, eggs)] - 1
+    for step in range(eggs + 1, tries + 1):
+        val1 = floor_lookup[(eggs, step - 1)]
+        val2 = floor_lookup[(eggs - 1, step - 1)]
+        floor_lookup[(eggs, step)] = val1 + val2
+        
+    floor = val1
+    return floor
+
 def get_floor_v2(eggs, tries):
     if eggs == 1:
         floor = tries
+    elif eggs == tries:
+        floor = 2**tries - 1
+    elif eggs == (tries - 1):
+        floor = 2**tries - 1 - 1
+    elif eggs == (tries - 2):
+        floor = 2**tries - 1 - tries
+    elif eggs == (tries - 3):
+        floor = (2**tries - 1 - tries) - (2**(tries - 1) - 1 - 1)
     else:
-        current = list(range(1, tries + 1))
-        for level in range(1, eggs):
-            
-            
-            
-    
-    
+        floor = None
+    return floor
 
 def get_floor(eggs, tries):
     floor = 0
@@ -83,8 +108,11 @@ def Catalans_trapezoid(n, k):
     return c
 
 if __name__ == "__main__":
-    show_matrix(10,10)
-    print()
+#     print(height_v2(3,+ 10))
+    
+    
+    show_matrix(20,20)
+#     print()
     
 #     print(height(7, 8))
 #     print()
