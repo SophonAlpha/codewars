@@ -36,23 +36,18 @@ def height(eggs, tries):
 
 def height_v2(eggs, tries):
     eggs = eggs if eggs <= tries else tries
-    to_do = [(eggs, tries)]
-    lookup = {}
-    while to_do:
-        floor = get_floor_v2(to_do[-1], tries)
-        if floor:
-            lookup[to_do[0]] = floor
-            to_do.pop()
-    floor_lookup = {}
-    floor_lookup[(eggs, eggs)] = 2**eggs - 1
-    floor_lookup[(eggs - 1, eggs)] = floor_lookup[(eggs, eggs)] - 1
-    floor_lookup[(eggs - 2, eggs)] = floor_lookup[(eggs, eggs)] - 1
-    for step in range(eggs + 1, tries + 1):
-        val1 = floor_lookup[(eggs, step - 1)]
-        val2 = floor_lookup[(eggs - 1, step - 1)]
-        floor_lookup[(eggs, step)] = val1 + val2
-        
-    floor = val1
+    floor = get_floor_v2(eggs, tries)
+    if not floor:
+        lookup = {(sub_eggs, sub_eggs + 2): get_floor_v2(sub_eggs, sub_eggs + 2) 
+                  for sub_eggs in range(1, eggs + 1)}
+        for sub_tries in range(4, tries + 1):
+            lookup[(1, sub_tries)] = sub_tries
+        for lane in range(tries - eggs + 1):
+            for sub_eggs in range(2, eggs + 1):
+                sub_tries = lane + sub_eggs + 3
+                lookup[(sub_eggs, sub_tries)] = lookup[(sub_eggs, sub_tries - 1)] + \
+                                                lookup[(sub_eggs - 1, sub_tries - 1)] + 1
+    floor = lookup[(eggs, tries)]
     return floor
 
 def get_floor_v2(eggs, tries):
@@ -63,7 +58,7 @@ def get_floor_v2(eggs, tries):
     elif eggs == (tries - 1):
         floor = 2**tries - 1 - 1
     elif eggs == (tries - 2):
-        floor = 2**tries - 1 - tries
+        floor = 2**tries - 2 - tries
     elif eggs == (tries - 3):
         floor = (2**tries - 1 - tries) - (2**(tries - 1) - 1 - 1)
     else:
@@ -108,14 +103,13 @@ def Catalans_trapezoid(n, k):
     return c
 
 if __name__ == "__main__":
-#     print(height_v2(3,+ 10))
+    print(height_v2(5, 11))
     
     
-    show_matrix(20,20)
+#     show_matrix(20, 20)
 #     print()
-    
+
 #     print(height(7, 8))
 #     print()
 #     print(height(7, 9))
 #     print()
-
