@@ -3,6 +3,14 @@
 Test suite 'Faberge easter eggs crush test [linear]' kata:
 https://www.codewars.com/kata/faberge-easter-eggs-crush-test-linear
 
+timings 08/04/2019:
+
+     [80000, 100000] = 3.87
+ 
+timings 08/04/2019:
+
+     [80000, 100000] = 0.64
+
 """
 
 import pytest
@@ -19,7 +27,8 @@ FIXED_TESTS = [(1, 51, 51),
                (8*10 ** 4, 10 ** 5, 805097588),
                (3000, 2 ** 200, 141903106),
                (8*10 ** 4, 4*10 ** 4, 616494770),
-               (4*10 ** 4, 8*10 ** 4, 303227698)
+               (4*10 ** 4, 8*10 ** 4, 303227698),
+               (50000, 100000, 125085684)
               ]
 
 @pytest.mark.parametrize('eggs, tries, floor', FIXED_TESTS)
