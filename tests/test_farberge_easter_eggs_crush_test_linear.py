@@ -5,12 +5,18 @@ https://www.codewars.com/kata/faberge-easter-eggs-crush-test-linear
 
 timings 08/04/2019:
 
-     [80000, 100000] = 3.87
+     [80000, 100000] = 3.87 secs
  
 timings 08/04/2019:
 
-     [80000, 100000] = 0.64
+     [80000, 100000] = 0.64 secs
 
+timings 11/04/2019:
+
+    baseline: all tests: 17.43 secs
+    direction optimization removed: all tests: 28.17 secs
+    "haha" solution: all tests: 2.19 secs
+   
 """
 
 import pytest
