@@ -49,7 +49,7 @@ def max_floor(eggs, tries):
     during iteration as large integers become computational expensive.
     """
     pre_calc = [0, 1]
-    for i in range(2, 80000 + 1):
+    for i in range(2, eggs + 1):
         pre_calc.append((MOD - MOD // i) * pre_calc[MOD % i] % MOD)
     floor = 0
     val = 1
