@@ -14,16 +14,16 @@ from solutions.become_immortal import modulo
 
 def generate_test_cases():
     """
-    m,n: 2^5 - 2^10
-    l: 0 - 19
-    t: 2^5 - 2^15
+    Automatic generation of test cases. We use the naive solution algorithm
+    implemented in function xor_sum(m_s, m_e, n_s, n_e, l, t) to test the result
+    of the performance optimised function elder_age(m, n, l, t).
     """
     tests = []
     for _ in range(0, 3000):
         m = random.randint(2**5, 8**4)
         n = random.randint(2**5, 8**4)
         l = random.randint(0, 300000)
-        t = random.randint(2**5, 8**4)
+        t = random.randint(2**5, 8**5)
         tests.append((m, n, l, t))
     return tests
 

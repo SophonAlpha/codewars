@@ -13,6 +13,7 @@ m = 28827050410, n = 35165045587, l = 7109602, t = 13719506, age = 5456283
     new tile_generator(), sub tile at 8**x:    'elder_age', 0.00657 s
     small_tile_sum() as list comprehension:    'elder_age', 0.00208 s
 """
+
 from solutions.performance import Profile
 import numpy as np
 np.seterr(over='raise')
@@ -24,8 +25,7 @@ PERFORMANCE_STATS = []
 def elder_age(m, n, l, t):
     donate_time = 0
     for m_start, dm, n_start, dn in tile_generator(m, n):
-        donate_time += tile_time(m_start, dm, n_start, dn, l)
-    donate_time = donate_time % t
+        donate_time = (donate_time % t + tile_time(m_start, dm, n_start, dn, l) % t) % t
     return donate_time
 
 # @Profile(stats=PERFORMANCE_STATS)
@@ -50,21 +50,24 @@ def tile_generator(m, n):
             sub_m = m
             sub_n = n
         yield m_start, sub_m, n_start, sub_n
-        # lower right sub tile
-        if m_start + sub_m < m_start + m and n_start + sub_n < n_start + n:
-            tile = (m_start + sub_m, (m_start + m) - (m_start + sub_m),
-                    n_start + sub_n, (n_start + n) - (n_start + sub_n))
-            if not tile in queue: queue.append(tile) 
         # upper right sub tile
         if m_start + sub_m < m_start + m:
-            tile = (m_start + sub_m, (m_start + m) - (m_start + sub_m),
+            tile = (m_start + sub_m, m - sub_m,
                     n_start, sub_n)
-            if not tile in queue: queue.append(tile)
+            if not tile in queue:
+                queue.append(tile)
+        # lower right sub tile
+        if m_start + sub_m < m_start + m and n_start + sub_n < n_start + n:
+            tile = (m_start + sub_m, m - sub_m,
+                    n_start + sub_n, n - sub_n)
+            if not tile in queue:
+                queue.append(tile)
         # lower left sub tile
         if n_start + sub_n < n_start + n:
             tile = (m_start, sub_m,
-                    n_start + sub_n, (n_start + n) - (n_start + sub_n))
-            if not tile in queue: queue.append(tile)
+                    n_start + sub_n, n - sub_n)
+            if not tile in queue:
+                queue.append(tile)
 
 # @Profile(stats=PERFORMANCE_STATS)
 def largest_sqare_tile(size):
@@ -113,7 +116,7 @@ def sum_seq(a_1, a_n):
     Calculate sum of arithmetic sequence.
     """
     n = a_n - a_1 + 1
-    return int((n * (a_1 + a_n)) / 2)
+    return (n * (a_1 + a_n)) // 2
 
 # @Profile(stats=PERFORMANCE_STATS)
 def small_tile_sum(m_start, m, n_start, n, l):
@@ -123,6 +126,9 @@ def small_tile_sum(m_start, m, n_start, n, l):
     return tile_sum
 
 def xor_sum(m_s, m_e, n_s, n_e, l, t):
+    """
+    Naive solution algorithm. Suitable only for small array sizes m, n < 3,000.
+    """
     rows, cols = np.array(np.meshgrid(np.arange(n_s, n_e, dtype=object),
                                       np.arange(m_s, m_e, dtype=object)))
     xor_arr = np.bitwise_xor(rows, cols)
