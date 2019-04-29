@@ -54,24 +54,21 @@ def tile_generator(m, n):
             sub_m = m
             sub_n = n
         yield m_start, sub_m, n_start, sub_n
-        # upper right sub tile
-        if m_start + sub_m < m_start + m:
-            tile = (m_start + sub_m, m - sub_m,
-                    n_start, sub_n)
-            if not tile in queue:
-                queue.append(tile)
         # lower right sub tile
         if m_start + sub_m < m_start + m and n_start + sub_n < n_start + n:
             tile = (m_start + sub_m, m - sub_m,
                     n_start + sub_n, n - sub_n)
-            if not tile in queue:
-                queue.append(tile)
+            if not tile in queue: queue.append(tile)
+        # upper right sub tile
+        if m_start + sub_m < m_start + m:
+            tile = (m_start + sub_m, m - sub_m,
+                    n_start, sub_n)
+            if not tile in queue: queue.append(tile)
         # lower left sub tile
         if n_start + sub_n < n_start + n:
             tile = (m_start, sub_m,
                     n_start + sub_n, n - sub_n)
-            if not tile in queue:
-                queue.append(tile)
+            if not tile in queue: queue.append(tile)
 
 # @Profile(stats=PERFORMANCE_STATS)
 def largest_sqare_tile(size):
@@ -167,8 +164,8 @@ def modulo(long_int, mod_int):
     return result
 
 if __name__ == "__main__":
-    test_tile_generator(14894658662517258, 2079750097359417088)
-#     print(elder_age(16, 8, 8, 100000)) # 224
-#     print(elder_age(14894658662517258, 2079750097359417088, 5876922, 6920851)) # 5331202
-#     print(elder_age(145858900537694688, 9909527706292780, 8654247, 363101)) # 324438
-#     print(PERFORMANCE_STATS)
+#     test_tile_generator(14894658662517258, 2079750097359417088)
+    print(elder_age(16, 8, 8, 100000)) # 224
+    print(elder_age(14894658662517258, 2079750097359417088, 5876922, 6920851)) # 5331202
+    print(elder_age(145858900537694688, 9909527706292780, 8654247, 363101)) # 324438
+    print(PERFORMANCE_STATS)
