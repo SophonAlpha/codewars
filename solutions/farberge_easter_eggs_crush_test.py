@@ -5,6 +5,12 @@ https://www.codewars.com/kata/faberge-easter-eggs-crush-test
 
 Level: 3 kyu
 
+sources:
+	https://medium.com/@duhroach/fast-fun-with-pascals-triangle-6030e15dced0
+	https://stackoverflow.com/questions/15580291/how-to-efficiently-calculate-a-row-in-pascals-triangle
+	https://www.mathsisfun.com/pascals-triangle.html
+	https://brilliant.org/wiki/egg-dropping/
+
 """
 
 def height(eggs, tries):
