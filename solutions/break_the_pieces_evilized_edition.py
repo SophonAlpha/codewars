@@ -9,13 +9,13 @@ import re
 
 def break_evil_pieces(shape):
     shape_lines = shape.split('\n')
-    pattern = re.compile(r'(?=([\+\|].*?[\+\|]))')
+    pattern = re.compile(r'(?=(?P<line>[\+\|]-*?[\+\|]))'
+                         r'|(?=(?P<segment>[\+\|] *?[\+\|]))')
     for line in shape_lines:
-        segments = pattern.match(line)
-        for segment in segments:
-            print(segment)
-#         for segment in pattern.finditer(line):
-#             print(segment.group(0), segment.start(), segment.end())
+        for segment in pattern.finditer(line):            
+            print(segment.lastgroup, segment.group(segment.lastgroup),
+                  segment.start(segment.lastgroup),
+                  segment.end(segment.lastgroup))
     return
 
 if __name__ == '__main__':
