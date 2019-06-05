@@ -29,13 +29,13 @@ def shape_to_matrix(shape_lines):
     for row, shape_line in enumerate(shape_lines):
         for col, cell in enumerate(shape_line):
             if cell == '+':
-                matrix[(row, col)] = {'lr': 0, 'll': 0, 'ul': 0, 'ur': 0}
+                matrix[(row, col)] = {'lr': True, 'll': True, 'ul': True, 'ur': True}
             if cell == '-':
-                matrix[(row, col)] = {'u': 0, 'd': 0}
+                matrix[(row, col)] = {'u': True, 'd': True}
             if cell == '|':
-                matrix[(row, col)] = {'r': 0, 'l': 0}
+                matrix[(row, col)] = {'r': True, 'l': True}
             if cell == ' ':
-                matrix[(row, col)] = {'c': 0}
+                matrix[(row, col)] = {'c': True}
     return matrix
 
 def get_starting_point(shape_matrix):
@@ -46,122 +46,60 @@ def get_starting_point(shape_matrix):
             break
     return row, col
 
-def get_piece(row, col, shape_matrix, shape_lines, piece, direction = None):
-    # TODO: add test whether row, col is outside the shape boundary
-    cell_type = shape_lines[row][col]
+def get_piece(row, col, shape_matrix, shape_lines, piece, direction = 'free'):
+    # TODO: remove piece from arguments list
+    cell_type = get_cell_type(shape_lines, row, col)
+    if not cell_type:
+        return piece
     piece.append((row, col, cell_type))
-    if cell_type == '+':
-        if shape_matrix[(row, col)]['lr'] == 0 and \
-           direction in [None, 'd', 'r', 'ul', 'll', 'ur']:
-            piece = get_piece(row, col + 1, shape_matrix,
-                              shape_lines, piece, 'lr')
-            piece = get_piece(row + 1, col, shape_matrix,
-                              shape_lines, piece, 'lr')
-            piece = get_piece(row + 1, col + 1, shape_matrix,
-                              shape_lines, piece, 'lr')
-            shape_matrix[(row, col)]['lr'] = 1
-        if shape_matrix[(row, col)]['ll'] == 0 and \
-           direction in [None, 'd', 'l', 'ur', 'lr', 'ul']:
-            piece = get_piece(row, col - 1, shape_matrix,
-                              shape_lines, piece, 'll')
-            piece = get_piece(row + 1, col, shape_matrix,
-                              shape_lines, piece, 'll')
-            piece = get_piece(row + 1, col - 1, shape_matrix,
-                              shape_lines, piece, 'll')
-            shape_matrix[(row, col)]['ll'] = 1
-        if shape_matrix[(row, col)]['ul'] == 0 and \
-           direction in [None, 'u', 'l', 'lr', 'll', 'ur']:
-            piece = get_piece(row, col - 1, shape_matrix,
-                              shape_lines, piece, 'ul')
-            piece = get_piece(row - 1, col, shape_matrix,
-                              shape_lines, piece, 'ul')
-            piece = get_piece(row - 1, col - 1, shape_matrix,
-                              shape_lines, piece, 'ul')
-            shape_matrix[(row, col)]['ul'] = 1
-        if shape_matrix[(row, col)]['ur'] == 0 and \
-           direction in [None, 'u', 'l', 'lr', 'll', 'ul']:
-            piece = get_piece(row, col + 1, shape_matrix,
-                              shape_lines, piece, 'ur')
-            piece = get_piece(row - 1, col, shape_matrix,
-                              shape_lines, piece, 'ur')
-            piece = get_piece(row - 1, col + 1, shape_matrix,
-                              shape_lines, piece, 'ur')
-            shape_matrix[(row, col)]['ur'] = 1
-    if cell_type == '-':
-        if shape_matrix[(row, col)]['u'] == 0 and \
-           direction in [None, 'u', 'ul', 'ur']:
-            piece = get_piece(row, col + 1, shape_matrix,
-                              shape_lines, piece, 'u')
-            piece = get_piece(row - 1, col + 1, shape_matrix,
-                              shape_lines, piece, 'u')
-            piece = get_piece(row - 1, col, shape_matrix,
-                              shape_lines, piece, 'u')
-            piece = get_piece(row - 1, col - 1, shape_matrix,
-                              shape_lines, piece, 'u')
-            piece = get_piece(row, col - 1, shape_matrix,
-                              shape_lines, piece, 'u')
-            shape_matrix[(row, col)]['u'] = 1
-        if shape_matrix[(row, col)]['d'] == 0 and \
-           direction in [None, 'd', 'll', 'lr']:
-            piece = get_piece(row, col + 1, shape_matrix,
-                              shape_lines, piece, 'u')
-            piece = get_piece(row + 1, col + 1, shape_matrix,
-                              shape_lines, piece, 'u')
-            piece = get_piece(row + 1, col, shape_matrix,
-                              shape_lines, piece, 'u')
-            piece = get_piece(row + 1, col - 1, shape_matrix,
-                              shape_lines, piece, 'u')
-            piece = get_piece(row, col - 1, shape_matrix,
-                              shape_lines, piece, 'u')
-            shape_matrix[(row, col)]['d'] = 1
-    if cell_type == '|':
-        if shape_matrix[(row, col)]['r'] == 0 and \
-           direction in [None, 'r', 'ur', 'lr']:
-            piece = get_piece(row, col + 1, shape_matrix,
-                              shape_lines, piece, 'u')
-            piece = get_piece(row - 1, col + 1, shape_matrix,
-                              shape_lines, piece, 'u')
-            piece = get_piece(row - 1, col, shape_matrix,
-                              shape_lines, piece, 'u')
-            piece = get_piece(row - 1, col - 1, shape_matrix,
-                              shape_lines, piece, 'u')
-            piece = get_piece(row, col - 1, shape_matrix,
-                              shape_lines, piece, 'u')
-            shape_matrix[(row, col)]['r'] = 1
-        if shape_matrix[(row, col)]['l'] == 0 and \
-           direction in [None, 'l', 'ul', 'll']:
-            piece = get_piece(row, col + 1, shape_matrix,
-                              shape_lines, piece, 'u')
-            piece = get_piece(row + 1, col + 1, shape_matrix,
-                              shape_lines, piece, 'u')
-            piece = get_piece(row + 1, col, shape_matrix,
-                              shape_lines, piece, 'u')
-            piece = get_piece(row + 1, col - 1, shape_matrix,
-                              shape_lines, piece, 'u')
-            piece = get_piece(row, col - 1, shape_matrix,
-                              shape_lines, piece, 'u')
-            shape_matrix[(row, col)]['l'] = 1
-    if cell_type == ' ':
-        piece = get_piece(row, col + 1, shape_matrix,
-                          shape_lines, piece, 'u')
-        piece = get_piece(row + 1, col + 1, shape_matrix,
-                          shape_lines, piece, 'u')
-        piece = get_piece(row + 1, col, shape_matrix,
-                          shape_lines, piece, 'u')
-        piece = get_piece(row + 1, col - 1, shape_matrix,
-                          shape_lines, piece, 'u')
-        piece = get_piece(row, col - 1, shape_matrix,
-                          shape_lines, piece, 'u')
-        piece = get_piece(row - 1, col - 1, shape_matrix,
-                          shape_lines, piece, 'u')
-        piece = get_piece(row - 1, col, shape_matrix,
-                          shape_lines, piece, 'u')
-        piece = get_piece(row - 1, col + 1, shape_matrix,
-                          shape_lines, piece, 'u')
-        shape_matrix[(row, col)]['c'] = 1        
+    if direction == 'free':
+        direction = get_next_direction(shape_matrix[row][col])
+    if not direction:
+        return piece
+    cells_in_direction = {'lr': [( 0,  1): {'-': 'd', '+': 'll'},
+                                 ( 1,  1): {' ': 'c', '+': 'ul'},
+                                 ( 1,  0): {'|': 'r', '+': 'ur'}],
+                          'll': [( 1,  0): {'|': 'l', '+': 'ul'},
+                                 ( 1, -1): {' ': 'c', '+': 'ur'},
+                                 ( 0, -1): {'-': 'd', '+': 'lr'}],
+                          'ul': [( 0, -1),
+                                 (-1, -1),
+                                 (-1,  0)],
+                          'ur': [(-1,  0), (-1,  1), ( 0,  1)],
+                          'u' : [( 0, -1), (-1, -1), (-1,  0),
+                                 (-1,  1), ( 0,  1)],
+                          'd' : [( 0,  1), ( 1,  1), ( 1,  0),
+                                 ( 1, -1), ( 0, -1)],
+                          'r' : [(-1,  0), (-1,  1), ( 0,  1),
+                                 ( 1,  1), ( 1,  0)],
+                          'l' : [( 1,  0), ( 1, -1), ( 0, -1),
+                                 (-1, -1), (-1,  0)],
+                          'c' : [( 1,  0), ( 1,  1), ( 0,  1), (-1,  1),
+                                 (-1,  0), (-1, -1), ( 0, -1), (-1, -1)]}
+    for d_row, d_col in cells_in_direction[direction]:
+        n_row = row + d_row
+        n_col = col + d_col
+        next_cell_type = get_cell_type(shape_lines, row + d_row, col + d_col)
+        piece = get_piece(row, col + 1, shape_matrix, shape_lines, piece,
+                          next_direction[(cell_type, direction, next_cell_type)])
+                    
+        shape_matrix[(row, col)]['c'] = False        
     return piece
 
-def get_cells():
+def get_cell_type(shape_lines, row, col):
+    try:
+        cell_type = shape_lines[row][col]
+    except IndexError:
+        return False
+    return cell_type
+
+def get_next_direction(directions):
+    direction = None
+    for val in iter(directions):
+        if directions[val]:
+            direction = val
+            break
+    return direction
 
 def break_evil_pieces_v1(shape):
     shape_lines = shape.split('\n')
@@ -195,25 +133,31 @@ def add_piece(segment, line_idx, pieces):
     
 if __name__ == '__main__':
     shape = """
-    ++
-    ++
-    
-    +-----------------+
-    |                 |
-    |     +--+        |
-    |     |  |        |
-    |     +--+        |
-    |                 |
-    |            +----|
-    |            |
-    |      +-----+-----+
-    |      |     |     |
-    |      |     |     |
-    +------+-----+-----+
-           |     |     |
-           |     |     |
-           +-----+-----+
++--+
+|  |
++--+
 """.strip('\n')
+
+# """
+#     ++
+#     ++
+#     
+#     +-----------------+
+#     |                 |
+#     |     +--+        |
+#     |     |  |        |
+#     |     +--+        |
+#     |                 |
+#     |            +----|
+#     |            |
+#     |      +-----+-----+
+#     |      |     |     |
+#     |      |     |     |
+#     +------+-----+-----+
+#            |     |     |
+#            |     |     |
+#            +-----+-----+
+# """.strip('\n')
     expected = ["""
 +------------+
 |            |
