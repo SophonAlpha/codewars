@@ -7,6 +7,48 @@ Level: 1 kyu
 
 import re
 
+NEXT_DIRECTIONS = {
+    'lr': {( 0,  1): {'-': 'd', '+': 'll'},
+           ( 1,  1): {' ': 'c', '+': 'ul'},
+           ( 1,  0): {'|': 'r', '+': 'ur'}},
+    'll': {( 1,  0): {'|': 'l', '+': 'ul'},
+           ( 1, -1): {' ': 'c', '+': 'ur'},
+           ( 0, -1): {'-': 'd', '+': 'lr'}},
+    'ul': {( 0, -1): {'-': 'u', '+': 'ur'},
+           (-1, -1): {' ': 'c', '+': 'lr'},
+           (-1,  0): {'|': 'l', '+': 'll'}},
+    'ur': {(-1,  0): {'|': 'r', '+': 'lr'},
+           (-1,  1): {' ': 'c', '+': 'll'},
+           ( 0,  1): {'-': 'u', '+': 'ul'}},
+    'u' : {( 0, -1): {'-': 'u', '+': 'ur'},
+           (-1, -1): {' ': 'c', '+': 'lr', '|': 'r', '-': 'd'},
+           (-1,  0): {' ': 'c', '-': 'd'},
+           (-1,  1): {' ': 'c', '+': 'll', '|': 'l', '-': 'd'},
+           ( 0,  1): {'-': 'u', '+': 'ul'}},
+    'd' : {( 0,  1): {'-': 'd', '+': 'll'},
+           ( 1,  1): {' ': 'c', '+': 'ul', '|': 'l', '-': 'u'},
+           ( 1,  0): {' ': 'c', '-': 'u'},
+           ( 1, -1): {' ': 'c', '+': 'ur', '|': 'r', '-': 'u'},
+           ( 0, -1): {'-': 'd', '+': 'lr'}},
+    'r' : {(-1,  0): {'|': 'r', '+': 'lr'},
+           (-1,  1): {' ': 'c', '+': 'll', '|': 'r', '-': 'd'},
+           ( 0,  1): {' ': 'c', '|': 'l'},
+           ( 1,  1): {' ': 'c', '+': 'ul', '|': 'l', '-': 'u'},
+           ( 1,  0): {'|': 'r', '+': 'ur'}},
+    'l' : {( 1,  0): {'|': 'l', '+': 'ul'},
+           ( 1, -1): {' ': 'c', '+': 'ur', '|': 'r', '-': 'u'},
+           ( 0, -1): {' ': 'c', '|': 'r'},
+           (-1, -1): {' ': 'c', '+': 'lr', '|': 'r', '-': 'd'},
+           (-1,  0): {'|': 'l', '+': 'll'}},
+    'c' : {( 0,  1): {' ': 'c', '+': 'll', '|': 'l'},
+           ( 1,  1): {' ': 'c', '+': 'ul', '|': 'l', '-': 'u'},
+           ( 1,  0): {' ': 'c', '+': 'ur', '-': 'u'},
+           ( 1, -1): {' ': 'c', '+': 'ur', '|': 'r', '-': 'u'},
+           ( 0, -1): {' ': 'c', '+': 'ur', '|': 'r'},
+           (-1, -1): {' ': 'c', '+': 'lr', '|': 'r', '-': 'd'},
+           (-1,  0): {' ': 'c', '+': 'll', '-': 'd'}, 
+           (-1,  1): {' ': 'c', '+': 'll', '|': 'l', '-': 'd'}}}
+
 class Segment:
     
     def __init__(self, match):
@@ -27,6 +69,7 @@ def break_evil_pieces(shape):
 def shape_to_matrix(shape_lines):
     matrix = {}
     for row, shape_line in enumerate(shape_lines):
+        matrix = mark_outer_area(shape_line, matrix, row)
         for col, cell in enumerate(shape_line):
             if cell == '+':
                 matrix[(row, col)] = {'lr': True, 'll': True, 'ul': True, 'ur': True}
@@ -35,13 +78,25 @@ def shape_to_matrix(shape_lines):
             if cell == '|':
                 matrix[(row, col)] = {'r': True, 'l': True}
             if cell == ' ':
-                matrix[(row, col)] = {'c': True}
+                if not (row, col) in matrix.keys():
+                    matrix[(row, col)] = {'c': True}
+    return matrix
+
+def mark_outer_area(shape_line, matrix, row):
+    pattern = re.compile(r'(^ *).*?( *)$')
+    match = pattern.fullmatch(shape_line)
+    if match:
+        for idx in range(1, match.lastindex + 1):
+            start = match.start(idx)
+            end = match.end(idx)
+            for col in range(start, end):
+                matrix[(row, col)] = {'c': False}
     return matrix
 
 def get_starting_point(shape_matrix):
     for entry in shape_matrix:
         if not 'c' in shape_matrix[entry].keys() and \
-           sum(shape_matrix[entry].values()) < len(shape_matrix[entry].keys()):
+           sum(shape_matrix[entry].values()) > 0:
             row, col = entry
             break
     return row, col
@@ -51,60 +106,23 @@ def get_piece(row, col, shape_matrix, shape_lines, piece, direction = 'free'):
     cell_type = get_cell_type(shape_lines, row, col)
     if not cell_type:
         return piece
-    piece.append((row, col, cell_type))
-    shape_matrix[(row, col)][cell_type] = False
     if direction == 'free':
-        direction = get_next_direction(shape_matrix[row][col])
+        direction = get_next_direction(shape_matrix[(row, col)])
     if not direction:
         return piece
-    next_directions = {
-        'lr': {( 0,  1): {'-': 'd', '+': 'll'},
-               ( 1,  1): {' ': 'c', '+': 'ul'},
-               ( 1,  0): {'|': 'r', '+': 'ur'}},
-        'll': {( 1,  0): {'|': 'l', '+': 'ul'},
-               ( 1, -1): {' ': 'c', '+': 'ur'},
-               ( 0, -1): {'-': 'd', '+': 'lr'}},
-        'ul': {( 0, -1): {'-': 'u', '+': 'ur'},
-               (-1, -1): {' ': 'c', '+': 'lr'},
-               (-1,  0): {'|': 'l', '+': 'll'}},
-        'ur': {(-1,  0): {'|': 'r', '+': 'lr'},
-               (-1,  1): {' ': 'c', '+': 'll'},
-               ( 0,  1): {'-': 'u', '+': 'ul'}},
-        'u' : {( 0, -1): {'-': 'u', '+': 'ur'},
-               (-1, -1): {' ': 'c', '+': 'lr', '|': 'r', '-': 'd'},
-               (-1,  0): {' ': 'c', '-': 'd'},
-               (-1,  1): {' ': 'c', '+': 'll', '|': 'l', '-': 'd'},
-               ( 0,  1): {'-': 'c', '+': 'ul'}},
-        'd' : {( 0,  1): {'-': 'c', '+': 'll'},
-               ( 1,  1): {' ': 'c', '+': 'ul', '|': 'l', '-': 'u'},
-               ( 1,  0): {' ': 'c', '-': 'u'},
-               ( 1, -1): {' ': 'c', '+': 'ur', '|': 'r', '-': 'u'},
-               ( 0, -1): {'-': 'c', '+': 'lr'}},
-        'r' : {(-1,  0): {'|': 'r', '+': 'lr'},
-               (-1,  1): {' ': 'c', '+': 'll', '|': 'r', '-': 'd'},
-               ( 0,  1): {' ': 'c', '|': 'l'},
-               ( 1,  1): {' ': 'c', '+': 'ul', '|': 'l', '-': 'u'},
-               ( 1,  0): {'|': 'r', '+': 'ur'}},
-        'l' : {( 1,  0): {'|': 'l', '+': 'ul'},
-               ( 1, -1): {' ': 'c', '+': 'ur', '|': 'r', '-': 'u'},
-               ( 0, -1): {' ': 'c', '|': 'r'},
-               (-1, -1): {' ': 'c', '+': 'lr', '|': 'r', '-': 'd'},
-               (-1,  0): {'|': 'l', '+': 'll'}},
-        'c' : {( 0,  1): {' ': 'c', '+': 'll', '|': 'l'},
-               ( 1,  1): {' ': 'c', '+': 'ul', '|': 'l', '-': 'u'},
-               ( 1,  0): {' ': 'c', '+': 'ur', '-': 'u'},
-               ( 1, -1): {' ': 'c', '+': 'ur', '|': 'r', '-': 'u'},
-               ( 0, -1): {' ': 'c', '+': 'ur', '|': 'r'},
-               (-1, -1): {' ': 'c', '+': 'lr', '|': 'r', '-': 'd'},
-               (-1,  0): {' ': 'c', '+': 'll', '-': 'd'}, 
-               (-1,  1): {' ': 'c', '+': 'll', '|': 'l', '-': 'd'}}}
-    for d_row, d_col in next_directions[direction]:
+    if shape_matrix[(row, col)][direction]:
+        piece.append((row, col, cell_type))
+    else:
+        return piece    
+    shape_matrix[(row, col)][direction] = False
+    for d_row, d_col in NEXT_DIRECTIONS[direction]:
         n_row = row + d_row
         n_col = col + d_col
         next_cell_type = get_cell_type(shape_lines, n_row, n_col)
+        next_direction = NEXT_DIRECTIONS[direction][d_row, d_col][next_cell_type]
         if next_cell_type:
             piece = get_piece(n_row, n_col, shape_matrix, shape_lines, piece,
-                              next_directions[direction][n_row, n_col][next_cell_type])
+                              next_direction)
     return piece
 
 def get_cell_type(shape_lines, row, col):
@@ -154,9 +172,11 @@ def add_piece(segment, line_idx, pieces):
     
 if __name__ == '__main__':
     shape = """
-+--+
-|  |
-+--+
+        
+  +--+  
+  |  |  
+  +--+  
+        
 """.strip('\n')
 
 # """
