@@ -52,38 +52,59 @@ def get_piece(row, col, shape_matrix, shape_lines, piece, direction = 'free'):
     if not cell_type:
         return piece
     piece.append((row, col, cell_type))
+    shape_matrix[(row, col)][cell_type] = False
     if direction == 'free':
         direction = get_next_direction(shape_matrix[row][col])
     if not direction:
         return piece
-    cells_in_direction = {'lr': [( 0,  1): {'-': 'd', '+': 'll'},
-                                 ( 1,  1): {' ': 'c', '+': 'ul'},
-                                 ( 1,  0): {'|': 'r', '+': 'ur'}],
-                          'll': [( 1,  0): {'|': 'l', '+': 'ul'},
-                                 ( 1, -1): {' ': 'c', '+': 'ur'},
-                                 ( 0, -1): {'-': 'd', '+': 'lr'}],
-                          'ul': [( 0, -1),
-                                 (-1, -1),
-                                 (-1,  0)],
-                          'ur': [(-1,  0), (-1,  1), ( 0,  1)],
-                          'u' : [( 0, -1), (-1, -1), (-1,  0),
-                                 (-1,  1), ( 0,  1)],
-                          'd' : [( 0,  1), ( 1,  1), ( 1,  0),
-                                 ( 1, -1), ( 0, -1)],
-                          'r' : [(-1,  0), (-1,  1), ( 0,  1),
-                                 ( 1,  1), ( 1,  0)],
-                          'l' : [( 1,  0), ( 1, -1), ( 0, -1),
-                                 (-1, -1), (-1,  0)],
-                          'c' : [( 1,  0), ( 1,  1), ( 0,  1), (-1,  1),
-                                 (-1,  0), (-1, -1), ( 0, -1), (-1, -1)]}
-    for d_row, d_col in cells_in_direction[direction]:
+    next_directions = {
+        'lr': {( 0,  1): {'-': 'd', '+': 'll'},
+               ( 1,  1): {' ': 'c', '+': 'ul'},
+               ( 1,  0): {'|': 'r', '+': 'ur'}},
+        'll': {( 1,  0): {'|': 'l', '+': 'ul'},
+               ( 1, -1): {' ': 'c', '+': 'ur'},
+               ( 0, -1): {'-': 'd', '+': 'lr'}},
+        'ul': {( 0, -1): {'-': 'u', '+': 'ur'},
+               (-1, -1): {' ': 'c', '+': 'lr'},
+               (-1,  0): {'|': 'l', '+': 'll'}},
+        'ur': {(-1,  0): {'|': 'r', '+': 'lr'},
+               (-1,  1): {' ': 'c', '+': 'll'},
+               ( 0,  1): {'-': 'u', '+': 'ul'}},
+        'u' : {( 0, -1): {'-': 'u', '+': 'ur'},
+               (-1, -1): {' ': 'c', '+': 'lr', '|': 'r', '-': 'd'},
+               (-1,  0): {' ': 'c', '-': 'd'},
+               (-1,  1): {' ': 'c', '+': 'll', '|': 'l', '-': 'd'},
+               ( 0,  1): {'-': 'c', '+': 'ul'}},
+        'd' : {( 0,  1): {'-': 'c', '+': 'll'},
+               ( 1,  1): {' ': 'c', '+': 'ul', '|': 'l', '-': 'u'},
+               ( 1,  0): {' ': 'c', '-': 'u'},
+               ( 1, -1): {' ': 'c', '+': 'ur', '|': 'r', '-': 'u'},
+               ( 0, -1): {'-': 'c', '+': 'lr'}},
+        'r' : {(-1,  0): {'|': 'r', '+': 'lr'},
+               (-1,  1): {' ': 'c', '+': 'll', '|': 'r', '-': 'd'},
+               ( 0,  1): {' ': 'c', '|': 'l'},
+               ( 1,  1): {' ': 'c', '+': 'ul', '|': 'l', '-': 'u'},
+               ( 1,  0): {'|': 'r', '+': 'ur'}},
+        'l' : {( 1,  0): {'|': 'l', '+': 'ul'},
+               ( 1, -1): {' ': 'c', '+': 'ur', '|': 'r', '-': 'u'},
+               ( 0, -1): {' ': 'c', '|': 'r'},
+               (-1, -1): {' ': 'c', '+': 'lr', '|': 'r', '-': 'd'},
+               (-1,  0): {'|': 'l', '+': 'll'}},
+        'c' : {( 0,  1): {' ': 'c', '+': 'll', '|': 'l'},
+               ( 1,  1): {' ': 'c', '+': 'ul', '|': 'l', '-': 'u'},
+               ( 1,  0): {' ': 'c', '+': 'ur', '-': 'u'},
+               ( 1, -1): {' ': 'c', '+': 'ur', '|': 'r', '-': 'u'},
+               ( 0, -1): {' ': 'c', '+': 'ur', '|': 'r'},
+               (-1, -1): {' ': 'c', '+': 'lr', '|': 'r', '-': 'd'},
+               (-1,  0): {' ': 'c', '+': 'll', '-': 'd'}, 
+               (-1,  1): {' ': 'c', '+': 'll', '|': 'l', '-': 'd'}}}
+    for d_row, d_col in next_directions[direction]:
         n_row = row + d_row
         n_col = col + d_col
-        next_cell_type = get_cell_type(shape_lines, row + d_row, col + d_col)
-        piece = get_piece(row, col + 1, shape_matrix, shape_lines, piece,
-                          next_direction[(cell_type, direction, next_cell_type)])
-                    
-        shape_matrix[(row, col)]['c'] = False        
+        next_cell_type = get_cell_type(shape_lines, n_row, n_col)
+        if next_cell_type:
+            piece = get_piece(n_row, n_col, shape_matrix, shape_lines, piece,
+                              next_directions[direction][n_row, n_col][next_cell_type])
     return piece
 
 def get_cell_type(shape_lines, row, col):
