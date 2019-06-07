@@ -62,7 +62,8 @@ def break_evil_pieces(shape):
     shape_matrix = shape_to_matrix(shape_lines)
     row, col = get_starting_point(shape_matrix)
     piece = get_piece(row, col, shape_matrix, shape_lines)
-    print(row, col)
+    piece = piece_to_shape(piece)
+    print(piece)
     return
 
 def shape_to_matrix(shape_lines):
@@ -101,7 +102,6 @@ def get_starting_point(shape_matrix):
     return row, col
 
 def get_piece(row, col, shape_matrix, shape_lines):
-    # TODO: remove piece from arguments list
     queue = []
     direction = get_next_direction(shape_matrix[(row, col)])
     queue.append((row, col, direction))
@@ -109,17 +109,27 @@ def get_piece(row, col, shape_matrix, shape_lines):
     while queue:
         row, col, direction = queue.pop()
         cell_type = get_cell_type(shape_lines, row, col)
-        if cell_type:
-            piece.append((row, col, cell_type))
-            shape_matrix[(row, col)][direction] = False
-            for d_row, d_col in NEXT_DIRECTIONS[direction]:
-                n_row = row + d_row
-                n_col = col + d_col
-                next_cell_type = get_cell_type(shape_lines, n_row, n_col)
-                next_direction = NEXT_DIRECTIONS[direction][d_row, d_col][next_cell_type]
-                if next_cell_type:
-                    queue.append((n_row, n_col, next_direction))
+        piece.append((row, col, cell_type))
+        shape_matrix[(row, col)][direction] = False
+        for d_row, d_col in NEXT_DIRECTIONS[direction]:
+            n_row = row + d_row
+            n_col = col + d_col
+            next_cell_type = get_cell_type(shape_lines, n_row, n_col)
+            next_direction = NEXT_DIRECTIONS[direction][d_row, d_col][next_cell_type]
+            if next_cell_type and \
+               shape_matrix[(n_row, n_col)][next_direction] and \
+               not (n_row, n_col, next_direction) in queue:
+                queue.append((n_row, n_col, next_direction))
     return piece
+
+def piece_to_shape(piece):
+    shape = []
+    for row, col, cell_type in piece:
+        try:
+            shape[row]
+        except IndexError:
+            shape
+        pass
 
 def get_cell_type(shape_lines, row, col):
     try:
