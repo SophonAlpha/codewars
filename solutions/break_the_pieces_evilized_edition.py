@@ -59,12 +59,17 @@ class Segment:
 
 def break_evil_pieces(shape):
     shape_lines = shape.split('\n')
+    blank_shape_lines = get_blank_shape(shape_lines)
     shape_matrix = shape_to_matrix(shape_lines)
     row, col = get_starting_point(shape_matrix)
     piece = get_piece(row, col, shape_matrix, shape_lines)
-    piece = piece_to_shape(piece)
+    piece = piece_to_shape(piece, blank_shape_lines)
     print(piece)
     return
+
+def get_blank_shape(shape_lines):
+    blank_shape_lines = [' ' * len(shape_line) for shape_line in shape_lines]
+    return blank_shape_lines
 
 def shape_to_matrix(shape_lines):
     matrix = {}
@@ -122,14 +127,20 @@ def get_piece(row, col, shape_matrix, shape_lines):
                 queue.append((n_row, n_col, next_direction))
     return piece
 
-def piece_to_shape(piece):
-    shape = []
+def piece_to_shape(piece, blank_shape_lines):
+    shape = blank_shape_lines
     for row, col, cell_type in piece:
-        try:
-            shape[row]
-        except IndexError:
-            shape
-        pass
+        shape[row] = shape[row][:col] + cell_type + shape[row][col + 1:]
+    shape = remove_outer_area(shape)
+    return shape
+
+def remove_outer_area(shape):
+    shape_new = []    
+    for row in shape:
+        line = row.strip()
+        if line:
+            shape_new.append(line)
+    return shape_new
 
 def get_cell_type(shape_lines, row, col):
     try:
