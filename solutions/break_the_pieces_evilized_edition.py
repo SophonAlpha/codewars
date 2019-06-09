@@ -7,19 +7,19 @@ Level: 1 kyu
 
 import re
 
-NEXT_DIRECTIONS = {
-    'lr': {( 0,  1): {'-': 'd', '+': 'll'},
-           ( 1,  1): {' ': 'c', '+': 'ul'},
-           ( 1,  0): {'|': 'r', '+': 'ur'}},
-    'll': {( 1,  0): {'|': 'l', '+': 'ul'},
-           ( 1, -1): {' ': 'c', '+': 'ur'},
-           ( 0, -1): {'-': 'd', '+': 'lr'}},
-    'ul': {( 0, -1): {'-': 'u', '+': 'ur'},
-           (-1, -1): {' ': 'c', '+': 'lr'},
-           (-1,  0): {'|': 'l', '+': 'll'}},
-    'ur': {(-1,  0): {'|': 'r', '+': 'lr'},
-           (-1,  1): {' ': 'c', '+': 'll'},
-           ( 0,  1): {'-': 'u', '+': 'ul'}},
+TRANSITIONS = {
+    'lr': {( 0,  1): {'-': 'd', '+': 'll', ' ': 'c'},
+           ( 1,  1): {' ': 'c', '+': 'ul', ' ': 'c'},
+           ( 1,  0): {'|': 'r', '+': 'ur', ' ': 'c'}},
+    'll': {( 1,  0): {'|': 'l', '+': 'ul', ' ': 'c'},
+           ( 1, -1): {' ': 'c', '+': 'ur', ' ': 'c'},
+           ( 0, -1): {'-': 'd', '+': 'lr', ' ': 'c'}},
+    'ul': {( 0, -1): {'-': 'u', '+': 'ur', ' ': 'c'},
+           (-1, -1): {' ': 'c', '+': 'lr', ' ': 'c'},
+           (-1,  0): {'|': 'l', '+': 'll', ' ': 'c'}},
+    'ur': {(-1,  0): {'|': 'r', '+': 'lr', ' ': 'c'},
+           (-1,  1): {' ': 'c', '+': 'll', ' ': 'c'},
+           ( 0,  1): {'-': 'u', '+': 'ul', ' ': 'c'}},
     'u' : {( 0, -1): {'-': 'u', '+': 'ur'},
            (-1, -1): {' ': 'c', '+': 'lr', '|': 'r', '-': 'd'},
            (-1,  0): {' ': 'c', '-': 'd'},
@@ -72,31 +72,48 @@ def get_blank_shape(shape_lines):
     return blank_shape_lines
 
 def shape_to_matrix(shape_lines):
-    matrix = {}
+    matrix = mark_outer_area(shape_lines)
     for row, shape_line in enumerate(shape_lines):
-        matrix = mark_outer_area(shape_line, matrix, row)
         for col, cell in enumerate(shape_line):
             if cell == '+':
-                matrix[(row, col)] = {'lr': True, 'll': True, 'ul': True, 'ur': True}
+                matrix[(row, col)] = {
+                    'ul': is_outer_area(row - 1, col, matrix),
+                    'ur': is_outer_area(row - 1, col, matrix),
+                    'll': is_outer_area(row + 1, col, matrix),
+                    'lr': is_outer_area(row + 1, col, matrix)}
             if cell == '-':
-                matrix[(row, col)] = {'u': True, 'd': True}
+                matrix[(row, col)] = {
+                    'u': is_outer_area(row - 1, col, matrix),
+                    'd': is_outer_area(row + 1, col, matrix)}
             if cell == '|':
-                matrix[(row, col)] = {'r': True, 'l': True}
+                matrix[(row, col)] = {
+                    'r': is_outer_area(row, col + 1, matrix),
+                    'l': is_outer_area(row, col - 1, matrix)}
             if cell == ' ':
                 if not (row, col) in matrix.keys():
                     matrix[(row, col)] = {'c': True}
     return matrix
 
-def mark_outer_area(shape_line, matrix, row):
+def is_outer_area(row, col, matrix):
+    if not (row, col) in matrix.keys():
+        return False
+    if 'c' in matrix[row, col].keys():
+        status = matrix[row, col]['c']
+    return status
+
+def mark_outer_area(shape_lines):
+    outer_area = []
     pattern = re.compile(r'(^ *).*?( *)$')
-    match = pattern.fullmatch(shape_line)
-    if match:
-        for idx in range(1, match.lastindex + 1):
-            start = match.start(idx)
-            end = match.end(idx)
-            for col in range(start, end):
-                matrix[(row, col)] = {'c': False}
-    return matrix
+    for shape_line in shape_lines:
+        match = pattern.fullmatch(shape_line)
+        if match:
+            line = shape_line
+            for idx in range(1, match.lastindex + 1):
+                start = match.start(idx)
+                end = match.end(idx)
+                line = line[:start] + 'o' * (end - start) + line[end:]
+            outer_area.append(line)
+    return outer_area
 
 def get_starting_point(shape_matrix):
     for entry in shape_matrix:
@@ -116,11 +133,11 @@ def get_piece(row, col, shape_matrix, shape_lines):
         cell_type = get_cell_type(shape_lines, row, col)
         piece.append((row, col, cell_type))
         shape_matrix[(row, col)][direction] = False
-        for d_row, d_col in NEXT_DIRECTIONS[direction]:
+        for d_row, d_col in TRANSITIONS[direction]:
             n_row = row + d_row
             n_col = col + d_col
             next_cell_type = get_cell_type(shape_lines, n_row, n_col)
-            next_direction = NEXT_DIRECTIONS[direction][d_row, d_col][next_cell_type]
+            next_direction = TRANSITIONS[direction][d_row, d_col][next_cell_type]
             if next_cell_type and \
                shape_matrix[(n_row, n_col)][next_direction] and \
                not (n_row, n_col, next_direction) in queue:
