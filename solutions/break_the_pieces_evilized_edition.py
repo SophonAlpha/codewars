@@ -131,7 +131,7 @@ def mark_outer_area(matrix, cells):
     return matrix
 
 def is_outer_area(row, col, matrix):
-    if 0 <= row <= len(matrix) and 0 <= col <= len(matrix[row]):
+    if 0 <= row <= len(matrix) - 1 and 0 <= col <= len(matrix[row]) - 1:
         if 'c' in matrix[row][col].keys():
             status = matrix[row][col]['c']
         else:
@@ -155,13 +155,15 @@ def mark_outer_area_v1(shape_lines):
     return matrix
 
 def get_starting_point(shape_matrix):
-    row, col = None, None
+    s_row, s_col = None, None
     for row, _ in enumerate(shape_matrix):
         for col, _ in enumerate(shape_matrix[row]):
             if not 'c' in shape_matrix[row][col].keys() and \
                sum(shape_matrix[row][col].values()) > 0:
-                return row, col
-    return row, col
+                s_row = row
+                s_col = col
+                return s_row, s_col
+    return s_row, s_col
 
 def get_piece(row, col, shape_matrix, shape_lines):
     queue = []
@@ -185,14 +187,20 @@ def get_piece(row, col, shape_matrix, shape_lines):
     return piece
 
 def piece_to_shape(piece, blank_shape_lines):
-    shape = blank_shape_lines
+    shape = blank_shape_lines[:]
     for row, col, cell_type in piece:
         shape[row] = shape[row][:col] + cell_type + shape[row][col + 1:]
-    shape = remove_outer_area(shape)
+    shape = trim_area(shape)
     return shape
 
-def remove_outer_area(shape):
-    shape_new = []    
+def trim_area(shape):
+    pattern = re.compile(r'(^ *)(?P<shape>.*?)( *)$')
+    for row in shape:
+        match = pattern.fullmatch(row)
+        if match.group('shape'):
+            start = match.start('shape')
+            end = match.end('shape')
+    shape_new = []
     for row in shape:
         line = row.strip()
         if line:
@@ -250,6 +258,12 @@ if __name__ == '__main__':
   +--+  
   |  |  
   +--+  
+        
+  +--+  
+  |  |  
+  |  +-+
+  |    |
+  +----+          
         
 """.strip('\n')
 
