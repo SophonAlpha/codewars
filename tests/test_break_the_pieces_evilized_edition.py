@@ -198,12 +198,8 @@ TEST_CASES = [
 
 @pytest.mark.parametrize('test_case', TEST_CASES)
 def test_testcases(test_case):
-    name = test_case['name']
     shape = test_case['shape']
     expected = test_case['expected']
-    print(name)
-    print(shape)
     pieces = break_evil_pieces(shape)
     for piece in pieces:
-        print(piece)
         assert piece in expected

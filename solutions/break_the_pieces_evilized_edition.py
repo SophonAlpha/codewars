@@ -58,16 +58,17 @@ class Segment:
         self.end = match.end(self.type)
 
 def break_evil_pieces(shape):
+    pieces = []
     shape_lines = shape.split('\n')
     blank_shape_lines = get_blank_shape(shape_lines)
     shape_matrix = shape_to_matrix(shape_lines)
     row, col = get_starting_point(shape_matrix)
-    while row and col:
+    while not row == None and not col == None:
         piece = get_piece(row, col, shape_matrix, shape_lines)
         piece = piece_to_shape(piece, blank_shape_lines)
-        print(piece)
+        pieces.append(piece)
         row, col = get_starting_point(shape_matrix)
-    return
+    return pieces
 
 def get_blank_shape(shape_lines):
     blank_shape_lines = [' ' * len(shape_line) for shape_line in shape_lines]
@@ -115,13 +116,17 @@ def mark_outer_area(matrix, cells):
     for row, col, cell in cells:
         if cell == '+':
             matrix[row][col]['ul'] = is_outer_area(row - 1, col, matrix) and \
-                                     is_outer_area(row, col - 1, matrix)
+                                     is_outer_area(row, col - 1, matrix) and \
+                                     is_outer_area(row - 1, col - 1, matrix)
             matrix[row][col]['ur'] = is_outer_area(row - 1, col, matrix) and \
-                                     is_outer_area(row, col + 1, matrix)
+                                     is_outer_area(row, col + 1, matrix) and \
+                                     is_outer_area(row - 1, col + 1, matrix)
             matrix[row][col]['ll'] = is_outer_area(row + 1, col, matrix) and \
-                                     is_outer_area(row, col - 1, matrix)
+                                     is_outer_area(row, col - 1, matrix) and \
+                                     is_outer_area(row + 1, col - 1, matrix)
             matrix[row][col]['lr'] = is_outer_area(row + 1, col, matrix) and \
-                                     is_outer_area(row, col + 1, matrix)
+                                     is_outer_area(row, col + 1, matrix) and \
+                                     is_outer_area(row + 1, col + 1, matrix)
         elif cell == '-':
             matrix[row][col]['u'] = is_outer_area(row - 1, col, matrix)
             matrix[row][col]['d'] = is_outer_area(row + 1, col, matrix)
@@ -139,20 +144,6 @@ def is_outer_area(row, col, matrix):
     else:
         status = False
     return status
-
-def mark_outer_area_v1(shape_lines):
-    matrix = []
-    pattern = re.compile(r'(^ *).*?( *)$')
-    for row, shape_line in enumerate(shape_lines):
-        matrix.append([{}] * len(shape_line))
-        match = pattern.fullmatch(shape_line)
-        if match:
-            for idx in range(1, match.lastindex + 1):
-                start = match.start(idx)
-                end = match.end(idx)
-                for col in range(start, end):
-                    matrix[row][col] = {'c': False}
-    return matrix
 
 def get_starting_point(shape_matrix):
     s_row, s_col = None, None
@@ -194,17 +185,18 @@ def piece_to_shape(piece, blank_shape_lines):
     return shape
 
 def trim_area(shape):
+    min_start = None
     pattern = re.compile(r'(^ *)(?P<shape>.*?)( *)$')
     for row in shape:
         match = pattern.fullmatch(row)
         if match.group('shape'):
             start = match.start('shape')
-            end = match.end('shape')
+            min_start = start if min_start == None or min_start > start else min_start
     shape_new = []
     for row in shape:
-        line = row.strip()
-        if line:
-            shape_new.append(line)
+        if row.strip():
+            shape_new.append(row[min_start:].rstrip())
+    shape_new = '\n'.join(shape_new)
     return shape_new
 
 def get_cell_type(shape_lines, row, col):
@@ -223,40 +215,40 @@ def get_next_direction(directions):
     return direction
     
 if __name__ == '__main__':
-    shape = """
-        
-  +--+  
-  |  |  
-  +--+  
-        
-  +--+  
-  |  |  
-  |  +-+
-  |    |
-  +----+          
-        
-""".strip('\n')
-
-# """
-#     ++
-#     ++
-#     
-#     +-----------------+
-#     |                 |
-#     |     +--+        |
-#     |     |  |        |
-#     |     +--+        |
-#     |                 |
-#     |            +----|
-#     |            |
-#     |      +-----+-----+
-#     |      |     |     |
-#     |      |     |     |
-#     +------+-----+-----+
-#            |     |     |
-#            |     |     |
-#            +-----+-----+
+#     shape = """
+#         
+#   +--+  
+#   |  |  
+#   +--+  
+#         
+#      +-+  
+#      | |  
+#   +--+ |
+#   |    |
+#   +----+          
+#         
 # """.strip('\n')
+
+    shape = """
+    ++
+    ++
+     
+    +-----------------+
+    |                 |
+    |     +--+        |
+    |     |  |        |
+    |     +--+        |
+    |                 |
+    |            +----+
+    |            |
+    |      +-----+-----+
+    |      |     |     |
+    |      |     |     |
+    +------+-----+-----+
+           |     |     |
+           |     |     |
+           +-----+-----+
+""".strip('\n')
     expected = ["""
 +------------+
 |            |
