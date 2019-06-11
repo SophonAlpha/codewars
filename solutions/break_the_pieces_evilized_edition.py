@@ -65,6 +65,7 @@ def break_evil_pieces(shape):
     row, col = get_starting_point(shape_matrix)
     while not row == None and not col == None:
         piece = get_piece(row, col, shape_matrix, shape_lines)
+        piece = plus_to_lines(piece)
         piece = piece_to_shape(piece, blank_shape_lines)
         pieces.append(piece)
         row, col = get_starting_point(shape_matrix)
@@ -176,6 +177,15 @@ def get_piece(row, col, shape_matrix, shape_lines):
                not (n_row, n_col, next_direction) in queue:
                 queue.append((n_row, n_col, next_direction))
     return piece
+
+def plus_to_lines(piece):
+    for row, col, cell_type in piece:
+        if cell_type == '+':
+            piece = should_be_line(row, col, piece)
+    return piece
+
+def should_be_line(row, col, piece):
+    pass
 
 def piece_to_shape(piece, blank_shape_lines):
     shape = blank_shape_lines[:]
