@@ -185,7 +185,18 @@ def plus_to_lines(piece):
     return piece
 
 def should_be_line(row, col, piece):
-    pass
+    horizontal = [(row, col + delta) for delta in [1, -1]]
+    result = all([(row, col) in piece.keys() and \
+                  piece[row][col] == '-' for row, col in horizontal])
+    if result:
+        piece[row][col] = '-'
+        return piece
+    vertical = [(row + delta, col) for delta in [1, -1]]
+    result = all([(row, col) in piece.keys() and \
+                  piece[row][col] == '|' for row, col in vertical])
+    if result:
+        piece[row][col] = '|'
+        return piece
 
 def piece_to_shape(piece, blank_shape_lines):
     shape = blank_shape_lines[:]
