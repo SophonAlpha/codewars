@@ -9,16 +9,16 @@ import re
 
 TRANSITIONS = {
     'lr': {( 0,  1): {'-': 'd', '+': 'll', ' ': 'c'},
-           ( 1,  1): {' ': 'c', '+': 'ul', ' ': 'c'},
+           ( 1,  1): {'|': 'l', '+': 'ul', ' ': 'c'},
            ( 1,  0): {'|': 'r', '+': 'ur', ' ': 'c'}},
     'll': {( 1,  0): {'|': 'l', '+': 'ul', ' ': 'c'},
-           ( 1, -1): {' ': 'c', '+': 'ur', ' ': 'c'},
+           ( 1, -1): {'|': 'r', '+': 'ur', ' ': 'c'},
            ( 0, -1): {'-': 'd', '+': 'lr', ' ': 'c'}},
     'ul': {( 0, -1): {'-': 'u', '+': 'ur', ' ': 'c'},
-           (-1, -1): {' ': 'c', '+': 'lr', ' ': 'c'},
+           (-1, -1): {'|': 'r', '+': 'lr', ' ': 'c'},
            (-1,  0): {'|': 'l', '+': 'll', ' ': 'c'}},
     'ur': {(-1,  0): {'|': 'r', '+': 'lr', ' ': 'c'},
-           (-1,  1): {' ': 'c', '+': 'll', ' ': 'c'},
+           (-1,  1): {'|': 'l', '+': 'll', ' ': 'c'},
            ( 0,  1): {'-': 'u', '+': 'ul', ' ': 'c'}},
     'u' : {( 0, -1): {'-': 'u', '+': 'ur'},
            (-1, -1): {' ': 'c', '+': 'lr', '|': 'r', '-': 'd'},
@@ -31,7 +31,7 @@ TRANSITIONS = {
            ( 1, -1): {' ': 'c', '+': 'ur', '|': 'r', '-': 'u'},
            ( 0, -1): {'-': 'd', '+': 'lr'}},
     'r' : {(-1,  0): {'|': 'r', '+': 'lr'},
-           (-1,  1): {' ': 'c', '+': 'll', '|': 'r', '-': 'd'},
+           (-1,  1): {' ': 'c', '+': 'll', '|': 'l', '-': 'd'},
            ( 0,  1): {' ': 'c', '|': 'l'},
            ( 1,  1): {' ': 'c', '+': 'ul', '|': 'l', '-': 'u'},
            ( 1,  0): {'|': 'r', '+': 'ur'}},
@@ -185,18 +185,20 @@ def plus_to_lines(piece):
     return piece
 
 def should_be_line(row, col, piece):
+    index = piece.index((row, col, '+'))
     horizontal = [(row, col + delta) for delta in [1, -1]]
-    result = all([(row, col) in piece.keys() and \
-                  piece[row][col] == '-' for row, col in horizontal])
+    result = all([(row, col, '-') in piece or \
+                  (row, col, '+') in piece for row, col in horizontal])
     if result:
-        piece[row][col] = '-'
+        piece[index] = (row, col, '-')
         return piece
     vertical = [(row + delta, col) for delta in [1, -1]]
-    result = all([(row, col) in piece.keys() and \
-                  piece[row][col] == '|' for row, col in vertical])
+    result = all([(row, col, '|') in piece or \
+                  (row, col, '+') in piece for row, col in vertical])
     if result:
-        piece[row][col] = '|'
+        piece[index] = (row, col, '|')
         return piece
+    return piece
 
 def piece_to_shape(piece, blank_shape_lines):
     shape = blank_shape_lines[:]
@@ -236,59 +238,14 @@ def get_next_direction(directions):
     return direction
     
 if __name__ == '__main__':
-#     shape = """
-#         
-#   +--+  
-#   |  |  
-#   +--+  
-#         
-#      +-+  
-#      | |  
-#   +--+ |
-#   |    |
-#   +----+          
-#         
-# """.strip('\n')
-
     shape = """
-    ++
-    ++
-     
-    +-----------------+
-    |                 |
-    |     +--+        |
-    |     |  |        |
-    |     +--+        |
-    |                 |
-    |            +----+
-    |            |
-    |      +-----+-----+
-    |      |     |     |
-    |      |     |     |
-    +------+-----+-----+
-           |     |     |
-           |     |     |
-           +-----+-----+
-""".strip('\n')
-    expected = ["""
 +------------+
 |            |
 |            |
-|            |
-|      +-----+
-|      |      
-|      |      
-+------+      
-""".strip('\n'), """
-+-----+
-|     |
-|     |
-+-----+
-""".strip('\n'), """
-+-----+
-|     |
-|     |
-+-----+
-""".strip('\n')]
++------++----+
+|      ||    |
+|      ||    |
++------++----+
+""".strip('\n')
     pieces = break_evil_pieces(shape)
     

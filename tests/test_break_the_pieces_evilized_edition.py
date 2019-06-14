@@ -10,7 +10,7 @@ import pytest
 from solutions.break_the_pieces_evilized_edition import break_evil_pieces
 
 TEST_CASES = [
-{'name':'simple shape',
+{'name':'1.) simple shape',
 'shape': """
 +----------+
 |          |
@@ -34,7 +34,7 @@ TEST_CASES = [
 +----------+
 """.strip('\n'),]},
 
-{'name': '3 boxes',
+{'name': '2.) 3 boxes',
 'shape': """
 +------------+
 |            |
@@ -63,7 +63,7 @@ TEST_CASES = [
 +-----+
 """.strip('\n'),]},
 
-{'name': 'Lego stuff',
+{'name': '3.) Lego stuff',
 'shape': """
 +-------------------+--+
 |                   |  |
@@ -91,7 +91,7 @@ TEST_CASES = [
 +-------------------+
 """.strip('\n')]},
 
-{'name': 'piece of cake! (check for irrelevant spaces)',
+{'name': '4.) piece of cake! (check for irrelevant spaces)',
 'shape': """
                            
                            
@@ -125,7 +125,7 @@ TEST_CASES = [
 +-----------------+
 """.strip('\n'),]},
         
-{'name': 'horseshoe (shapes are not always rectangles!)',
+{'name': '5.) horseshoe (shapes are not always rectangles!)',
 'shape': """
 +-----------------+
 |                 |
@@ -151,7 +151,7 @@ TEST_CASES = [
 +-----------------+
 """.strip('\n')},
 
-{'name': 'warming up',
+{'name': '6.) warming up',
 'shape': """
 +------------+
 |            |
@@ -185,7 +185,7 @@ TEST_CASES = [
 ++
 """.strip('\n')]},
 
-{'name': 'don\'t forget the eggs! (you\'ll understand later...)',
+{'name': '7.) don\'t forget the eggs! (you\'ll understand later...)',
 'shape': """
 ++
 ++
