@@ -7,6 +7,23 @@ Level: 1 kyu
 
 import re
 
+# The TRANSITION dictionary is used for the flood fill algorithm. For any cell the
+# algorithm can only 'flood' in specific directions. The TRANSITION dictionary 
+# provides for a given direction the relative coordinates of the next cells to be
+# filled. In addition, for each relative coordinate it also provides the valid 
+# next directions.
+# 
+# The dictionary keys have the following meanings:
+# 
+#     ul - upper left corner
+#     ur - upper right corner
+#     ll - lower left corner
+#     lr - lower right corner
+#     u  - upper half
+#     l  - lower half
+#     r  - right half
+#     l  - left half
+#     c  - center
 TRANSITIONS = {
     'lr': {( 0,  1): {'-': 'd', '+': 'll', ' ': 'c'},
            ( 1,  1): {'|': 'l', '+': 'ul', ' ': 'c'},
@@ -50,12 +67,17 @@ TRANSITIONS = {
            (-1,  1): {' ': 'c', '+': 'll', '|': 'l', '-': 'd'}}}
 
 def break_evil_pieces(shape):
+    """
+    main function
+
+    Extract individual pieces from shape and return in list.
+    """
     pieces = []
     shape_lines = shape.split('\n')
     blank_shape_lines = get_blank_shape(shape_lines)
     shape_matrix = shape_to_matrix(shape_lines)
     row, col = get_starting_point(shape_matrix)
-    while not row == None and not col == None:
+    while not row is None and not col is None:
         piece = get_piece(row, col, shape_matrix, shape_lines)
         piece = plus_to_lines(piece)
         piece = piece_to_lines(piece, blank_shape_lines)
@@ -65,10 +87,30 @@ def break_evil_pieces(shape):
     return pieces
 
 def get_blank_shape(shape_lines):
+    """
+    Generate a blank shape. Used later to add extracted characters that make up
+    one piece.
+    """
     blank_shape_lines = [' ' * len(shape_line) for shape_line in shape_lines]
     return blank_shape_lines
 
 def shape_to_matrix(shape_lines):
+    """
+    Transform the shape into a data structure that can be used for the flood fill
+    algorithm. Boolean status indicates whether the cell can be filled (True)
+    or not (False). ' ' cells can only be filled once, as the they can
+    only belong to one piece. '|' can belong to up to two pieces and '+' cells
+    to up to four pieces.
+
+    Each cell initialises with a dictionary that stores it's fill status.
+    The dictionary keys have the following meanings:
+
+    For '+' cells: ul - upper left corner, ur - upper right corner,
+                   ll - lower left corner, lr - lower right corner
+    For '-' cells: u - upper half, l - lower half
+    For '|' cells: r - right half, l - left half
+    For ' ' cells: c - center
+    """
     cells = []
     matrix = empty_matrix(shape_lines)
     for row, shape_line in enumerate(shape_lines):
@@ -90,12 +132,20 @@ def shape_to_matrix(shape_lines):
     return matrix
 
 def empty_matrix(shape_lines):
+    """
+    Generate an empty matrix.
+    """
     matrix = []
     for _, shape_line in enumerate(shape_lines):
         matrix.append([{}] * len(shape_line))
-    return matrix 
+    return matrix
 
 def mark_outer_line(matrix, row, shape_line):
+    """
+    Mark the ' ' cells that are 'outer' part of a line. Outer part is not
+    enclosed by '+', '-', and '|' characters and therefore cannot belong
+    to any piece.
+    """
     pattern = re.compile(r'(^ *).*?( *)$')
     match = pattern.fullmatch(shape_line)
     if match:
@@ -107,6 +157,10 @@ def mark_outer_line(matrix, row, shape_line):
     return matrix
 
 def mark_outer_area(matrix, cells):
+    """
+    For the '+', '-', and '|' cells mark the section that belongs to the outer
+    part.
+    """
     for row, col, cell in cells:
         if cell == '+':
             matrix[row][col]['ul'] = is_outer_area(row - 1, col, matrix) and \
@@ -130,6 +184,9 @@ def mark_outer_area(matrix, cells):
     return matrix
 
 def is_outer_area(row, col, matrix):
+    """
+    Detect if cells is outer part.
+    """
     if 0 <= row <= len(matrix) - 1 and 0 <= col <= len(matrix[row]) - 1:
         if 'c' in matrix[row][col].keys():
             status = matrix[row][col]['c']
@@ -140,6 +197,10 @@ def is_outer_area(row, col, matrix):
     return status
 
 def get_starting_point(shape_matrix):
+    """
+    Return a staring point for detecting a piece. If no starting point can be
+    found return None, None (usually this means all pieces have been found).
+    """
     s_row, s_col = None, None
     for row, _ in enumerate(shape_matrix):
         for col, _ in enumerate(shape_matrix[row]):
@@ -151,6 +212,9 @@ def get_starting_point(shape_matrix):
     return s_row, s_col
 
 def get_piece(row, col, shape_matrix, shape_lines):
+    """
+    Extract one piece. Uses a flood filling algorithm.
+    """
     queue = []
     direction = get_next_direction(shape_matrix[row][col])
     queue.append((row, col, direction))
@@ -167,11 +231,14 @@ def get_piece(row, col, shape_matrix, shape_lines):
             next_direction = TRANSITIONS[direction][d_row, d_col][next_cell_type]
             if next_cell_type and \
                shape_matrix[n_row][n_col][next_direction] and \
-               not (n_row, n_col, next_direction) in queue:
+               (n_row, n_col, next_direction) not in queue:
                 queue.append((n_row, n_col, next_direction))
     return piece
 
 def get_cell_type(shape_lines, row, col):
+    """
+    Get the cell type.
+    """
     try:
         cell_type = shape_lines[row][col]
     except IndexError:
@@ -179,6 +246,9 @@ def get_cell_type(shape_lines, row, col):
     return cell_type
 
 def get_next_direction(directions):
+    """
+    For cells with multiple possible directions select the next possible one.
+    """
     direction = None
     for val in iter(directions):
         if directions[val]:
@@ -187,12 +257,20 @@ def get_next_direction(directions):
     return direction
 
 def plus_to_lines(piece):
+    """
+    Transform all '+' that are no longer corners or intersections into '|' or
+    '-'.
+    """
     for row, col, cell_type in piece:
         if cell_type == '+':
             piece = should_be_line(row, col, piece)
     return piece
 
 def should_be_line(row, col, piece):
+    """
+    Transform all '+' that are no longer corners or intersections into '|' or
+    '-'.
+    """
     index = piece.index((row, col, '+'))
     horizontal = [(row, col + delta) for delta in [1, -1]]
     result = all([(row, col, '-') in piece or \
@@ -209,28 +287,34 @@ def should_be_line(row, col, piece):
     return piece
 
 def piece_to_lines(piece, blank_shape_lines):
+    """
+    Transform the piece matrix into a list of text lines.
+    """
     shape = blank_shape_lines[:]
     for row, col, cell_type in piece:
         shape[row] = shape[row][:col] + cell_type + shape[row][col + 1:]
     return shape
 
 def trim_piece(shape):
+    """
+    Remove all unnecessary white space around an extracted piece.
+    """
     min_start = None
     pattern = re.compile(r'(^ *)(?P<shape>.*?)( *)$')
     for row in shape:
         match = pattern.fullmatch(row)
         if match.group('shape'):
             start = match.start('shape')
-            min_start = start if min_start == None or min_start > start else min_start
+            min_start = start if min_start is None or min_start > start else min_start
     shape_new = []
     for row in shape:
         if row.strip():
             shape_new.append(row[min_start:].rstrip())
     shape_new = '\n'.join(shape_new)
     return shape_new
-    
+
 if __name__ == '__main__':
-    shape = """
+    INPUT_SHAPE = """
 +------------+
 |            |
 |            |
@@ -239,5 +323,5 @@ if __name__ == '__main__':
 |      ||    |
 +------++----+
 """.strip('\n')
-    pieces = break_evil_pieces(shape)
+    break_evil_pieces(INPUT_SHAPE)
     
