@@ -49,14 +49,6 @@ TRANSITIONS = {
            (-1,  0): {' ': 'c', '+': 'll', '-': 'd'}, 
            (-1,  1): {' ': 'c', '+': 'll', '|': 'l', '-': 'd'}}}
 
-class Segment:
-    
-    def __init__(self, match):
-        self.type = match.lastgroup
-        self.string = match.group(self.type)
-        self.start = match.start(self.type)
-        self.end = match.end(self.type)
-
 def break_evil_pieces(shape):
     pieces = []
     shape_lines = shape.split('\n')
@@ -66,7 +58,8 @@ def break_evil_pieces(shape):
     while not row == None and not col == None:
         piece = get_piece(row, col, shape_matrix, shape_lines)
         piece = plus_to_lines(piece)
-        piece = piece_to_shape(piece, blank_shape_lines)
+        piece = piece_to_lines(piece, blank_shape_lines)
+        piece = trim_piece(piece)
         pieces.append(piece)
         row, col = get_starting_point(shape_matrix)
     return pieces
@@ -178,6 +171,21 @@ def get_piece(row, col, shape_matrix, shape_lines):
                 queue.append((n_row, n_col, next_direction))
     return piece
 
+def get_cell_type(shape_lines, row, col):
+    try:
+        cell_type = shape_lines[row][col]
+    except IndexError:
+        return False
+    return cell_type
+
+def get_next_direction(directions):
+    direction = None
+    for val in iter(directions):
+        if directions[val]:
+            direction = val
+            break
+    return direction
+
 def plus_to_lines(piece):
     for row, col, cell_type in piece:
         if cell_type == '+':
@@ -200,14 +208,13 @@ def should_be_line(row, col, piece):
         return piece
     return piece
 
-def piece_to_shape(piece, blank_shape_lines):
+def piece_to_lines(piece, blank_shape_lines):
     shape = blank_shape_lines[:]
     for row, col, cell_type in piece:
         shape[row] = shape[row][:col] + cell_type + shape[row][col + 1:]
-    shape = trim_area(shape)
     return shape
 
-def trim_area(shape):
+def trim_piece(shape):
     min_start = None
     pattern = re.compile(r'(^ *)(?P<shape>.*?)( *)$')
     for row in shape:
@@ -221,21 +228,6 @@ def trim_area(shape):
             shape_new.append(row[min_start:].rstrip())
     shape_new = '\n'.join(shape_new)
     return shape_new
-
-def get_cell_type(shape_lines, row, col):
-    try:
-        cell_type = shape_lines[row][col]
-    except IndexError:
-        return False
-    return cell_type
-
-def get_next_direction(directions):
-    direction = None
-    for val in iter(directions):
-        if directions[val]:
-            direction = val
-            break
-    return direction
     
 if __name__ == '__main__':
     shape = """
