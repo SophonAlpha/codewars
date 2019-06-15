@@ -25,36 +25,36 @@ import re
 #     l  - left half
 #     c  - center
 TRANSITIONS = {
-    'lr': {( 0,  1): {'-': 'd', '+': 'll', ' ': 'c'},
-           ( 1,  1): {'|': 'l', '+': 'ul', ' ': 'c'},
-           ( 1,  0): {'|': 'r', '+': 'ur', ' ': 'c'}},
-    'll': {( 1,  0): {'|': 'l', '+': 'ul', ' ': 'c'},
-           ( 1, -1): {'|': 'r', '+': 'ur', ' ': 'c'},
-           ( 0, -1): {'-': 'd', '+': 'lr', ' ': 'c'}},
-    'ul': {( 0, -1): {'-': 'u', '+': 'ur', ' ': 'c'},
-           (-1, -1): {'|': 'r', '+': 'lr', ' ': 'c'},
-           (-1,  0): {'|': 'l', '+': 'll', ' ': 'c'}},
-    'ur': {(-1,  0): {'|': 'r', '+': 'lr', ' ': 'c'},
-           (-1,  1): {'|': 'l', '+': 'll', ' ': 'c'},
-           ( 0,  1): {'-': 'u', '+': 'ul', ' ': 'c'}},
+    'lr': {( 0,  1): {'|': 'l', '+': 'll', ' ': 'c', '-': 'd'},
+           ( 1,  1): {'|': 'l', '+': 'ul', ' ': 'c', '-': 'u'},
+           ( 1,  0): {'|': 'r', '+': 'ur', ' ': 'c', '-': 'u'}},
+    'll': {( 1,  0): {'|': 'l', '+': 'ul', ' ': 'c', '-': 'u'},
+           ( 1, -1): {'|': 'r', '+': 'ur', ' ': 'c', '-': 'u'},
+           ( 0, -1): {'|': 'r', '+': 'lr', ' ': 'c', '-': 'd'}},
+    'ul': {( 0, -1): {'|': 'r', '+': 'ur', ' ': 'c', '-': 'u'},
+           (-1, -1): {'|': 'r', '+': 'lr', ' ': 'c', '-': 'd'},
+           (-1,  0): {'|': 'l', '+': 'll', ' ': 'c', '-': 'd'}},
+    'ur': {(-1,  0): {'|': 'r', '+': 'lr', ' ': 'c', '-': 'd'},
+           (-1,  1): {'|': 'l', '+': 'll', ' ': 'c', '-': 'd'},
+           ( 0,  1): {'|': 'l', '+': 'ul', ' ': 'c', '-': 'u'}},
     'u' : {( 0, -1): {'-': 'u', '+': 'ur'},
            (-1, -1): {' ': 'c', '+': 'lr', '|': 'r', '-': 'd'},
-           (-1,  0): {' ': 'c', '-': 'd'},
+           (-1,  0): {' ': 'c', '-': 'd', '+': 'lr'},
            (-1,  1): {' ': 'c', '+': 'll', '|': 'l', '-': 'd'},
            ( 0,  1): {'-': 'u', '+': 'ul'}},
     'd' : {( 0,  1): {'-': 'd', '+': 'll'},
            ( 1,  1): {' ': 'c', '+': 'ul', '|': 'l', '-': 'u'},
-           ( 1,  0): {' ': 'c', '-': 'u'},
+           ( 1,  0): {' ': 'c', '-': 'u', '+': 'ur'},
            ( 1, -1): {' ': 'c', '+': 'ur', '|': 'r', '-': 'u'},
            ( 0, -1): {'-': 'd', '+': 'lr'}},
     'r' : {(-1,  0): {'|': 'r', '+': 'lr'},
            (-1,  1): {' ': 'c', '+': 'll', '|': 'l', '-': 'd'},
-           ( 0,  1): {' ': 'c', '|': 'l'},
+           ( 0,  1): {' ': 'c', '|': 'l', '+': 'll'},
            ( 1,  1): {' ': 'c', '+': 'ul', '|': 'l', '-': 'u'},
            ( 1,  0): {'|': 'r', '+': 'ur'}},
     'l' : {( 1,  0): {'|': 'l', '+': 'ul'},
            ( 1, -1): {' ': 'c', '+': 'ur', '|': 'r', '-': 'u'},
-           ( 0, -1): {' ': 'c', '|': 'r'},
+           ( 0, -1): {' ': 'c', '|': 'r', '+': 'lr'},
            (-1, -1): {' ': 'c', '+': 'lr', '|': 'r', '-': 'd'},
            (-1,  0): {'|': 'l', '+': 'll'}},
     'c' : {( 0,  1): {' ': 'c', '+': 'll', '|': 'l'},
@@ -77,12 +77,13 @@ def break_evil_pieces(shape):
     blank_shape_lines = get_blank_shape(shape_lines)
     shape_matrix = shape_to_matrix(shape_lines)
     row, col = get_starting_point(shape_matrix)
-    while not row is None and not col is None:
+    while not (row is None and col is None):
         piece = get_piece(row, col, shape_matrix, shape_lines)
-        piece = plus_to_lines(piece)
-        piece = piece_to_lines(piece, blank_shape_lines)
-        piece = trim_piece(piece)
-        pieces.append(piece)
+        if piece:
+            piece = plus_to_lines(piece)
+            piece = piece_to_lines(piece, blank_shape_lines)
+            piece = trim_piece(piece)
+            pieces.append(piece)
         row, col = get_starting_point(shape_matrix)
     return pieces
 
@@ -127,8 +128,6 @@ def shape_to_matrix(shape_lines):
                 cells.append((row, col, cell))
             elif cell == ' ':
                 matrix[row][col] = {'c': True}
-        matrix = mark_outer_line(matrix, row, shape_line)
-    matrix = mark_outer_area(matrix, cells)
     return matrix
 
 def empty_matrix(shape_lines):
@@ -139,62 +138,6 @@ def empty_matrix(shape_lines):
     for _, shape_line in enumerate(shape_lines):
         matrix.append([{}] * len(shape_line))
     return matrix
-
-def mark_outer_line(matrix, row, shape_line):
-    """
-    Mark the ' ' cells that are 'outer' part of a line. Outer part is not
-    enclosed by '+', '-', and '|' characters and therefore cannot belong
-    to any piece.
-    """
-    pattern = re.compile(r'(^ *).*?( *)$')
-    match = pattern.fullmatch(shape_line)
-    if match:
-        for idx in range(1, match.lastindex + 1):
-            start = match.start(idx)
-            end = match.end(idx)
-            for col in range(start, end):
-                matrix[row][col] = {'c': False}
-    return matrix
-
-def mark_outer_area(matrix, cells):
-    """
-    For the '+', '-', and '|' cells mark the section that belongs to the outer
-    part.
-    """
-    for row, col, cell in cells:
-        if cell == '+':
-            matrix[row][col]['ul'] = is_outer_area(row - 1, col, matrix) and \
-                                     is_outer_area(row, col - 1, matrix) and \
-                                     is_outer_area(row - 1, col - 1, matrix)
-            matrix[row][col]['ur'] = is_outer_area(row - 1, col, matrix) and \
-                                     is_outer_area(row, col + 1, matrix) and \
-                                     is_outer_area(row - 1, col + 1, matrix)
-            matrix[row][col]['ll'] = is_outer_area(row + 1, col, matrix) and \
-                                     is_outer_area(row, col - 1, matrix) and \
-                                     is_outer_area(row + 1, col - 1, matrix)
-            matrix[row][col]['lr'] = is_outer_area(row + 1, col, matrix) and \
-                                     is_outer_area(row, col + 1, matrix) and \
-                                     is_outer_area(row + 1, col + 1, matrix)
-        elif cell == '-':
-            matrix[row][col]['u'] = is_outer_area(row - 1, col, matrix)
-            matrix[row][col]['d'] = is_outer_area(row + 1, col, matrix)
-        elif cell == '|':
-            matrix[row][col]['r'] = is_outer_area(row, col + 1, matrix)
-            matrix[row][col]['l'] = is_outer_area(row, col - 1, matrix)
-    return matrix
-
-def is_outer_area(row, col, matrix):
-    """
-    Detect if cells is outer part.
-    """
-    if 0 <= row <= len(matrix) - 1 and 0 <= col <= len(matrix[row]) - 1:
-        if 'c' in matrix[row][col].keys():
-            status = matrix[row][col]['c']
-        else:
-            status = True
-    else:
-        status = False
-    return status
 
 def get_starting_point(shape_matrix):
     """
@@ -216,33 +159,38 @@ def get_piece(row, col, shape_matrix, shape_lines):
     Extract one piece. Uses a flood filling algorithm.
     """
     queue = []
+    is_piece = True
     direction = get_next_direction(shape_matrix[row][col])
     queue.append((row, col, direction))
     piece = []
     while queue:
         row, col, direction = queue.pop()
-        cell_type = get_cell_type(shape_lines, row, col)
+        cell_type = get_cell_type(row, col, shape_lines)
         piece.append((row, col, cell_type))
         shape_matrix[row][col][direction] = False
         for d_row, d_col in TRANSITIONS[direction]:
             n_row = row + d_row
             n_col = col + d_col
-            next_cell_type = get_cell_type(shape_lines, n_row, n_col)
-            next_direction = TRANSITIONS[direction][d_row, d_col][next_cell_type]
+            next_cell_type = get_cell_type(n_row, n_col, shape_lines)
+            if not next_cell_type:
+                is_piece = False
+            else:
+                next_direction = TRANSITIONS[direction][d_row, d_col][next_cell_type]
             if next_cell_type and \
                shape_matrix[n_row][n_col][next_direction] and \
                (n_row, n_col, next_direction) not in queue:
                 queue.append((n_row, n_col, next_direction))
-    return piece
+    return piece if is_piece else False
 
-def get_cell_type(shape_lines, row, col):
+def get_cell_type(row, col, shape_lines):
     """
     Get the cell type.
     """
-    try:
+    if 0 <= row <= (len(shape_lines) - 1) and \
+       0 <= col <= (len(shape_lines[row]) - 1):
         cell_type = shape_lines[row][col]
-    except IndexError:
-        return False
+    else:
+        cell_type = False
     return cell_type
 
 def get_next_direction(directions):
@@ -315,13 +263,16 @@ def trim_piece(shape):
 
 if __name__ == '__main__':
     INPUT_SHAPE = """
-+------------+
-|            |
-|            |
-+------++----+
-|      ||    |
-|      ||    |
-+------++----+
+         
+ +-----+ 
+ +----+| 
+ |+--+|| 
+ ||++||| 
+ ||++||| 
+ ||+-+|| 
+ |+---+| 
+ +-----+ 
+         
 """.strip('\n')
     break_evil_pieces(INPUT_SHAPE)
     
