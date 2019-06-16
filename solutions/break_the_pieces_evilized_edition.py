@@ -76,15 +76,15 @@ def break_evil_pieces(shape):
     shape_lines = shape.split('\n')
     blank_shape_lines = get_blank_shape(shape_lines)
     shape_matrix = shape_to_matrix(shape_lines)
-    row, col = get_starting_point(shape_matrix)
-    while not (row is None and col is None):
-        piece = get_piece(row, col, shape_matrix, shape_lines)
+    cell = get_start_cell(shape_matrix)
+    while cell:
+        piece = get_piece(cell, shape_matrix, shape_lines)
         if piece:
             piece = plus_to_lines(piece)
             piece = piece_to_lines(piece, blank_shape_lines)
             piece = trim_piece(piece)
             pieces.append(piece)
-        row, col = get_starting_point(shape_matrix)
+        cell = get_start_cell(shape_matrix)
     return pieces
 
 def get_blank_shape(shape_lines):
@@ -112,22 +112,23 @@ def shape_to_matrix(shape_lines):
     For '|' cells: r - right half, l - left half
     For ' ' cells: c - center
     """
-    cells = []
-    matrix = empty_matrix(shape_lines)
+#     matrix = empty_matrix(shape_lines)
+    matrix = {}
     for row, shape_line in enumerate(shape_lines):
         for col, cell in enumerate(shape_line):
             if cell == '+':
-                matrix[row][col] = {'ul': True, 'ur': True,
-                                    'll': True, 'lr': True}
-                cells.append((row, col, cell))
+                matrix[(row, col, 'ul')] = True
+                matrix[(row, col, 'ur')] = True
+                matrix[(row, col, 'll')] = True
+                matrix[(row, col, 'lr')] = True
             elif cell == '-':
-                matrix[row][col] = {'u': True, 'd': True}
-                cells.append((row, col, cell))
+                matrix[(row, col, 'u')] = True
+                matrix[(row, col, 'd')] = True
             elif cell == '|':
-                matrix[row][col] = {'r': True, 'l': True}
-                cells.append((row, col, cell))
+                matrix[(row, col, 'r')] = True
+                matrix[(row, col, 'l')] = True
             elif cell == ' ':
-                matrix[row][col] = {'c': True}
+                matrix[(row, col, 'c')] = True
     return matrix
 
 def empty_matrix(shape_lines):
@@ -139,47 +140,92 @@ def empty_matrix(shape_lines):
         matrix.append([{}] * len(shape_line))
     return matrix
 
-def get_starting_point(shape_matrix):
+def get_start_cell(shape_matrix):
     """
     Return a staring point for detecting a piece. If no starting point can be
     found return None, None (usually this means all pieces have been found).
     """
-    s_row, s_col = None, None
-    for row, _ in enumerate(shape_matrix):
-        for col, _ in enumerate(shape_matrix[row]):
-            if not 'c' in shape_matrix[row][col].keys() and \
-               sum(shape_matrix[row][col].values()) > 0:
-                s_row = row
-                s_col = col
-                return s_row, s_col
-    return s_row, s_col
+    for row, col, direction in shape_matrix.keys():
+        if shape_matrix[(row, col, direction)]:
+            return row, col, direction
+    return False
+#     s_row, s_col = None, None
+#     for row, _ in enumerate(shape_matrix):
+#         for col, _ in enumerate(shape_matrix[row]):
+#             if not 'c' in shape_matrix[row][col].keys() and \
+#                sum(shape_matrix[row][col].values()) > 0:
+#                 s_row = row
+#                 s_col = col
+#                 return s_row, s_col
+#     return s_row, s_col
 
-def get_piece(row, col, shape_matrix, shape_lines):
+def get_piece(cell, shape_matrix, shape_lines):
     """
-    Extract one piece. Uses a flood filling algorithm.
+    Extract one piece. Uses a track the border algorithm.
     """
-    queue = []
-    is_piece = True
-    direction = get_next_direction(shape_matrix[row][col])
-    queue.append((row, col, direction))
+    transition = {'r': ['r', 'lr', 'ur', 'ul', 'll'],
+                  'l': ['l', 'ul', 'll', 'lr', 'ur'],
+                  'd': ['d', 'll', 'lr', 'ur', 'ul'],
+                  'u': ['u', 'ur', 'ul', 'll', 'lr'],
+                  'lr': ['d', 'll', 'lr', 'ur', 'ul'],
+                  'll': ['l', 'ul', 'll', 'lr', 'ur'],
+                  'ul': ['u', 'ur', 'ul', 'll', 'lr'],
+                  'ur': ['r', 'lr', 'ur', 'ul', 'll']}    
     piece = []
-    while queue:
-        row, col, direction = queue.pop()
-        cell_type = get_cell_type(row, col, shape_lines)
-        piece.append((row, col, cell_type))
-        shape_matrix[row][col][direction] = False
-        for d_row, d_col in TRANSITIONS[direction]:
-            n_row = row + d_row
-            n_col = col + d_col
-            next_cell_type = get_cell_type(n_row, n_col, shape_lines)
-            if not next_cell_type:
-                is_piece = False
+    while cell:
+        row, col, direction = cell
+        if direction == 'r':
+            piece.append(shape_matrix[cell])
+            next_row, next_col = row - 1, col
+        elif direction == 'l':
+            piece.append(shape_matrix[cell])
+            next_row, next_col = row + 1, col
+        elif direction == 'd':
+            piece.append(shape_matrix[cell])
+            next_row, next_col = row, col + 1
+        elif direction == 'u':
+            piece.append(shape_matrix[cell])
+            next_row, next_col = row, col - 1
+        elif direction == 'lr':
+            piece.append(shape_matrix[cell])
+            next_row, next_col = row, col + 1
+        elif direction == 'll':
+            piece.append(shape_matrix[cell])
+            next_row, next_col = row + 1, col
+        elif direction == 'ul':
+            piece.append(shape_matrix[cell])
+            next_row, next_col = row, col - 1
+        elif direction == 'ur':
+            piece.append(shape_matrix[cell])
+            next_row, next_col = row - 1, col
+        for next_direction in transition[direction]:
+            if (next_row, next_col, next_direction) in shape_matrix.keys():
+                cell = (next_row, next_col, next_direction)
             else:
-                next_direction = TRANSITIONS[direction][d_row, d_col][next_cell_type]
-            if next_cell_type and \
-               shape_matrix[n_row][n_col][next_direction] and \
-               (n_row, n_col, next_direction) not in queue:
-                queue.append((n_row, n_col, next_direction))
+                cell = False
+
+#     queue = []
+#     is_piece = True
+#     direction = get_next_direction(shape_matrix[row][col])
+#     queue.append((row, col, direction))
+#     piece = []
+#     while queue:
+#         row, col, direction = queue.pop()
+#         cell_type = get_cell_type(row, col, shape_lines)
+#         piece.append((row, col, cell_type))
+#         shape_matrix[row][col][direction] = False
+#         for d_row, d_col in TRANSITIONS[direction]:
+#             n_row = row + d_row
+#             n_col = col + d_col
+#             next_cell_type = get_cell_type(n_row, n_col, shape_lines)
+#             if not next_cell_type:
+#                 is_piece = False
+#             else:
+#                 next_direction = TRANSITIONS[direction][d_row, d_col][next_cell_type]
+#             if next_cell_type and \
+#                shape_matrix[n_row][n_col][next_direction] and \
+#                (n_row, n_col, next_direction) not in queue:
+#                 queue.append((n_row, n_col, next_direction))
     return piece if is_piece else False
 
 def get_cell_type(row, col, shape_lines):
@@ -263,16 +309,10 @@ def trim_piece(shape):
 
 if __name__ == '__main__':
     INPUT_SHAPE = """
-         
- +-----+ 
- +----+| 
- |+--+|| 
- ||++||| 
- ||++||| 
- ||+-+|| 
- |+---+| 
- +-----+ 
-         
+     
+ +-+ 
+ | | 
+ +-+ 
+     
 """.strip('\n')
     break_evil_pieces(INPUT_SHAPE)
-    
