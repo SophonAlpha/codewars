@@ -6,6 +6,7 @@ Level: 1 kyu
 """
 
 import re
+from _ast import Or
 
 # The TRANSITION dictionary is used for the flood fill algorithm. For any cell the
 # algorithm can only 'flood' in specific directions. The TRANSITION dictionary 
@@ -112,7 +113,6 @@ def shape_to_matrix(shape_lines):
     For '|' cells: r - right half, l - left half
     For ' ' cells: c - center
     """
-#     matrix = empty_matrix(shape_lines)
     matrix = {}
     for row, shape_line in enumerate(shape_lines):
         for col, cell in enumerate(shape_line):
@@ -127,17 +127,6 @@ def shape_to_matrix(shape_lines):
             elif cell == '|':
                 matrix[(row, col, 'r')] = True
                 matrix[(row, col, 'l')] = True
-            elif cell == ' ':
-                matrix[(row, col, 'c')] = True
-    return matrix
-
-def empty_matrix(shape_lines):
-    """
-    Generate an empty matrix.
-    """
-    matrix = []
-    for _, shape_line in enumerate(shape_lines):
-        matrix.append([{}] * len(shape_line))
     return matrix
 
 def get_start_cell(shape_matrix):
@@ -149,84 +138,67 @@ def get_start_cell(shape_matrix):
         if shape_matrix[(row, col, direction)]:
             return row, col, direction
     return False
-#     s_row, s_col = None, None
-#     for row, _ in enumerate(shape_matrix):
-#         for col, _ in enumerate(shape_matrix[row]):
-#             if not 'c' in shape_matrix[row][col].keys() and \
-#                sum(shape_matrix[row][col].values()) > 0:
-#                 s_row = row
-#                 s_col = col
-#                 return s_row, s_col
-#     return s_row, s_col
 
 def get_piece(cell, shape_matrix, shape_lines):
     """
     Extract one piece. Uses a track the border algorithm.
+    
+    http://www.alienryderflex.com/polygon/
     """
-    transition = {'r': ['r', 'lr', 'ur', 'ul', 'll'],
-                  'l': ['l', 'ul', 'll', 'lr', 'ur'],
-                  'd': ['d', 'll', 'lr', 'ur', 'ul'],
-                  'u': ['u', 'ur', 'ul', 'll', 'lr'],
-                  'lr': ['d', 'll', 'lr', 'ur', 'ul'],
-                  'll': ['l', 'ul', 'll', 'lr', 'ur'],
-                  'ul': ['u', 'ur', 'ul', 'll', 'lr'],
-                  'ur': ['r', 'lr', 'ur', 'ul', 'll']}    
+    transition = {
+        'r': ['r', 'lr', 'ur', 'ul', 'll'],
+        'l': ['l', 'ul', 'll', 'lr', 'ur'],
+        'd': ['d', 'll', 'lr', 'ur', 'ul'],
+        'u': ['u', 'ur', 'ul', 'll', 'lr'],
+        'lr': ['d', 'll', 'lr', 'ur', 'ul'],
+        'll': ['l', 'ul', 'll', 'lr', 'ur'],
+        'ul': ['u', 'ur', 'ul', 'll', 'lr'],
+        'ur': ['r', 'lr', 'ur', 'ul', 'll']
+        }
+    neighbour = {'r': (-1, 0), 'l': (1, 0), 'd': (0, 1), 'u': (0, -1),
+                 'lr': (0, 1), 'll': (1, 0), 'ul': (0, -1), 'ur': (-1, 0)}
+    start_cell = cell
+    start_row, start_col, _ = start_cell
     piece = []
-    while cell:
+    edges = []
+    while cell and not is_piece_complete(piece, cell):
         row, col, direction = cell
-        if direction == 'r':
-            piece.append(shape_matrix[cell])
-            next_row, next_col = row - 1, col
-        elif direction == 'l':
-            piece.append(shape_matrix[cell])
-            next_row, next_col = row + 1, col
-        elif direction == 'd':
-            piece.append(shape_matrix[cell])
-            next_row, next_col = row, col + 1
-        elif direction == 'u':
-            piece.append(shape_matrix[cell])
-            next_row, next_col = row, col - 1
-        elif direction == 'lr':
-            piece.append(shape_matrix[cell])
-            next_row, next_col = row, col + 1
-        elif direction == 'll':
-            piece.append(shape_matrix[cell])
-            next_row, next_col = row + 1, col
-        elif direction == 'ul':
-            piece.append(shape_matrix[cell])
-            next_row, next_col = row, col - 1
-        elif direction == 'ur':
-            piece.append(shape_matrix[cell])
-            next_row, next_col = row - 1, col
+        d_row, d_col = neighbour[direction]
+        next_row, next_col = row + d_row, col + d_col
         for next_direction in transition[direction]:
             if (next_row, next_col, next_direction) in shape_matrix.keys():
+                piece.append(cell)
                 cell = (next_row, next_col, next_direction)
+                if (start_row, start_col) == (row, col) or \
+                   (start_row, start_col) == (next_row, next_col):
+                    edges.append((row, col, next_row, next_col))
             else:
                 cell = False
+    if cell and is_inside_piece(start_cell, edges):
+        pass
+    return piece
 
-#     queue = []
-#     is_piece = True
-#     direction = get_next_direction(shape_matrix[row][col])
-#     queue.append((row, col, direction))
-#     piece = []
-#     while queue:
-#         row, col, direction = queue.pop()
-#         cell_type = get_cell_type(row, col, shape_lines)
-#         piece.append((row, col, cell_type))
-#         shape_matrix[row][col][direction] = False
-#         for d_row, d_col in TRANSITIONS[direction]:
-#             n_row = row + d_row
-#             n_col = col + d_col
-#             next_cell_type = get_cell_type(n_row, n_col, shape_lines)
-#             if not next_cell_type:
-#                 is_piece = False
-#             else:
-#                 next_direction = TRANSITIONS[direction][d_row, d_col][next_cell_type]
-#             if next_cell_type and \
-#                shape_matrix[n_row][n_col][next_direction] and \
-#                (n_row, n_col, next_direction) not in queue:
-#                 queue.append((n_row, n_col, next_direction))
-    return piece if is_piece else False
+def is_piece_complete(piece, cell):
+    return cell in piece.keys()
+
+def is_inside_piece(start_cell, edges):
+    offset = {'r': (0, 0.25), 'l': (0, -0.25),
+              'd': (0.25, 0), 'u': (-0.25, 0),
+              'lr': (0.25, 0.25), 'll': (0.25, -0.25),
+              'ul': (-0.25, -0.25), 'ur': (-0.25, 0.25)}
+    start_y, start_x, direction = start_cell
+    offset_y, offset_x = offset[direction]
+    start_y = start_y + offset_y
+    start_x = start_x + offset_x
+    for edge_start_y, edge_start_x, edge_end_y, edge_end_x in edges:
+        if  edge_start_y <= start_y < edge_end_y or \
+            edge_end_y <= start_y < edge_start_y:
+            if edge_start_x <= start_x and edge_start_x <= start_x
+
+                y = x
+                y = 
+
+
 
 def get_cell_type(row, col, shape_lines):
     """
