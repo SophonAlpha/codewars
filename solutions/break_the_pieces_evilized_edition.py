@@ -142,8 +142,6 @@ def get_start_cell(shape_matrix):
 def get_piece(cell, shape_matrix, shape_lines):
     """
     Extract one piece. Uses a track the border algorithm.
-    
-    http://www.alienryderflex.com/polygon/
     """
     transition = {
         'r': ['r', 'lr', 'ur', 'ul', 'll'],
@@ -179,7 +177,7 @@ def get_piece(cell, shape_matrix, shape_lines):
     return piece
 
 def is_piece_complete(piece, cell):
-    return cell in piece.keys()
+    return cell in piece
 
 def is_inside_piece(start_cell, edges):
     offset = {'r': (0, 0.25), 'l': (0, -0.25),
@@ -188,17 +186,25 @@ def is_inside_piece(start_cell, edges):
               'ul': (-0.25, -0.25), 'ur': (-0.25, 0.25)}
     start_y, start_x, direction = start_cell
     offset_y, offset_x = offset[direction]
-    start_y = start_y + offset_y
-    start_x = start_x + offset_x
+    test_y = start_y + offset_y
+    test_x = start_x + offset_x
     for edge_start_y, edge_start_x, edge_end_y, edge_end_x in edges:
-        if  edge_start_y <= start_y < edge_end_y or \
-            edge_end_y <= start_y < edge_start_y:
-            if edge_start_x <= start_x and edge_start_x <= start_x
+        if  edge_start_y <= test_y < edge_end_y or \
+            edge_end_y <= test_y < edge_start_y:
+            v1 = (edge_start_x, edge_start_y,
+                  edge_end_x - edge_start_x, edge_end_y - edge_start_y)
+            v2 = (test_x, test_y, 1, 0)
+            t1, t2 = vector_intersection(v1, v2)
+            if t2 < 0:
+                print(t1, t2)
 
-                y = x
-                y = 
-
-
+def vector_intersection(v1, v2):
+    p1x, p1y, d1x, d1y = v1
+    p2x, p2y, d2x, d2y = v2
+    cx, cy = p1x - p2x, p1y - p2y
+    t1 = (cx*d2y + cy*d2x)/(d1y*d2x - d1x*d2y)
+    t2 = (cx + t1*d1x)/d2x
+    return t1, t2
 
 def get_cell_type(row, col, shape_lines):
     """
