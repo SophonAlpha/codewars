@@ -8,13 +8,13 @@ Level: 1 kyu
 import re
 
 # The TRANSITION dictionary is used for the flood fill algorithm. For any cell the
-# algorithm can only 'flood' in specific directions. The TRANSITION dictionary 
+# algorithm can only 'flood' in specific directions. The TRANSITION dictionary
 # provides for a given direction the relative coordinates of the next cells to be
-# filled. In addition, for each relative coordinate it also provides the valid 
+# filled. In addition, for each relative coordinate it also provides the valid
 # next directions.
-# 
+#
 # The dictionary keys have the following meanings:
-# 
+#
 #     ul - upper left corner
 #     ur - upper right corner
 #     ll - lower left corner
@@ -63,7 +63,7 @@ TRANSITIONS = {
            ( 1, -1): {' ': 'c', '+': 'ur', '|': 'r', '-': 'u'},
            ( 0, -1): {' ': 'c', '+': 'ur', '|': 'r'},
            (-1, -1): {' ': 'c', '+': 'lr', '|': 'r', '-': 'd'},
-           (-1,  0): {' ': 'c', '+': 'll', '-': 'd'}, 
+           (-1,  0): {' ': 'c', '+': 'll', '-': 'd'},
            (-1,  1): {' ': 'c', '+': 'll', '|': 'l', '-': 'd'}}}
 
 def break_evil_pieces(shape):
@@ -78,7 +78,7 @@ def break_evil_pieces(shape):
     shape_matrix = shape_to_matrix(shape_lines)
     cell = get_start_cell(shape_matrix)
     while cell:
-        piece = get_piece(cell, shape_matrix)
+        piece = get_piece(cell, shape_matrix, shape_lines)
         if piece:
             piece = plus_to_lines(piece)
             piece = piece_to_lines(piece, blank_shape_lines)
@@ -138,7 +138,7 @@ def get_start_cell(shape_matrix):
             return row, col, direction
     return False
 
-def get_piece(cell, shape_matrix):
+def get_piece(cell, shape_matrix, shape_lines):
     """
     Extract one piece. Uses a track the border algorithm.
     """
@@ -167,12 +167,12 @@ def get_piece(cell, shape_matrix):
     neighbour = {'r': (-1, 0), 'l': (1, 0), 'd': (0, 1), 'u': (0, -1),
                  'lr': (0, 1), 'll': (1, 0), 'ul': (0, -1), 'ur': (-1, 0)}
     start_cell = cell
-    start_row, start_col, _ = start_cell
+    start_row, _, _ = start_cell
     piece = []
     edges = []
-    while cell and not is_piece_complete(piece, cell):
-        piece.append(cell)
+    while cell and not is_piece_complete(piece, cell, shape_lines):
         row, col, start_direction = cell
+        piece.append((row, col, shape_lines[row][col]))
         for neighbour_directions in transition[start_direction]:
             direction = neighbour_directions[0]
             for next_direction in neighbour_directions[1]:
@@ -185,18 +185,20 @@ def get_piece(cell, shape_matrix):
                         edges.append((row, col, next_row, next_col))
                     break
                 else:
-                    cell = False
+                    cell = None
             shape_matrix[(row, col, direction)] = False
             if cell:
                 break
-    if cell and is_inside_piece(start_cell, edges):
-        pass
+    if not (cell and is_inside_piece(start_cell, edges)):
+        piece = None
     return piece
 
-def is_piece_complete(piece, cell):
-    return cell in piece
+def is_piece_complete(piece, cell, shape_lines):
+    row, col, _ = cell
+    return (row, col, shape_lines[row][col]) in piece
 
 def is_inside_piece(start_cell, edges):
+    result = False
     offset = {'r': (0, 0.25), 'l': (0, -0.25),
               'd': (0.25, 0), 'u': (-0.25, 0),
               'lr': (0.25, 0.25), 'll': (0.25, -0.25),
@@ -205,22 +207,30 @@ def is_inside_piece(start_cell, edges):
     offset_y, offset_x = offset[direction]
     test_y = start_y + offset_y
     test_x = start_x + offset_x
-    for edge_start_y, edge_start_x, edge_end_y, edge_end_x in edges:
-        if  edge_start_y <= test_y < edge_end_y or \
-            edge_end_y <= test_y < edge_start_y:
+    for edge_start_x, edge_start_y, edge_end_x, edge_end_y in edges:
+        if  edge_start_x <= test_y < edge_end_x or \
+            edge_end_x <= test_y < edge_start_x:
             v1 = (edge_start_x, edge_start_y,
                   edge_end_x - edge_start_x, edge_end_y - edge_start_y)
-            v2 = (test_x, test_y, 1, 0)
+            v2 = (test_x, test_y, 0, 1)
             t1, t2 = vector_intersection(v1, v2)
             if t2 < 0:
-                print(t1, t2)
+                result = not result
+    return result
 
 def vector_intersection(v1, v2):
+    """
+    Calculate the intersection between two lines using Cramer's rule.
+    """
     p1x, p1y, d1x, d1y = v1
     p2x, p2y, d2x, d2y = v2
-    cx, cy = p1x - p2x, p1y - p2y
-    t1 = (cx*d2y + cy*d2x)/(d1y*d2x - d1x*d2y)
-    t2 = (cx + t1*d1x)/d2x
+    cx, cy = p2x - p1x, p2y - p1y
+    m = d1y * d2x - d1x * d2y
+    if not m == 0:
+        t1 = (cy * d2x - cx * d2y) / m
+        t2 = (d1x * cy - d1y * cx) / m
+    else:
+        t1, t2 = None, None
     return t1, t2
 
 def get_cell_type(row, col, shape_lines):
