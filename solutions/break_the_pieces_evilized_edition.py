@@ -6,7 +6,6 @@ Level: 1 kyu
 """
 
 import re
-from _ast import Or
 
 # The TRANSITION dictionary is used for the flood fill algorithm. For any cell the
 # algorithm can only 'flood' in specific directions. The TRANSITION dictionary 
@@ -79,7 +78,7 @@ def break_evil_pieces(shape):
     shape_matrix = shape_to_matrix(shape_lines)
     cell = get_start_cell(shape_matrix)
     while cell:
-        piece = get_piece(cell, shape_matrix, shape_lines)
+        piece = get_piece(cell, shape_matrix)
         if piece:
             piece = plus_to_lines(piece)
             piece = piece_to_lines(piece, blank_shape_lines)
@@ -139,19 +138,31 @@ def get_start_cell(shape_matrix):
             return row, col, direction
     return False
 
-def get_piece(cell, shape_matrix, shape_lines):
+def get_piece(cell, shape_matrix):
     """
     Extract one piece. Uses a track the border algorithm.
     """
     transition = {
-        'r': ['r', 'lr', 'ur', 'ul', 'll'],
-        'l': ['l', 'ul', 'll', 'lr', 'ur'],
-        'd': ['d', 'll', 'lr', 'ur', 'ul'],
-        'u': ['u', 'ur', 'ul', 'll', 'lr'],
-        'lr': ['d', 'll', 'lr', 'ur', 'ul'],
-        'll': ['l', 'ul', 'll', 'lr', 'ur'],
-        'ul': ['u', 'ur', 'ul', 'll', 'lr'],
-        'ur': ['r', 'lr', 'ur', 'ul', 'll']
+        'ur': [['ur', ['r', 'lr']],
+               ['ul', ['u', 'ur']],
+               ['ll', ['l', 'ul']],
+               ['lr', ['d', 'll']]],
+        'ul': [['ul', ['u', 'ur']],
+               ['ll', ['l', 'ul']],
+               ['lr', ['d', 'll']],
+               ['ur', ['r', 'lr']]],
+        'll': [['ll', ['l', 'ul']],
+               ['lr', ['d', 'll']],
+               ['ur', ['r', 'lr']],
+               ['ul', ['u', 'ur']]],
+        'lr': [['lr', ['d', 'll']],
+               ['ur', ['r', 'lr']],
+               ['ul', ['u', 'ur']],
+               ['ll', ['l', 'ul']]],
+        'u': [['u', ['u', 'ur']]],
+        'd': [['d', ['d', 'll']]],
+        'l': [['l', ['l', 'ul']]],
+        'r': [['r', ['r', 'lr']]],
         }
     neighbour = {'r': (-1, 0), 'l': (1, 0), 'd': (0, 1), 'u': (0, -1),
                  'lr': (0, 1), 'll': (1, 0), 'ul': (0, -1), 'ur': (-1, 0)}
@@ -160,18 +171,24 @@ def get_piece(cell, shape_matrix, shape_lines):
     piece = []
     edges = []
     while cell and not is_piece_complete(piece, cell):
-        row, col, direction = cell
-        d_row, d_col = neighbour[direction]
-        next_row, next_col = row + d_row, col + d_col
-        for next_direction in transition[direction]:
-            if (next_row, next_col, next_direction) in shape_matrix.keys():
-                piece.append(cell)
-                cell = (next_row, next_col, next_direction)
-                if (start_row, start_col) == (row, col) or \
-                   (start_row, start_col) == (next_row, next_col):
-                    edges.append((row, col, next_row, next_col))
-            else:
-                cell = False
+        piece.append(cell)
+        row, col, start_direction = cell
+        for neighbour_directions in transition[start_direction]:
+            direction = neighbour_directions[0]
+            for next_direction in neighbour_directions[1]:
+                d_row, d_col = neighbour[direction]
+                next_row, next_col = row + d_row, col + d_col
+                next_cell = (next_row, next_col, next_direction)
+                if next_cell in shape_matrix.keys():
+                    cell = next_cell
+                    if row == start_row or next_row == start_row:
+                        edges.append((row, col, next_row, next_col))
+                    break
+                else:
+                    cell = False
+            shape_matrix[(row, col, direction)] = False
+            if cell:
+                break
     if cell and is_inside_piece(start_cell, edges):
         pass
     return piece
