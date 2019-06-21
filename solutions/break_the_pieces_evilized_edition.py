@@ -130,35 +130,45 @@ def get_piece(cell, shape_matrix, shape_lines):
     Extract one piece. Uses a track the border algorithm.
     """
     start_cell = cell
-    start_row, _, _ = start_cell
     piece = []
     edges = []
     while cell and not is_piece_complete(piece, cell, shape_lines):
-        if not shape_matrix[cell]:
+        if cell_already_visited(cell, shape_matrix):
             piece = None
             return piece
-        row, col, start_direction = cell
+        row, col, _ = cell
         piece.append((row, col, shape_lines[row][col]))
-        for neighbour_directions in TRANSITION[start_direction]:
-            direction = neighbour_directions[0]
-            for next_direction in neighbour_directions[1]:
-                d_row, d_col = NEIGHBOUR[direction]
-                next_row, next_col = row + d_row, col + d_col
-                next_cell = (next_row, next_col, next_direction)
-                if next_cell in shape_matrix.keys():
-                    cell = next_cell
-                    if (row == start_row or next_row == start_row) and \
-                        row != next_row:
-                        edges.append((row, col, next_row, next_col))
-                    break
-                else:
-                    cell = None
-            shape_matrix[(row, col, direction)] = False
-            if cell:
-                break
+        next_cell = get_next_cell(cell, shape_matrix)
+        shape_matrix[cell] = False
+        edges = add_edge(cell, next_cell, start_cell, edges)
+        cell = next_cell
     if not (cell and is_inside_piece(start_cell, edges)):
         piece = None
     return piece
+
+def cell_already_visited(cell, shape_matrix):
+    return not shape_matrix[cell]
+
+def get_next_cell(cell, shape_matrix):
+    row, col, start_direction = cell
+    for neighbour_directions in TRANSITION[start_direction]:
+        direction = neighbour_directions[0]
+        for next_direction in neighbour_directions[1]:
+            d_row, d_col = NEIGHBOUR[direction]
+            next_row, next_col = row + d_row, col + d_col
+            next_cell = (next_row, next_col, next_direction)
+            if next_cell in shape_matrix.keys():
+                return next_cell
+    return None
+
+def add_edge(cell, next_cell, start_cell, edges):
+    start_row, _, _ = start_cell
+    row, col, _ = cell
+    next_row, next_col, _ = next_cell
+    if (row == start_row or next_row == start_row) and \
+        row != next_row:
+        edges.append((row, col, next_row, next_col))
+    return edges
 
 def is_piece_complete(piece, cell, shape_lines):
     row, col, _ = cell
