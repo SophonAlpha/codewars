@@ -24,47 +24,34 @@ import re
 #     r  - right half
 #     l  - left half
 #     c  - center
-TRANSITIONS = {
-    'lr': {( 0,  1): {'|': 'l', '+': 'll', ' ': 'c', '-': 'd'},
-           ( 1,  1): {'|': 'l', '+': 'ul', ' ': 'c', '-': 'u'},
-           ( 1,  0): {'|': 'r', '+': 'ur', ' ': 'c', '-': 'u'}},
-    'll': {( 1,  0): {'|': 'l', '+': 'ul', ' ': 'c', '-': 'u'},
-           ( 1, -1): {'|': 'r', '+': 'ur', ' ': 'c', '-': 'u'},
-           ( 0, -1): {'|': 'r', '+': 'lr', ' ': 'c', '-': 'd'}},
-    'ul': {( 0, -1): {'|': 'r', '+': 'ur', ' ': 'c', '-': 'u'},
-           (-1, -1): {'|': 'r', '+': 'lr', ' ': 'c', '-': 'd'},
-           (-1,  0): {'|': 'l', '+': 'll', ' ': 'c', '-': 'd'}},
-    'ur': {(-1,  0): {'|': 'r', '+': 'lr', ' ': 'c', '-': 'd'},
-           (-1,  1): {'|': 'l', '+': 'll', ' ': 'c', '-': 'd'},
-           ( 0,  1): {'|': 'l', '+': 'ul', ' ': 'c', '-': 'u'}},
-    'u' : {( 0, -1): {'-': 'u', '+': 'ur'},
-           (-1, -1): {' ': 'c', '+': 'lr', '|': 'r', '-': 'd'},
-           (-1,  0): {' ': 'c', '-': 'd', '+': 'lr'},
-           (-1,  1): {' ': 'c', '+': 'll', '|': 'l', '-': 'd'},
-           ( 0,  1): {'-': 'u', '+': 'ul'}},
-    'd' : {( 0,  1): {'-': 'd', '+': 'll'},
-           ( 1,  1): {' ': 'c', '+': 'ul', '|': 'l', '-': 'u'},
-           ( 1,  0): {' ': 'c', '-': 'u', '+': 'ur'},
-           ( 1, -1): {' ': 'c', '+': 'ur', '|': 'r', '-': 'u'},
-           ( 0, -1): {'-': 'd', '+': 'lr'}},
-    'r' : {(-1,  0): {'|': 'r', '+': 'lr'},
-           (-1,  1): {' ': 'c', '+': 'll', '|': 'l', '-': 'd'},
-           ( 0,  1): {' ': 'c', '|': 'l', '+': 'll'},
-           ( 1,  1): {' ': 'c', '+': 'ul', '|': 'l', '-': 'u'},
-           ( 1,  0): {'|': 'r', '+': 'ur'}},
-    'l' : {( 1,  0): {'|': 'l', '+': 'ul'},
-           ( 1, -1): {' ': 'c', '+': 'ur', '|': 'r', '-': 'u'},
-           ( 0, -1): {' ': 'c', '|': 'r', '+': 'lr'},
-           (-1, -1): {' ': 'c', '+': 'lr', '|': 'r', '-': 'd'},
-           (-1,  0): {'|': 'l', '+': 'll'}},
-    'c' : {( 0,  1): {' ': 'c', '+': 'll', '|': 'l'},
-           ( 1,  1): {' ': 'c', '+': 'ul', '|': 'l', '-': 'u'},
-           ( 1,  0): {' ': 'c', '+': 'ur', '-': 'u'},
-           ( 1, -1): {' ': 'c', '+': 'ur', '|': 'r', '-': 'u'},
-           ( 0, -1): {' ': 'c', '+': 'ur', '|': 'r'},
-           (-1, -1): {' ': 'c', '+': 'lr', '|': 'r', '-': 'd'},
-           (-1,  0): {' ': 'c', '+': 'll', '-': 'd'},
-           (-1,  1): {' ': 'c', '+': 'll', '|': 'l', '-': 'd'}}}
+TRANSITION = {
+    'ur': [['ur', ['r', 'lr']],
+           ['ul', ['u', 'ur']],
+           ['ll', ['l', 'ul']],
+           ['lr', ['d', 'll']]],
+    'ul': [['ul', ['u', 'ur']],
+           ['ll', ['l', 'ul']],
+           ['lr', ['d', 'll']],
+           ['ur', ['r', 'lr']]],
+    'll': [['ll', ['l', 'ul']],
+           ['lr', ['d', 'll']],
+           ['ur', ['r', 'lr']],
+           ['ul', ['u', 'ur']]],
+    'lr': [['lr', ['d', 'll']],
+           ['ur', ['r', 'lr']],
+           ['ul', ['u', 'ur']],
+           ['ll', ['l', 'ul']]],
+    'u': [['u', ['u', 'ur']]],
+    'd': [['d', ['d', 'll']]],
+    'l': [['l', ['l', 'ul']]],
+    'r': [['r', ['r', 'lr']]],
+    }
+NEIGHBOUR = {'r': (-1, 0), 'l': (1, 0), 'd': (0, 1), 'u': (0, -1),
+             'lr': (0, 1), 'll': (1, 0), 'ul': (0, -1), 'ur': (-1, 0)}
+OFFSET = {'r': (0, 0.25), 'l': (0, -0.25),
+          'd': (0.25, 0), 'u': (-0.25, 0),
+          'lr': (0.25, 0.25), 'll': (0.25, -0.25),
+          'ul': (-0.25, -0.25), 'ur': (-0.25, 0.25)}
 
 def break_evil_pieces(shape):
     """
@@ -142,46 +129,26 @@ def get_piece(cell, shape_matrix, shape_lines):
     """
     Extract one piece. Uses a track the border algorithm.
     """
-    transition = {
-        'ur': [['ur', ['r', 'lr']],
-               ['ul', ['u', 'ur']],
-               ['ll', ['l', 'ul']],
-               ['lr', ['d', 'll']]],
-        'ul': [['ul', ['u', 'ur']],
-               ['ll', ['l', 'ul']],
-               ['lr', ['d', 'll']],
-               ['ur', ['r', 'lr']]],
-        'll': [['ll', ['l', 'ul']],
-               ['lr', ['d', 'll']],
-               ['ur', ['r', 'lr']],
-               ['ul', ['u', 'ur']]],
-        'lr': [['lr', ['d', 'll']],
-               ['ur', ['r', 'lr']],
-               ['ul', ['u', 'ur']],
-               ['ll', ['l', 'ul']]],
-        'u': [['u', ['u', 'ur']]],
-        'd': [['d', ['d', 'll']]],
-        'l': [['l', ['l', 'ul']]],
-        'r': [['r', ['r', 'lr']]],
-        }
-    neighbour = {'r': (-1, 0), 'l': (1, 0), 'd': (0, 1), 'u': (0, -1),
-                 'lr': (0, 1), 'll': (1, 0), 'ul': (0, -1), 'ur': (-1, 0)}
     start_cell = cell
     start_row, _, _ = start_cell
     piece = []
     edges = []
     while cell and not is_piece_complete(piece, cell, shape_lines):
+        if not shape_matrix[cell]:
+            piece = None
+            return piece
         row, col, start_direction = cell
         piece.append((row, col, shape_lines[row][col]))
-        for neighbour_directions in transition[start_direction]:
+        for neighbour_directions in TRANSITION[start_direction]:
             direction = neighbour_directions[0]
             for next_direction in neighbour_directions[1]:
-                d_row, d_col = neighbour[direction]
+                d_row, d_col = NEIGHBOUR[direction]
                 next_row, next_col = row + d_row, col + d_col
                 next_cell = (next_row, next_col, next_direction)
                 if next_cell in shape_matrix.keys():
                     cell = next_cell
-                    if row == start_row or next_row == start_row:
+                    if (row == start_row or next_row == start_row) and \
+                        row != next_row:
                         edges.append((row, col, next_row, next_col))
                     break
                 else:
@@ -199,23 +166,23 @@ def is_piece_complete(piece, cell, shape_lines):
 
 def is_inside_piece(start_cell, edges):
     result = False
-    offset = {'r': (0, 0.25), 'l': (0, -0.25),
-              'd': (0.25, 0), 'u': (-0.25, 0),
-              'lr': (0.25, 0.25), 'll': (0.25, -0.25),
-              'ul': (-0.25, -0.25), 'ur': (-0.25, 0.25)}
-    start_y, start_x, direction = start_cell
-    offset_y, offset_x = offset[direction]
-    test_y = start_y + offset_y
-    test_x = start_x + offset_x
+    cross_points_right, cross_points_left = 0, 0
+    start_x, start_y, direction = start_cell
+    offset_x, offset_y = OFFSET[direction]
+    test_x, test_y = start_x + offset_x, start_y + offset_y
     for edge_start_x, edge_start_y, edge_end_x, edge_end_y in edges:
-        if  edge_start_x <= test_y < edge_end_x or \
-            edge_end_x <= test_y < edge_start_x:
+        if  edge_start_x <= test_x < edge_end_x or \
+            edge_end_x <= test_x < edge_start_x:
             v1 = (edge_start_x, edge_start_y,
                   edge_end_x - edge_start_x, edge_end_y - edge_start_y)
             v2 = (test_x, test_y, 0, 1)
-            t1, t2 = vector_intersection(v1, v2)
+            _, t2 = vector_intersection(v1, v2)
             if t2 < 0:
-                result = not result
+                cross_points_right += 1
+            else:
+                cross_points_left += 1
+    if cross_points_right % 2 != 0 and cross_points_left % 2 != 0:
+        result = True
     return result
 
 def vector_intersection(v1, v2):
@@ -226,34 +193,9 @@ def vector_intersection(v1, v2):
     p2x, p2y, d2x, d2y = v2
     cx, cy = p2x - p1x, p2y - p1y
     m = d1y * d2x - d1x * d2y
-    if not m == 0:
-        t1 = (cy * d2x - cx * d2y) / m
-        t2 = (d1x * cy - d1y * cx) / m
-    else:
-        t1, t2 = None, None
+    t1 = (cy * d2x - cx * d2y) / m if m != 0 else None
+    t2 = (d1x * cy - d1y * cx) / m if m != 0 else None
     return t1, t2
-
-def get_cell_type(row, col, shape_lines):
-    """
-    Get the cell type.
-    """
-    if 0 <= row <= (len(shape_lines) - 1) and \
-       0 <= col <= (len(shape_lines[row]) - 1):
-        cell_type = shape_lines[row][col]
-    else:
-        cell_type = False
-    return cell_type
-
-def get_next_direction(directions):
-    """
-    For cells with multiple possible directions select the next possible one.
-    """
-    direction = None
-    for val in iter(directions):
-        if directions[val]:
-            direction = val
-            break
-    return direction
 
 def plus_to_lines(piece):
     """
@@ -314,10 +256,14 @@ def trim_piece(shape):
 
 if __name__ == '__main__':
     INPUT_SHAPE = """
-     
+      
  +-+ 
  | | 
  +-+ 
-     
+ | | 
+ +-+ 
+      
 """.strip('\n')
-    break_evil_pieces(INPUT_SHAPE)
+    for text_piece in break_evil_pieces(INPUT_SHAPE):
+        print('-----------------------')
+        print(text_piece)
