@@ -7,12 +7,6 @@ Level: 1 kyu
 
 import re
 
-# The TRANSITION dictionary is used for the flood fill algorithm. For any cell the
-# algorithm can only 'flood' in specific directions. The TRANSITION dictionary
-# provides for a given direction the relative coordinates of the next cells to be
-# filled. In addition, for each relative coordinate it also provides the valid
-# next directions.
-#
 # The dictionary keys have the following meanings:
 #
 #     ul - upper left corner
@@ -130,12 +124,10 @@ def get_piece(cell, shape_matrix, shape_lines):
     Extract one piece. Uses a track the border algorithm.
     """
     start_cell = cell
-    piece = []
-    edges = []
+    piece, edges = [], []
     while cell and not is_piece_complete(piece, cell, shape_lines):
         if cell_already_visited(cell, shape_matrix):
-            piece = None
-            return piece
+            return None
         row, col, _ = cell
         piece.append((row, col, shape_lines[row][col]))
         next_cell = get_next_cell(cell, shape_matrix)
@@ -143,7 +135,7 @@ def get_piece(cell, shape_matrix, shape_lines):
         edges = add_edge(cell, next_cell, start_cell, edges)
         cell = next_cell
     if not (cell and is_inside_piece(start_cell, edges)):
-        piece = None
+        return None
     return piece
 
 def cell_already_visited(cell, shape_matrix):
@@ -151,11 +143,11 @@ def cell_already_visited(cell, shape_matrix):
 
 def get_next_cell(cell, shape_matrix):
     row, col, start_direction = cell
-    for neighbour_directions in TRANSITION[start_direction]:
-        direction = neighbour_directions[0]
-        for next_direction in neighbour_directions[1]:
-            d_row, d_col = NEIGHBOUR[direction]
-            next_row, next_col = row + d_row, col + d_col
+    for directions in TRANSITION[start_direction]:
+        direction = directions[0]
+        d_row, d_col = NEIGHBOUR[direction]
+        next_row, next_col = row + d_row, col + d_col
+        for next_direction in directions[1]:
             next_cell = (next_row, next_col, next_direction)
             if next_cell in shape_matrix.keys():
                 return next_cell
