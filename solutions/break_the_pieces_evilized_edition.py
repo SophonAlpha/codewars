@@ -77,6 +77,32 @@ def get_blank_shape(shape_lines):
     return blank_shape_lines
 
 def shape_to_matrix(shape_lines):
+    matrix = {}
+    for row, shape_line in enumerate(shape_lines):
+        for col, cell in enumerate(shape_line):
+            if cell == ' ':
+                matrix[(row * 2, col * 2)] = []
+                matrix[(row * 2, col * 2 + 1)] = []
+                matrix[(row * 2 + 1, col * 2)] = []
+                matrix[(row * 2 + 1, col * 2 + 1)] = []
+            elif cell == '+':
+                matrix[(row * 2, col * 2)] = ['r', 'b']
+                matrix[(row * 2, col * 2 + 1)] = ['l', 'b']
+                matrix[(row * 2 + 1, col * 2)] = ['r', 't']
+                matrix[(row * 2 + 1, col * 2 + 1)] = ['l', 't']
+            elif cell == '-':
+                matrix[(row * 2, col * 2)] = ['b']
+                matrix[(row * 2, col * 2 + 1)] = ['b']
+                matrix[(row * 2 + 1, col * 2)] = ['t']
+                matrix[(row * 2 + 1, col * 2 + 1)] = ['t']
+            elif cell == '|':
+                matrix[(row * 2, col * 2)] = ['r']
+                matrix[(row * 2, col * 2 + 1)] = ['l']
+                matrix[(row * 2 + 1, col * 2)] = ['r']
+                matrix[(row * 2 + 1, col * 2 + 1)] = ['l']
+    return matrix
+
+def shape_to_matrix_v1(shape_lines):
     """
     Transform the shape into a data structure that can be used for the flood fill
     algorithm. Boolean status indicates whether the cell can be filled (True)
@@ -258,13 +284,11 @@ def trim_piece(shape):
 
 if __name__ == '__main__':
     INPUT_SHAPE = """
-      
+     
  +-+ 
  | | 
  +-+ 
- | | 
- +-+ 
-      
+     
 """.strip('\n')
     for text_piece in break_evil_pieces(INPUT_SHAPE):
         print('-----------------------')
