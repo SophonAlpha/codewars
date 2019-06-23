@@ -53,19 +53,21 @@ def break_evil_pieces(shape):
 
     Extract individual pieces from shape and return in list.
     """
-    pieces = []
+    pieces, done_cells = [], []
     shape_lines = shape.split('\n')
     blank_shape_lines = get_blank_shape(shape_lines)
     shape_matrix = shape_to_matrix(shape_lines)
-    cell = get_start_cell(shape_matrix)
+    to_be_processed = shape_matrix.keys()
+    cell = to_be_processed.pop()
     while cell:
-        piece = get_piece(cell, shape_matrix, shape_lines)
+        piece = get_piece(cell, to_be_processed, done_cells, 
+                          shape_matrix, shape_lines)
         if piece:
             piece = plus_to_lines(piece)
             piece = piece_to_lines(piece, blank_shape_lines)
             piece = trim_piece(piece)
             pieces.append(piece)
-        cell = get_start_cell(shape_matrix)
+        cell = to_be_processed.pop()
     return pieces
 
 def get_blank_shape(shape_lines):
@@ -78,61 +80,17 @@ def get_blank_shape(shape_lines):
 
 def shape_to_matrix(shape_lines):
     matrix = {}
+    mapping = {
+        ' ': [[0, 0, []], [0, 1, []], [1, 0, []], [1, 1, []]],
+        '+': [[0, 0, ['r', 'b']], [0, 1, ['l', 'b']],
+              [1, 0, ['r', 't']], [1, 1, ['l', 't']]],
+        '-': [[0, 0, ['b']], [0, 1, ['b']], [1, 0, ['t']], [1, 1, ['t']]],
+        '|': [[0, 0, ['r']], [0, 1, ['l']], [1, 0, ['r']], [1, 1, ['l']]]
+        }
     for row, shape_line in enumerate(shape_lines):
-        for col, cell in enumerate(shape_line):
-            if cell == ' ':
-                matrix[(row * 2, col * 2)] = []
-                matrix[(row * 2, col * 2 + 1)] = []
-                matrix[(row * 2 + 1, col * 2)] = []
-                matrix[(row * 2 + 1, col * 2 + 1)] = []
-            elif cell == '+':
-                matrix[(row * 2, col * 2)] = ['r', 'b']
-                matrix[(row * 2, col * 2 + 1)] = ['l', 'b']
-                matrix[(row * 2 + 1, col * 2)] = ['r', 't']
-                matrix[(row * 2 + 1, col * 2 + 1)] = ['l', 't']
-            elif cell == '-':
-                matrix[(row * 2, col * 2)] = ['b']
-                matrix[(row * 2, col * 2 + 1)] = ['b']
-                matrix[(row * 2 + 1, col * 2)] = ['t']
-                matrix[(row * 2 + 1, col * 2 + 1)] = ['t']
-            elif cell == '|':
-                matrix[(row * 2, col * 2)] = ['r']
-                matrix[(row * 2, col * 2 + 1)] = ['l']
-                matrix[(row * 2 + 1, col * 2)] = ['r']
-                matrix[(row * 2 + 1, col * 2 + 1)] = ['l']
-    return matrix
-
-def shape_to_matrix_v1(shape_lines):
-    """
-    Transform the shape into a data structure that can be used for the flood fill
-    algorithm. Boolean status indicates whether the cell can be filled (True)
-    or not (False). ' ' cells can only be filled once, as the they can
-    only belong to one piece. '|' can belong to up to two pieces and '+' cells
-    to up to four pieces.
-
-    Each cell initialises with a dictionary that stores it's fill status.
-    The dictionary keys have the following meanings:
-
-    For '+' cells: ul - upper left corner, ur - upper right corner,
-                   ll - lower left corner, lr - lower right corner
-    For '-' cells: u - upper half, l - lower half
-    For '|' cells: r - right half, l - left half
-    For ' ' cells: c - center
-    """
-    matrix = {}
-    for row, shape_line in enumerate(shape_lines):
-        for col, cell in enumerate(shape_line):
-            if cell == '+':
-                matrix[(row, col, 'ul')] = True
-                matrix[(row, col, 'ur')] = True
-                matrix[(row, col, 'll')] = True
-                matrix[(row, col, 'lr')] = True
-            elif cell == '-':
-                matrix[(row, col, 'u')] = True
-                matrix[(row, col, 'd')] = True
-            elif cell == '|':
-                matrix[(row, col, 'r')] = True
-                matrix[(row, col, 'l')] = True
+        for col, cell_type in enumerate(shape_line):
+            for d_row, d_col, borders in mapping[cell_type]:
+                matrix[(row * 2 + d_row, col * 2 + d_col)] = borders
     return matrix
 
 def get_start_cell(shape_matrix):
@@ -145,19 +103,19 @@ def get_start_cell(shape_matrix):
             return row, col, direction
     return False
 
-def get_piece(cell, shape_matrix, shape_lines):
+def get_piece(cell, to_be_processed, done_cells, shape_matrix, shape_lines):
     """
     Extract one piece. Uses a track the border algorithm.
     """
     start_cell = cell
     piece, edges = [], []
     while cell and not is_piece_complete(piece, cell, shape_lines):
-        if cell_already_visited(cell, shape_matrix):
+        if cell in done_cells:
             return None
-        row, col, _ = cell
-        piece.append((row, col, shape_lines[row][col]))
+        row, col = cell
+        piece.append((row, col, shape_matrix[(row, col)]))
+        done_cells.append(cell)
         next_cell = get_next_cell(cell, shape_matrix)
-        shape_matrix[cell] = False
         edges = add_edge(cell, next_cell, start_cell, edges)
         cell = next_cell
     if not (cell and is_inside_piece(start_cell, edges)):
@@ -189,7 +147,7 @@ def add_edge(cell, next_cell, start_cell, edges):
     return edges
 
 def is_piece_complete(piece, cell, shape_lines):
-    row, col, _ = cell
+    row, col = cell
     return (row, col, shape_lines[row][col]) in piece
 
 def is_inside_piece(start_cell, edges):
