@@ -57,17 +57,16 @@ def break_evil_pieces(shape):
     shape_lines = shape.split('\n')
     blank_shape_lines = get_blank_shape(shape_lines)
     shape_matrix = shape_to_matrix(shape_lines)
-    to_be_processed = shape_matrix.keys()
-    cell = to_be_processed.pop()
+    cells_to_be_processed = list(shape_matrix.keys())
+    cell = cells_to_be_processed[0]
     while cell:
-        piece = get_piece(cell, to_be_processed, done_cells, 
-                          shape_matrix, shape_lines)
+        piece = get_piece(cell, cells_to_be_processed, done_cells, shape_matrix)
         if piece:
             piece = plus_to_lines(piece)
             piece = piece_to_lines(piece, blank_shape_lines)
             piece = trim_piece(piece)
             pieces.append(piece)
-        cell = to_be_processed.pop()
+        cell = cells_to_be_processed[0]
     return pieces
 
 def get_blank_shape(shape_lines):
@@ -81,11 +80,11 @@ def get_blank_shape(shape_lines):
 def shape_to_matrix(shape_lines):
     matrix = {}
     mapping = {
-        ' ': [[0, 0, []], [0, 1, []], [1, 0, []], [1, 1, []]],
-        '+': [[0, 0, ['r', 'b']], [0, 1, ['l', 'b']],
-              [1, 0, ['r', 't']], [1, 1, ['l', 't']]],
-        '-': [[0, 0, ['b']], [0, 1, ['b']], [1, 0, ['t']], [1, 1, ['t']]],
-        '|': [[0, 0, ['r']], [0, 1, ['l']], [1, 0, ['r']], [1, 1, ['l']]]
+        ' ': [[0, 0, set()], [0, 1, set()], [1, 0, set()], [1, 1, set()]],
+        '+': [[0, 0, {'r', 'b'}], [0, 1, {'l', 'b'}],
+              [1, 0, {'r', 't'}], [1, 1, {'l', 't'}]],
+        '-': [[0, 0, {'b'}], [0, 1, {'b'}], [1, 0, {'t'}], [1, 1, {'t'}]],
+        '|': [[0, 0, {'r'}], [0, 1, {'l'}], [1, 0, {'r'}], [1, 1, {'l'}]]
         }
     for row, shape_line in enumerate(shape_lines):
         for col, cell_type in enumerate(shape_line):
@@ -103,22 +102,31 @@ def get_start_cell(shape_matrix):
             return row, col, direction
     return False
 
-def get_piece(cell, to_be_processed, done_cells, shape_matrix, shape_lines):
+def get_piece(cell, cells_to_be_processed, done_cells, shape_matrix):
     """
     Extract one piece. Uses a track the border algorithm.
     """
-    start_cell = cell
-    piece, edges = [], []
-    while cell and not is_piece_complete(piece, cell, shape_lines):
-        if cell in done_cells:
-            return None
+    deltas = {'t': (-1, 0), 'b': (1, 0), 'l': (0, -1), 'r': (0, 1)}
+    piece, edges, work_q = [], [], []
+    start_cell, prev_cell = cell, None
+    work_q.append(start_cell)
+    while work_q:
+        cell = work_q.pop()
         row, col = cell
         piece.append((row, col, shape_matrix[(row, col)]))
         done_cells.append(cell)
-        next_cell = get_next_cell(cell, shape_matrix)
-        edges = add_edge(cell, next_cell, start_cell, edges)
-        cell = next_cell
-    if not (cell and is_inside_piece(start_cell, edges)):
+        del cells_to_be_processed[cells_to_be_processed.index(cell)]
+        for direction in {'t', 'b', 'r', 'l'}.difference(shape_matrix[cell]):
+            d_row, d_col = deltas[direction]
+            next_row, next_col = row + d_row, col + d_col
+            if (next_row, next_col) in cells_to_be_processed and \
+               (next_row, next_col) not in done_cells:
+                work_q.append((next_row, next_col))
+        if prev_cell:
+            pass
+#                 edges = add_edge(prev_cell, cell, start_cell, edges)
+        prev_cell = cell
+    if is_inside_piece(start_cell, edges):
         return None
     return piece
 
