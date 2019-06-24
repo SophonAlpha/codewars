@@ -46,6 +46,7 @@ OFFSET = {'r': (0, 0.25), 'l': (0, -0.25),
           'd': (0.25, 0), 'u': (-0.25, 0),
           'lr': (0.25, 0.25), 'll': (0.25, -0.25),
           'ul': (-0.25, -0.25), 'ur': (-0.25, 0.25)}
+DELTAS = {'t': (-1, 0), 'b': (1, 0), 'l': (0, -1), 'r': (0, 1)}
 
 def break_evil_pieces(shape):
     """
@@ -53,16 +54,16 @@ def break_evil_pieces(shape):
 
     Extract individual pieces from shape and return in list.
     """
-    pieces, done_cells = [], []
+    pieces = []
     shape_lines = shape.split('\n')
     blank_shape_lines = get_blank_shape(shape_lines)
     shape_matrix = shape_to_matrix(shape_lines)
     cells_to_be_processed = list(shape_matrix.keys())
     cell = cells_to_be_processed[0]
     while cell:
-        piece = get_piece(cell, cells_to_be_processed, done_cells, shape_matrix)
+        piece = get_piece(cell, cells_to_be_processed, shape_matrix)
         if piece:
-            piece = plus_to_lines(piece)
+#             piece = plus_to_lines(piece)
             piece = piece_to_lines(piece, blank_shape_lines)
             piece = trim_piece(piece)
             pieces.append(piece)
@@ -102,11 +103,10 @@ def get_start_cell(shape_matrix):
             return row, col, direction
     return False
 
-def get_piece(cell, cells_to_be_processed, done_cells, shape_matrix):
+def get_piece(cell, cells_to_be_processed, shape_matrix):
     """
     Extract one piece. Uses a track the border algorithm.
     """
-    deltas = {'t': (-1, 0), 'b': (1, 0), 'l': (0, -1), 'r': (0, 1)}
     piece, edges, work_q = [], [], []
     start_cell, prev_cell = cell, None
     work_q.append(start_cell)
@@ -114,20 +114,20 @@ def get_piece(cell, cells_to_be_processed, done_cells, shape_matrix):
         cell = work_q.pop()
         row, col = cell
         piece.append((row, col, shape_matrix[(row, col)]))
-        done_cells.append(cell)
+#         done_cells.append(cell)
         del cells_to_be_processed[cells_to_be_processed.index(cell)]
         for direction in {'t', 'b', 'r', 'l'}.difference(shape_matrix[cell]):
-            d_row, d_col = deltas[direction]
+            d_row, d_col = DELTAS[direction]
             next_row, next_col = row + d_row, col + d_col
             if (next_row, next_col) in cells_to_be_processed and \
-               (next_row, next_col) not in done_cells:
+               (next_row, next_col) not in work_q:
                 work_q.append((next_row, next_col))
         if prev_cell:
             pass
 #                 edges = add_edge(prev_cell, cell, start_cell, edges)
         prev_cell = cell
-    if is_inside_piece(start_cell, edges):
-        return None
+#     if is_inside_piece(start_cell, edges):
+#         return None
     return piece
 
 def cell_already_visited(cell, shape_matrix):
@@ -225,9 +225,13 @@ def piece_to_lines(piece, blank_shape_lines):
     """
     Transform the piece matrix into a list of text lines.
     """
+    deltas = [(0, 0), (0, 1), (1, 0), (1, 1)]
     shape = blank_shape_lines[:]
-    for row, col, cell_type in piece:
-        shape[row] = shape[row][:col] + cell_type + shape[row][col + 1:]
+    for row, line in enumerate(blank_shape_lines):
+        for col, _ in enumerate(line):
+            cell_type = set([elem for _, _, elem in [piece((row + d_row, col + d_col))
+                                                     for d_row, d_col in deltas]])
+#             shape[row] = shape[row][:col] + cell_type + shape[row][col + 1:]
     return shape
 
 def trim_piece(shape):
