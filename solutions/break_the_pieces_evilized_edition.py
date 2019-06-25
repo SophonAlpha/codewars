@@ -6,6 +6,7 @@ Level: 1 kyu
 """
 
 import re
+from pip._vendor.pyparsing import col
 
 # The dictionary keys have the following meanings:
 #
@@ -114,7 +115,6 @@ def get_piece(cell, cells_to_be_processed, shape_matrix):
         cell = work_q.pop()
         row, col = cell
         piece[(row, col)] = shape_matrix[(row, col)]
-#         done_cells.append(cell)
         del cells_to_be_processed[cells_to_be_processed.index(cell)]
         for direction in {'t', 'b', 'r', 'l'}.difference(shape_matrix[cell]):
             d_row, d_col = DELTAS[direction]
@@ -122,12 +122,9 @@ def get_piece(cell, cells_to_be_processed, shape_matrix):
             if (next_row, next_col) in cells_to_be_processed and \
                (next_row, next_col) not in work_q:
                 work_q.append((next_row, next_col))
-        if prev_cell:
-            pass
-#                 edges = add_edge(prev_cell, cell, start_cell, edges)
-        prev_cell = cell
-#     if is_inside_piece(start_cell, edges):
-#         return None
+        edges = add_edge(cell, piece[cell], start_cell, edges)
+    if is_inside_piece(start_cell, edges):
+        return None
     return piece
 
 def cell_already_visited(cell, shape_matrix):
@@ -145,13 +142,18 @@ def get_next_cell(cell, shape_matrix):
                 return next_cell
     return None
 
-def add_edge(cell, next_cell, start_cell, edges):
-    start_row, _, _ = start_cell
-    row, col, _ = cell
-    next_row, next_col, _ = next_cell
-    if (row == start_row or next_row == start_row) and \
-        row != next_row:
-        edges.append((row, col, next_row, next_col))
+def add_edge(cell, cell_type, start_cell, edges):
+    start_row, _ = start_cell
+    row, _ = cell
+    if row == start_row and cell_type:
+        if 'r' in cell_type:
+            row_start, col_start = row, col + 1
+            row_end, col_end = row + 1, col + 1
+        if 'l' in cell_type:
+            row_start, col_start = row, col
+            row_end, col_end = row + 1, col
+        if (row_start, col_start, row_end, col_end) not in edges:
+            edges.append((row_start, col_start, row_end, col_end))
     return edges
 
 def is_piece_complete(piece, cell, shape_lines):
