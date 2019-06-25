@@ -107,13 +107,13 @@ def get_piece(cell, cells_to_be_processed, shape_matrix):
     """
     Extract one piece. Uses a track the border algorithm.
     """
-    piece, edges, work_q = [], [], []
+    piece, edges, work_q = {}, [], []
     start_cell, prev_cell = cell, None
     work_q.append(start_cell)
     while work_q:
         cell = work_q.pop()
         row, col = cell
-        piece.append((row, col, shape_matrix[(row, col)]))
+        piece[(row, col)] = shape_matrix[(row, col)]
 #         done_cells.append(cell)
         del cells_to_be_processed[cells_to_be_processed.index(cell)]
         for direction in {'t', 'b', 'r', 'l'}.difference(shape_matrix[cell]):
@@ -227,10 +227,20 @@ def piece_to_lines(piece, blank_shape_lines):
     """
     deltas = [(0, 0), (0, 1), (1, 0), (1, 1)]
     shape = blank_shape_lines[:]
-    for row, line in enumerate(blank_shape_lines):
-        for col, _ in enumerate(line):
-            cell_type = set([elem for _, _, elem in [piece((row + d_row, col + d_col))
-                                                     for d_row, d_col in deltas]])
+    work_q = list(piece.keys())
+    while work_q:
+        row, col = work_q.pop()
+        row, _ = divmod(row, 2)
+        col, _ = divmod(col, 2)
+        cells = [(row + d_row, col + d_col) for d_row, d_col in deltas]
+        for cell in cells:
+            if cell in work_q:
+                del work_q[work_q.index(cell)]
+        cell_types = [elem for elem in [piece[cell] for cell in cells]]
+        cell_types = set().union(*cell_types)
+#         if not cell_types:
+#             cell_char = ' '
+#         elif 
 #             shape[row] = shape[row][:col] + cell_type + shape[row][col + 1:]
     return shape
 
