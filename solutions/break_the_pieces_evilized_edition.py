@@ -230,18 +230,25 @@ def piece_to_lines(piece, blank_shape_lines):
     work_q = list(piece.keys())
     while work_q:
         row, col = work_q.pop()
-        row, _ = divmod(row, 2)
-        col, _ = divmod(col, 2)
+        row, col = (row // 2) * 2, (col // 2) * 2
         cells = [(row + d_row, col + d_col) for d_row, d_col in deltas]
         for cell in cells:
             if cell in work_q:
                 del work_q[work_q.index(cell)]
-        cell_types = [elem for elem in [piece[cell] for cell in cells]]
+        cell_types = [elem for elem in [piece[cell] for cell in cells 
+                                        if cell in piece.keys()]]
         cell_types = set().union(*cell_types)
-#         if not cell_types:
-#             cell_char = ' '
-#         elif 
-#             shape[row] = shape[row][:col] + cell_type + shape[row][col + 1:]
+        if not cell_types:
+            cell_char = ' '
+        elif cell_types.intersection({'r', 'l'}) and \
+             cell_types.intersection({'t', 'b'}):
+            cell_char = '+'
+        elif cell_types.intersection({'r', 'l'}):
+            cell_char = '|'
+        elif cell_types.intersection({'t', 'b'}):
+            cell_char = '-'
+        s_row, s_col = row // 2, col // 2
+        shape[s_row] = shape[s_row][:s_col] + cell_char + shape[s_row][s_col + 1:]
     return shape
 
 def trim_piece(shape):
