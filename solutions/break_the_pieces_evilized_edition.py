@@ -7,45 +7,6 @@ Level: 1 kyu
 
 import re
 
-# The dictionary keys have the following meanings:
-#
-#     ul - upper left corner
-#     ur - upper right corner
-#     ll - lower left corner
-#     lr - lower right corner
-#     u  - upper half
-#     l  - lower half
-#     r  - right half
-#     l  - left half
-#     c  - center
-TRANSITION = {
-    'ur': [['ur', ['r', 'lr']],
-           ['ul', ['u', 'ur']],
-           ['ll', ['l', 'ul']],
-           ['lr', ['d', 'll']]],
-    'ul': [['ul', ['u', 'ur']],
-           ['ll', ['l', 'ul']],
-           ['lr', ['d', 'll']],
-           ['ur', ['r', 'lr']]],
-    'll': [['ll', ['l', 'ul']],
-           ['lr', ['d', 'll']],
-           ['ur', ['r', 'lr']],
-           ['ul', ['u', 'ur']]],
-    'lr': [['lr', ['d', 'll']],
-           ['ur', ['r', 'lr']],
-           ['ul', ['u', 'ur']],
-           ['ll', ['l', 'ul']]],
-    'u': [['u', ['u', 'ur']]],
-    'd': [['d', ['d', 'll']]],
-    'l': [['l', ['l', 'ul']]],
-    'r': [['r', ['r', 'lr']]],
-    }
-NEIGHBOUR = {'r': (-1, 0), 'l': (1, 0), 'd': (0, 1), 'u': (0, -1),
-             'lr': (0, 1), 'll': (1, 0), 'ul': (0, -1), 'ur': (-1, 0)}
-OFFSET = {'r': (0, 0.25), 'l': (0, -0.25),
-          'd': (0.25, 0), 'u': (-0.25, 0),
-          'lr': (0.25, 0.25), 'll': (0.25, -0.25),
-          'ul': (-0.25, -0.25), 'ur': (-0.25, 0.25)}
 DELTAS = {'t': (-1, 0), 'b': (1, 0), 'l': (0, -1), 'r': (0, 1)}
 
 def break_evil_pieces(shape):
@@ -58,14 +19,16 @@ def break_evil_pieces(shape):
     shape_lines = shape.split('\n')
     blank_shape_lines = get_blank_shape(shape_lines)
     shape_matrix = shape_to_matrix(shape_lines)
+    shape_matrix, loose_ends = remove_loose_ends(shape_matrix)
     cells_to_be_processed = list(shape_matrix.keys())
     while cells_to_be_processed:
-        cell = cells_to_be_processed.pop()
+        cell = cells_to_be_processed[0]
         piece = get_piece(cell, cells_to_be_processed, shape_matrix)
         if piece:
 #             piece = plus_to_lines(piece)
             piece = piece_to_lines(piece, blank_shape_lines)
             piece = trim_piece(piece)
+            print(piece)
             pieces.append(piece)
     return pieces
 
@@ -92,19 +55,24 @@ def shape_to_matrix(shape_lines):
                 matrix[(row * 2 + d_row, col * 2 + d_col)] = borders
     return matrix
 
-def get_start_cell(shape_matrix):
-    """
-    Return a staring point for detecting a piece. If no starting point can be
-    found return None, None (usually this means all pieces have been found).
-    """
-    for row, col, direction in shape_matrix.keys():
-        if shape_matrix[(row, col, direction)]:
-            return row, col, direction
-    return False
+def remove_loose_ends(shape_matrix):
+    
+    deltas = {('r', 'b'): [(0, -1), (-1, 0)],
+              ('l', 'b'): [(0, 1), (-1, 0)],
+              ('r', 't'): [(0, -1), (1, 0)],
+              ('l', 't'): [(0, 1), (1, 0)]}
+    for cell in shape_matrix.keys():
+        if shape_matrix[cell] == {'r', 'b'}:
+            
+        borders = shape_matrix[cell]
+        neighbours = [deltas[key] for key in deltas.keys() 
+                      if tuple(key) == borders]
+        
+
 
 def get_piece(cell, cells_to_be_processed, shape_matrix):
     """
-    Extract one piece. Uses a track the border algorithm.
+
     """
     piece, edges, work_q = {}, [], []
     start_cell = cell
@@ -125,21 +93,6 @@ def get_piece(cell, cells_to_be_processed, shape_matrix):
         return None
     return piece
 
-def cell_already_visited(cell, shape_matrix):
-    return not shape_matrix[cell]
-
-def get_next_cell(cell, shape_matrix):
-    row, col, start_direction = cell
-    for directions in TRANSITION[start_direction]:
-        direction = directions[0]
-        d_row, d_col = NEIGHBOUR[direction]
-        next_row, next_col = row + d_row, col + d_col
-        for next_direction in directions[1]:
-            next_cell = (next_row, next_col, next_direction)
-            if next_cell in shape_matrix.keys():
-                return next_cell
-    return None
-
 def add_edge(cell, cell_type, start_cell, edges):
     deltas = {'r': (0, 1, 1, 1), 'l': (0, 0, 1, 0)}
     start_row, _ = start_cell
@@ -151,10 +104,6 @@ def add_edge(cell, cell_type, start_cell, edges):
         if edge not in edges:
             edges.append(edge)
     return edges
-
-def is_piece_complete(piece, cell, shape_lines):
-    row, col = cell
-    return (row, col, shape_lines[row][col]) in piece
 
 def is_inside_piece(start_cell, edges):
     result = False
