@@ -6,7 +6,6 @@ Level: 1 kyu
 """
 
 import re
-from pip._vendor.pyparsing import col
 
 # The dictionary keys have the following meanings:
 #
@@ -60,15 +59,14 @@ def break_evil_pieces(shape):
     blank_shape_lines = get_blank_shape(shape_lines)
     shape_matrix = shape_to_matrix(shape_lines)
     cells_to_be_processed = list(shape_matrix.keys())
-    cell = cells_to_be_processed[0]
-    while cell:
+    while cells_to_be_processed:
+        cell = cells_to_be_processed.pop()
         piece = get_piece(cell, cells_to_be_processed, shape_matrix)
         if piece:
 #             piece = plus_to_lines(piece)
             piece = piece_to_lines(piece, blank_shape_lines)
             piece = trim_piece(piece)
             pieces.append(piece)
-        cell = cells_to_be_processed[0]
     return pieces
 
 def get_blank_shape(shape_lines):
@@ -109,7 +107,7 @@ def get_piece(cell, cells_to_be_processed, shape_matrix):
     Extract one piece. Uses a track the border algorithm.
     """
     piece, edges, work_q = {}, [], []
-    start_cell, prev_cell = cell, None
+    start_cell = cell
     work_q.append(start_cell)
     while work_q:
         cell = work_q.pop()
@@ -123,7 +121,7 @@ def get_piece(cell, cells_to_be_processed, shape_matrix):
                (next_row, next_col) not in work_q:
                 work_q.append((next_row, next_col))
         edges = add_edge(cell, piece[cell], start_cell, edges)
-    if is_inside_piece(start_cell, edges):
+    if not is_inside_piece(start_cell, edges):
         return None
     return piece
 
@@ -143,17 +141,15 @@ def get_next_cell(cell, shape_matrix):
     return None
 
 def add_edge(cell, cell_type, start_cell, edges):
+    deltas = {'r': (0, 1, 1, 1), 'l': (0, 0, 1, 0)}
     start_row, _ = start_cell
     row, _ = cell
+    cell_type = cell_type.intersection({'r', 'l'})
     if row == start_row and cell_type:
-        if 'r' in cell_type:
-            row_start, col_start = row, col + 1
-            row_end, col_end = row + 1, col + 1
-        if 'l' in cell_type:
-            row_start, col_start = row, col
-            row_end, col_end = row + 1, col
-        if (row_start, col_start, row_end, col_end) not in edges:
-            edges.append((row_start, col_start, row_end, col_end))
+        cell_type = list(cell_type)[0]
+        edge = tuple(map(sum, zip(cell + cell, deltas[cell_type])))
+        if edge not in edges:
+            edges.append(edge)
     return edges
 
 def is_piece_complete(piece, cell, shape_lines):
@@ -163,9 +159,8 @@ def is_piece_complete(piece, cell, shape_lines):
 def is_inside_piece(start_cell, edges):
     result = False
     cross_points_right, cross_points_left = 0, 0
-    start_x, start_y, direction = start_cell
-    offset_x, offset_y = OFFSET[direction]
-    test_x, test_y = start_x + offset_x, start_y + offset_y
+    start_x, start_y = start_cell
+    test_x, test_y = start_x + 0.25, start_y + 0.25
     for edge_start_x, edge_start_y, edge_end_x, edge_end_y in edges:
         if  edge_start_x <= test_x < edge_end_x or \
             edge_end_x <= test_x < edge_start_x:
