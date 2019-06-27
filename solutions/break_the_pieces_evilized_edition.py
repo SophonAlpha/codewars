@@ -56,19 +56,22 @@ def shape_to_matrix(shape_lines):
     return matrix
 
 def remove_loose_ends(shape_matrix):
-    
-    deltas = {('r', 'b'): [(0, -1), (-1, 0)],
-              ('l', 'b'): [(0, 1), (-1, 0)],
-              ('r', 't'): [(0, -1), (1, 0)],
-              ('l', 't'): [(0, 1), (1, 0)]}
+    loose_ends = []
+    deltas = [{'r': (0, -1), 'b': (-1, 0)},
+              {'l': (0, 1), 'b': (-1, 0)},
+              {'r': (0, -1), 't': (1, 0)},
+              {'l': (0, 1), 't': (1, 0)}]
     for cell in shape_matrix.keys():
-        if shape_matrix[cell] == {'r', 'b'}:
-            
-        borders = shape_matrix[cell]
-        neighbours = [deltas[key] for key in deltas.keys() 
-                      if tuple(key) == borders]
-        
-
+        neighbours = [entry for entry in deltas 
+                      if set(entry.keys()) == shape_matrix[cell]]
+        if neighbours:
+            borders = neighbours[0]
+            for border in borders:
+                cell_to_check = map(sum, zip(cell, borders[border]))
+                if not shape_matrix[cell_to_check]:
+                    loose_ends.append((cell, shape_matrix[cell]))
+                    shape_matrix[cell] = shape_matrix[cell].difference(border)
+    return shape_matrix, loose_ends
 
 def get_piece(cell, cells_to_be_processed, shape_matrix):
     """
