@@ -8,6 +8,7 @@ https://www.codewars.com/kata/break-the-pieces-evilized-edition
 import pytest
 
 from solutions.break_the_pieces_evilized_edition import break_evil_pieces
+from botocore.docs import shape
 
 TEST_CASES = [
 {'name':'1.) simple shape',
@@ -138,7 +139,7 @@ TEST_CASES = [
 |                 |
 +-----------------+
 """.strip('\n'),
-'expected': """
+'expected': ["""
 +-----------------+
 |                 |
 |   +-------------+
@@ -149,7 +150,7 @@ TEST_CASES = [
 |                 |
 |                 |
 +-----------------+
-""".strip('\n')},
+""".strip('\n')]},
 
 {'name': '6.) warming up',
 'shape': """
@@ -190,12 +191,12 @@ TEST_CASES = [
 ++
 ++
 """.strip('\n'),
-'expected': """
+'expected': ["""
 ++
 ++
-""".strip('\n')},
+""".strip('\n')]},
 
-{'name': '7.) another brick in the wall',
+{'name': '8.) another brick in the wall',
 'shape': """
 +-+  
 | +-+
@@ -242,7 +243,7 @@ TEST_CASES = [
 +-+
 """.strip('\n')]},
 
-{'name': '8.) separated pieces',
+{'name': '9.) separated pieces',
 'shape': """
 +------+ +--+
 |      | |  |
@@ -294,7 +295,7 @@ TEST_CASES = [
   +--+
 """.strip('\n')]},
 
-{'name': '9.) duck\'s foot',
+{'name': '10.) duck\'s foot',
 'shape': """
 ++
 ||
@@ -306,7 +307,7 @@ TEST_CASES = [
 |             +--+
 +----------------+
 """.strip('\n'),
-'expected': """
+'expected': ["""
 ++
 ||
 ||
@@ -316,9 +317,9 @@ TEST_CASES = [
 |             |
 |             +--+
 +----------------+
-""".strip('\n')},
+""".strip('\n')]},
 
-{'name': '10.) like a vortex',
+{'name': '11.) like a vortex',
 'shape': """
          
  +-----+ 
@@ -345,7 +346,7 @@ TEST_CASES = [
 +-----+
 """.strip('\n')]},
 
-{'name': '11.) Homer\'s favorite',
+{'name': '12.) Homer\'s favorite',
 'shape': """
               
  +----------+ 
@@ -380,6 +381,42 @@ TEST_CASES = [
 |          |
 |          |
 +----------+
+""".strip('\n')]},
+
+{'name': '13.) Yin-Yang',
+'shape': """
++-------------------++--+
+|                   ||  |
+|                   ||  |
+|  +----------------+|  |
+|  |+----------------+  |
+|  ||                   |
++--++-------------------+
+""".strip('\n'),
+'expected': ["""
+                 ++
+                 ||
+                 ||
++----------------+|
+|+----------------+
+||
+++
+""".strip('\n'), """
+                 +--+
+                 |  |
+                 |  |
+                 |  |
++----------------+  |
+|                   |
++-------------------+
+""".strip('\n'), """
++-------------------+
+|                   |
+|                   |
+|  +----------------+
+|  |
+|  |
++--+
 """.strip('\n')]}
 
 ]
@@ -389,5 +426,6 @@ def test_testcases(test_case):
     shape = test_case['shape']
     expected = test_case['expected']
     pieces = break_evil_pieces(shape)
+    assert len(pieces) == len(expected)
     for piece in pieces:
         assert piece in expected
