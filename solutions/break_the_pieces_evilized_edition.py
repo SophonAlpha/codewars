@@ -7,8 +7,6 @@ Level: 1 kyu
 
 import re
 
-DELTAS = {'t': (-1, 0), 'b': (1, 0), 'l': (0, -1), 'r': (0, 1)}
-
 def break_evil_pieces(shape):
     """
     main function
@@ -19,16 +17,14 @@ def break_evil_pieces(shape):
     shape_lines = shape.split('\n')
     blank_shape_lines = get_blank_shape(shape_lines)
     shape_matrix = shape_to_matrix(shape_lines)
-    shape_matrix, loose_ends = remove_loose_ends(shape_matrix)
+    shape_matrix = remove_loose_ends(shape_matrix)
     cells_to_be_processed = list(shape_matrix.keys())
     while cells_to_be_processed:
         cell = cells_to_be_processed[0]
         piece = get_piece(cell, cells_to_be_processed, shape_matrix)
         if piece:
-#             piece = plus_to_lines(piece)
             piece = piece_to_lines(piece, blank_shape_lines)
             piece = trim_piece(piece)
-            print(piece)
             pieces.append(piece)
     return pieces
 
@@ -41,7 +37,18 @@ def get_blank_shape(shape_lines):
     return blank_shape_lines
 
 def shape_to_matrix(shape_lines):
-    matrix = {}
+    """
+    Transform the text lines into a data structure for processing.
+    Each cell is transformed into 2 x 2 cells. For each cell a set of
+    characters indicates which border line is set. The characters have the
+    following meaning: 'r' - right, 'l' - left, 'b' - bottom, 't' - top.
+
+    An example: a single cell with the character '+' at row 0 and
+    column 0 = (0, 0) is translated into the following four cells:
+        (0, 0,) = {'r', 'b'}, (0, 1) = {'l', 'b'},
+        (1, 0) = {'r', 't'}, (1, 1) = {'l', 't'}
+    """
+    shape_matrix = {}
     mapping = {
         ' ': [[0, 0, set()], [0, 1, set()], [1, 0, set()], [1, 1, set()]],
         '+': [[0, 0, {'r', 'b'}], [0, 1, {'l', 'b'}],
@@ -52,31 +59,36 @@ def shape_to_matrix(shape_lines):
     for row, shape_line in enumerate(shape_lines):
         for col, cell_type in enumerate(shape_line):
             for d_row, d_col, borders in mapping[cell_type]:
-                matrix[(row * 2 + d_row, col * 2 + d_col)] = borders
-    return matrix
+                shape_matrix[(row * 2 + d_row, col * 2 + d_col)] = borders
+    return shape_matrix
 
 def remove_loose_ends(shape_matrix):
-    loose_ends = []
-    deltas = [{'r': (0, -1), 'b': (-1, 0)},
-              {'l': (0, 1), 'b': (-1, 0)},
-              {'r': (0, -1), 't': (1, 0)},
-              {'l': (0, 1), 't': (1, 0)}]
+    """
+    For all '+' characters the lines that are not connected need to be removed.
+    This is a neccessary preparation for later to correctly test whether
+    a piece is closed and not just the outside area around a piece.
+    """
+    deltas = [{'r': (-1, 0), 'b': (0, -1)},
+              {'l': (-1, 0), 'b': (0, 1)},
+              {'r': (1, 0), 't': (0, -1)},
+              {'l': (1, 0), 't': (0, 1)}]
     for cell in shape_matrix.keys():
-        neighbours = [entry for entry in deltas 
+        neighbours = [entry for entry in deltas
                       if set(entry.keys()) == shape_matrix[cell]]
         if neighbours:
             borders = neighbours[0]
             for border in borders:
-                cell_to_check = map(sum, zip(cell, borders[border]))
-                if not shape_matrix[cell_to_check]:
-                    loose_ends.append((cell, shape_matrix[cell]))
+                cell_to_check = tuple(map(sum, zip(cell, borders[border])))
+                if not cell_to_check in shape_matrix or \
+                   not shape_matrix[cell_to_check]:
                     shape_matrix[cell] = shape_matrix[cell].difference(border)
-    return shape_matrix, loose_ends
+    return shape_matrix
 
 def get_piece(cell, cells_to_be_processed, shape_matrix):
     """
-
+    Extract a single piece given a start cell.
     """
+    deltas = {'t': (-1, 0), 'b': (1, 0), 'l': (0, -1), 'r': (0, 1)}
     piece, edges, work_q = {}, [], []
     start_cell = cell
     work_q.append(start_cell)
@@ -86,7 +98,7 @@ def get_piece(cell, cells_to_be_processed, shape_matrix):
         piece[(row, col)] = shape_matrix[(row, col)]
         del cells_to_be_processed[cells_to_be_processed.index(cell)]
         for direction in {'t', 'b', 'r', 'l'}.difference(shape_matrix[cell]):
-            d_row, d_col = DELTAS[direction]
+            d_row, d_col = deltas[direction]
             next_row, next_col = row + d_row, col + d_col
             if (next_row, next_col) in cells_to_be_processed and \
                (next_row, next_col) not in work_q:
@@ -97,6 +109,11 @@ def get_piece(cell, cells_to_be_processed, shape_matrix):
     return piece
 
 def add_edge(cell, cell_type, start_cell, edges):
+    """
+    Build a list of all vertical edges at the same row as the start cell. This
+    will later be used to detect whether a test point is inside or outside a
+    piece.
+    """
     deltas = {'r': (0, 1, 1, 1), 'l': (0, 0, 1, 0)}
     start_row, _ = start_cell
     row, _ = cell
@@ -109,6 +126,14 @@ def add_edge(cell, cell_type, start_cell, edges):
     return edges
 
 def is_inside_piece(start_cell, edges):
+    """
+    Test wether a piece is closed and not just the area outside the piece. This
+    is done using the ray casting algorithm (crossing number algorithm or
+    even-odd rule algorithm). A test point is placed at what we expect to be
+    inside the piece. We cast a horizontal ray from the test point and count
+    how many times it crosses the boundary. If it is odd, the point is
+    inside, even the point is outside.
+    """
     result = False
     cross_points_right, cross_points_left = 0, 0
     start_x, start_y = start_cell
@@ -116,11 +141,11 @@ def is_inside_piece(start_cell, edges):
     for edge_start_x, edge_start_y, edge_end_x, edge_end_y in edges:
         if  edge_start_x <= test_x < edge_end_x or \
             edge_end_x <= test_x < edge_start_x:
-            v1 = (edge_start_x, edge_start_y,
-                  edge_end_x - edge_start_x, edge_end_y - edge_start_y)
-            v2 = (test_x, test_y, 0, 1)
-            _, t2 = vector_intersection(v1, v2)
-            if t2 < 0:
+            v_1 = (edge_start_x, edge_start_y,
+                   edge_end_x - edge_start_x, edge_end_y - edge_start_y)
+            v_2 = (test_x, test_y, 0, 1)
+            _, t_2 = vector_intersection(v_1, v_2)
+            if t_2 < 0:
                 cross_points_right += 1
             else:
                 cross_points_left += 1
@@ -128,47 +153,17 @@ def is_inside_piece(start_cell, edges):
         result = True
     return result
 
-def vector_intersection(v1, v2):
+def vector_intersection(v_1, v_2):
     """
     Calculate the intersection between two lines using Cramer's rule.
     """
-    p1x, p1y, d1x, d1y = v1
-    p2x, p2y, d2x, d2y = v2
-    cx, cy = p2x - p1x, p2y - p1y
-    m = d1y * d2x - d1x * d2y
-    t1 = (cy * d2x - cx * d2y) / m if m != 0 else None
-    t2 = (d1x * cy - d1y * cx) / m if m != 0 else None
-    return t1, t2
-
-def plus_to_lines(piece):
-    """
-    Transform all '+' that are no longer corners or intersections into '|' or
-    '-'.
-    """
-    for row, col, cell_type in piece:
-        if cell_type == '+':
-            piece = should_be_line(row, col, piece)
-    return piece
-
-def should_be_line(row, col, piece):
-    """
-    Transform all '+' that are no longer corners or intersections into '|' or
-    '-'.
-    """
-    index = piece.index((row, col, '+'))
-    horizontal = [(row, col + delta) for delta in [1, -1]]
-    result = all([(row, col, '-') in piece or \
-                  (row, col, '+') in piece for row, col in horizontal])
-    if result:
-        piece[index] = (row, col, '-')
-        return piece
-    vertical = [(row + delta, col) for delta in [1, -1]]
-    result = all([(row, col, '|') in piece or \
-                  (row, col, '+') in piece for row, col in vertical])
-    if result:
-        piece[index] = (row, col, '|')
-        return piece
-    return piece
+    p1x, p1y, d1x, d1y = v_1
+    p2x, p2y, d2x, d2y = v_2
+    c_x, c_y = p2x - p1x, p2y - p1y
+    m_div = d1y * d2x - d1x * d2y
+    t_1 = (c_y * d2x - c_x * d2y) / m_div if m_div != 0 else None
+    t_2 = (d1x * c_y - d1y * c_x) / m_div if m_div != 0 else None
+    return t_1, t_2
 
 def piece_to_lines(piece, blank_shape_lines):
     """
@@ -184,7 +179,7 @@ def piece_to_lines(piece, blank_shape_lines):
         for cell in cells:
             if cell in work_q:
                 del work_q[work_q.index(cell)]
-        cell_types = [elem for elem in [piece[cell] for cell in cells 
+        cell_types = [elem for elem in [piece[cell] for cell in cells
                                         if cell in piece.keys()]]
         cell_types = set().union(*cell_types)
         if not cell_types:
@@ -220,11 +215,14 @@ def trim_piece(shape):
 
 if __name__ == '__main__':
     INPUT_SHAPE = """
-     
- +-+ 
- | | 
- +-+ 
-     
++----------+
+|          |
+|          |
+|          |
++----------+
+|          |
+|          |
++----------+
 """.strip('\n')
     for text_piece in break_evil_pieces(INPUT_SHAPE):
         print('-----------------------')
