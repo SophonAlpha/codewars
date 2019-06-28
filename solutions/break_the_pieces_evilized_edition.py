@@ -80,7 +80,7 @@ def remove_loose_ends(shape_matrix):
             for border in borders:
                 cell_to_check = tuple(map(sum, zip(cell, borders[border])))
                 if not cell_to_check in shape_matrix or \
-                   not shape_matrix[cell_to_check]:
+                   not shape_matrix[cell_to_check].intersection(set(border)):
                     shape_matrix[cell] = shape_matrix[cell].difference(border)
     return shape_matrix
 
@@ -215,15 +215,8 @@ def trim_piece(shape):
 
 if __name__ == '__main__':
     INPUT_SHAPE = """
-                           
- +-------------------++--+ 
- |                   ||  | 
- |                   ||  | 
- |  +----------------+|  | 
- |  |+----------------+  | 
- |  ||                   | 
- +--++-------------------+ 
-                           
+++++
++--+
 """.strip('\n')
     for text_piece in break_evil_pieces(INPUT_SHAPE):
         print('-----------------------')
