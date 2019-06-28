@@ -6,7 +6,11 @@ Level: 1 kyu
 """
 
 import re
+from solutions.performance import Profile
 
+PERFORMANCE_STATS = []
+
+@Profile(stats=PERFORMANCE_STATS)
 def break_evil_pieces(shape):
     """
     main function
@@ -28,6 +32,7 @@ def break_evil_pieces(shape):
             pieces.append(piece)
     return pieces
 
+@Profile(stats=PERFORMANCE_STATS)
 def get_blank_shape(shape_lines):
     """
     Generate a blank shape. Used later to add extracted characters that make up
@@ -36,6 +41,7 @@ def get_blank_shape(shape_lines):
     blank_shape_lines = [' ' * len(shape_line) for shape_line in shape_lines]
     return blank_shape_lines
 
+@Profile(stats=PERFORMANCE_STATS)
 def shape_to_matrix(shape_lines):
     """
     Transform the text lines into a data structure for processing.
@@ -62,6 +68,7 @@ def shape_to_matrix(shape_lines):
                 shape_matrix[(row * 2 + d_row, col * 2 + d_col)] = borders
     return shape_matrix
 
+@Profile(stats=PERFORMANCE_STATS)
 def remove_loose_ends(shape_matrix):
     """
     For all '+' characters the lines that are not connected need to be removed.
@@ -84,6 +91,7 @@ def remove_loose_ends(shape_matrix):
                     shape_matrix[cell] = shape_matrix[cell].difference(border)
     return shape_matrix
 
+@Profile(stats=PERFORMANCE_STATS)
 def get_piece(cell, cells_to_be_processed, shape_matrix):
     """
     Extract a single piece given a start cell.
@@ -108,6 +116,7 @@ def get_piece(cell, cells_to_be_processed, shape_matrix):
         return None
     return piece
 
+@Profile(stats=PERFORMANCE_STATS)
 def add_edge(cell, cell_type, start_cell, edges):
     """
     Build a list of all vertical edges at the same row as the start cell. This
@@ -125,6 +134,7 @@ def add_edge(cell, cell_type, start_cell, edges):
             edges.append(edge)
     return edges
 
+@Profile(stats=PERFORMANCE_STATS)
 def is_inside_piece(start_cell, edges):
     """
     Test wether a piece is closed and not just the area outside the piece. This
@@ -153,6 +163,7 @@ def is_inside_piece(start_cell, edges):
         result = True
     return result
 
+@Profile(stats=PERFORMANCE_STATS)
 def vector_intersection(v_1, v_2):
     """
     Calculate the intersection between two lines using Cramer's rule.
@@ -165,6 +176,7 @@ def vector_intersection(v_1, v_2):
     t_2 = (d1x * c_y - d1y * c_x) / m_div if m_div != 0 else None
     return t_1, t_2
 
+@Profile(stats=PERFORMANCE_STATS)
 def piece_to_lines(piece, blank_shape_lines):
     """
     Transform the piece matrix into a list of text lines.
@@ -195,6 +207,7 @@ def piece_to_lines(piece, blank_shape_lines):
         shape[s_row] = shape[s_row][:s_col] + cell_char + shape[s_row][s_col + 1:]
     return shape
 
+@Profile(stats=PERFORMANCE_STATS)
 def trim_piece(shape):
     """
     Remove all unnecessary white space around an extracted piece.
@@ -215,9 +228,78 @@ def trim_piece(shape):
 
 if __name__ == '__main__':
     INPUT_SHAPE = """
-++++
-+--+
++--------+-+----------------+-+----------------+-+--------+
+|        | |                | |                | |        |
+|        ++++               | |                | |        |
+|        ++++               | |                | |        |
+|        ++++             +-+ +-+            +-+ +-+      |
+|        ++++             |     |            |     |      |
++-----------+      +------+     +------------+     +------+
+| +--------+|      |                                      |
++-+   +---+||      +--------------------------------------+
+|     |+-+|||                                             |
+|     || ++||                                             |
+|     |+---+|                                             |
+|     +-----+                                             |
+|        +-+                +-+                +-+        |
+|        +-+                | |                | |        |
+|    +------+               | |                | |        |
+|    |+----+|         +-----+ |                | |        |
+|    ||+--+||         |+-+    |              +-+ +-+      |
+|    |||++|||         || |  +-+              |     |      |
+++   |||++|||      +--+| +--+    +-----------+     +------+
+||   |||+-+||      |   |      +--+                        |
+++   ||+---+|      +---+  +---+   +-----------------------+
+|    |+-++--+             |       |                       |
+|+---+--+|                +-+ +---+                       |
+|+-------+                  | |                           |
+|                           | |                           |
+|        +-+                | |                +-+        |
+|        +-+                +-+                +-+        |
+|                       +------+                          |
+|                       |+----+|                          |
+|                       ||+--+||                          |
+|       +----+          |||++|||                          |
+++      |+--+|  ++--+   |||++|||      +-------------------+
+||      ||++||  ||  |   |||+-+||      |                   |
+++      ||++||  ++--+   ||+---+|      +------+     +------+
+|       |+--+|          |+-++--+             |     |      |
+|       +----+      +---+--+|                +-+ +-+      |
+|                   +-------+                  | |        |
+|                                              | |        |
+|        +-+                +-+                | |        |
+|        +-+                +-+                +-+        |
+|  +-----+ |    ++                                        |
+|  +-++----+    ++                                        |
+|    ++                                                   |
+|    ||                                                   |
+++   |+-------------+                 +-------------------+
+||   |              |                 |                   |
+++   +---+ +--------+                 +------+     +------+
+|        | |                                 |     |      |
+|        | |                                 +-+ +-+      |
+|        | |                                   | |        |
+|        | |                                   | |        |
+|        | |                +-+                | |        |
+|        +-+                | |                | |        |
+|  +-----+ |    ++          | |                | |        |
+|  +-++----+    ++    +-----+ |                | +-----+  |
+|    ++               |+-+    |                |    +-+|  |
+|    ||               || |  +-+                +-+  | ||  |
+++   |+---------------+| +--+    +----------+    +--+ |+--+
+||   |                 |      +--+          +--+      |   |
+++   +---+ +-----------+  +---+   +--------+   +---+  +---+
+|        | |              |       |        |       |      |
+|        | |              +-+ +---+        +---+ +-+      |
+|        | |                | |                | |        |
+|        | |                | |                | |        |
+|        | |                | |                | |        |
++--------+-+----------------+-+----------------+-+--------+
 """.strip('\n')
-    for text_piece in break_evil_pieces(INPUT_SHAPE):
-        print('-----------------------')
-        print(text_piece)
+    break_evil_pieces(INPUT_SHAPE)
+    with open('break_the_pieces_evilized_edition.csv', 'w') as outfile:
+        for entry in PERFORMANCE_STATS:
+            outfile.write('{}, {}\n'.format(entry[0], entry[1]))
+#     for text_piece in break_evil_pieces(INPUT_SHAPE):
+#         print('-----------------------')
+#         print(text_piece)
