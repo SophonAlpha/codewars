@@ -6,9 +6,18 @@ Level: 1 kyu
 
 Performance optimizations:
 
-2019-06-29 
-    approach "2x2 sub-cells", runtime: 10.93s
-    work q loops: 15812, direction loops: 58324
+    reference shape size: 67 rows, 59 columns
+    
+    2019-06-29 
+        approach "2x2 sub-cells", runtime: 10.93s
+        shape matrix size: 15812
+        work q loops: 15812
+        direction loops: 58324
+    
+        approach "2x2 sub-cells, process white spaces", runtime: 10.97s
+        shape matrix size: 15812
+        work q loops: 10002
+        direction loops: 35084
 
 """
 
@@ -120,7 +129,7 @@ def get_piece(cell, cells_to_be_processed, shape_matrix):
         row, col = cell
         piece[(row, col)] = shape_matrix[(row, col)]
         del cells_to_be_processed[cells_to_be_processed.index(cell)]
-        process_white_spaces(cell, piece, cells_to_be_processed, shape_matrix)
+        process_white_spaces(cell, piece, work_q, cells_to_be_processed, shape_matrix)
         for direction in {'t', 'b', 'r', 'l'}.difference(shape_matrix[cell]):
             PERF_DIRECTION_LOOPS += 1
             d_row, d_col = deltas[direction]
@@ -134,18 +143,18 @@ def get_piece(cell, cells_to_be_processed, shape_matrix):
     return piece
 
 @Profile(stats=PERFORMANCE_STATS)
-def process_white_spaces(cell, piece, cells_to_be_processed, shape_matrix):
-    row, col = cell
-    if shape_matrix[cell].intersection({'l', set()}):
-        while not shape_matrix[(row, col + 1)]:
-            col += 1
-            piece[(row, col)] = shape_matrix[(row, col)]
-            del cells_to_be_processed[cells_to_be_processed.index((row, col))]
-    if shape_matrix[cell].intersection({'r', set()}):
-        while not shape_matrix[(row, col - 1)]:
-            col += 1
-            piece[(row, col)] = shape_matrix[(row, col)]
-            del cells_to_be_processed[cells_to_be_processed.index((row, col))]
+def process_white_spaces(cell, piece, work_q, cells_to_be_processed, shape_matrix):
+    for d_col in [1, -1]:
+        row, col = cell
+        if not shape_matrix[cell] or 'l' in shape_matrix[cell]:
+            next_cell = row, col + d_col
+            while next_cell in cells_to_be_processed and \
+                  len(shape_matrix[next_cell]) == 0:
+                piece[next_cell] = shape_matrix[next_cell]
+                del cells_to_be_processed[cells_to_be_processed.index(next_cell)]
+                if next_cell in work_q:
+                    del work_q[work_q.index(next_cell)]
+                next_cell = row, col + d_col
     return
 
 @Profile(stats=PERFORMANCE_STATS)
@@ -155,15 +164,16 @@ def add_edge(cell, cell_type, start_cell, edges):
     will later be used to detect whether a test point is inside or outside a
     piece.
     """
-    deltas = {'r': (0, 1, 1, 1), 'l': (0, 0, 1, 0)}
     start_row, _ = start_cell
     row, _ = cell
-    cell_type = cell_type.intersection({'r', 'l'})
-    if row == start_row and cell_type:
-        cell_type = list(cell_type)[0]
-        edge = tuple(map(sum, zip(cell + cell, deltas[cell_type])))
-        if edge not in edges:
-            edges.append(edge)
+    if row == start_row:
+        cell_type = cell_type.intersection({'r', 'l'})
+        if len(cell_type) != 0:
+            cell_type = list(cell_type)[0]
+            deltas = {'r': (0, 1, 1, 1), 'l': (0, 0, 1, 0)}
+            edge = tuple(map(sum, zip(cell + cell, deltas[cell_type])))
+            if edge not in edges:
+                edges.append(edge)
     return edges
 
 @Profile(stats=PERFORMANCE_STATS)
@@ -259,83 +269,83 @@ def trim_piece(shape):
     return shape_new
 
 if __name__ == '__main__':
-    INPUT_SHAPE = """
-     
- +-+ 
- | | 
- +-+ 
-     
-""".strip('\n')
-    
 #     INPUT_SHAPE = """
-# +--------+-+----------------+-+----------------+-+--------+
-# |        | |                | |                | |        |
-# |        ++++               | |                | |        |
-# |        ++++               | |                | |        |
-# |        ++++             +-+ +-+            +-+ +-+      |
-# |        ++++             |     |            |     |      |
-# +-----------+      +------+     +------------+     +------+
-# | +--------+|      |                                      |
-# +-+   +---+||      +--------------------------------------+
-# |     |+-+|||                                             |
-# |     || ++||                                             |
-# |     |+---+|                                             |
-# |     +-----+                                             |
-# |        +-+                +-+                +-+        |
-# |        +-+                | |                | |        |
-# |    +------+               | |                | |        |
-# |    |+----+|         +-----+ |                | |        |
-# |    ||+--+||         |+-+    |              +-+ +-+      |
-# |    |||++|||         || |  +-+              |     |      |
-# ++   |||++|||      +--+| +--+    +-----------+     +------+
-# ||   |||+-+||      |   |      +--+                        |
-# ++   ||+---+|      +---+  +---+   +-----------------------+
-# |    |+-++--+             |       |                       |
-# |+---+--+|                +-+ +---+                       |
-# |+-------+                  | |                           |
-# |                           | |                           |
-# |        +-+                | |                +-+        |
-# |        +-+                +-+                +-+        |
-# |                       +------+                          |
-# |                       |+----+|                          |
-# |                       ||+--+||                          |
-# |       +----+          |||++|||                          |
-# ++      |+--+|  ++--+   |||++|||      +-------------------+
-# ||      ||++||  ||  |   |||+-+||      |                   |
-# ++      ||++||  ++--+   ||+---+|      +------+     +------+
-# |       |+--+|          |+-++--+             |     |      |
-# |       +----+      +---+--+|                +-+ +-+      |
-# |                   +-------+                  | |        |
-# |                                              | |        |
-# |        +-+                +-+                | |        |
-# |        +-+                +-+                +-+        |
-# |  +-----+ |    ++                                        |
-# |  +-++----+    ++                                        |
-# |    ++                                                   |
-# |    ||                                                   |
-# ++   |+-------------+                 +-------------------+
-# ||   |              |                 |                   |
-# ++   +---+ +--------+                 +------+     +------+
-# |        | |                                 |     |      |
-# |        | |                                 +-+ +-+      |
-# |        | |                                   | |        |
-# |        | |                                   | |        |
-# |        | |                +-+                | |        |
-# |        +-+                | |                | |        |
-# |  +-----+ |    ++          | |                | |        |
-# |  +-++----+    ++    +-----+ |                | +-----+  |
-# |    ++               |+-+    |                |    +-+|  |
-# |    ||               || |  +-+                +-+  | ||  |
-# ++   |+---------------+| +--+    +----------+    +--+ |+--+
-# ||   |                 |      +--+          +--+      |   |
-# ++   +---+ +-----------+  +---+   +--------+   +---+  +---+
-# |        | |              |       |        |       |      |
-# |        | |              +-+ +---+        +---+ +-+      |
-# |        | |                | |                | |        |
-# |        | |                | |                | |        |
-# |        | |                | |                | |        |
-# +--------+-+----------------+-+----------------+-+--------+
+#      
+#  +-+ 
+#  | | 
+#  +-+ 
+#      
 # """.strip('\n')
+    
+    INPUT_SHAPE = """
++--------+-+----------------+-+----------------+-+--------+
+|        | |                | |                | |        |
+|        ++++               | |                | |        |
+|        ++++               | |                | |        |
+|        ++++             +-+ +-+            +-+ +-+      |
+|        ++++             |     |            |     |      |
++-----------+      +------+     +------------+     +------+
+| +--------+|      |                                      |
++-+   +---+||      +--------------------------------------+
+|     |+-+|||                                             |
+|     || ++||                                             |
+|     |+---+|                                             |
+|     +-----+                                             |
+|        +-+                +-+                +-+        |
+|        +-+                | |                | |        |
+|    +------+               | |                | |        |
+|    |+----+|         +-----+ |                | |        |
+|    ||+--+||         |+-+    |              +-+ +-+      |
+|    |||++|||         || |  +-+              |     |      |
+++   |||++|||      +--+| +--+    +-----------+     +------+
+||   |||+-+||      |   |      +--+                        |
+++   ||+---+|      +---+  +---+   +-----------------------+
+|    |+-++--+             |       |                       |
+|+---+--+|                +-+ +---+                       |
+|+-------+                  | |                           |
+|                           | |                           |
+|        +-+                | |                +-+        |
+|        +-+                +-+                +-+        |
+|                       +------+                          |
+|                       |+----+|                          |
+|                       ||+--+||                          |
+|       +----+          |||++|||                          |
+++      |+--+|  ++--+   |||++|||      +-------------------+
+||      ||++||  ||  |   |||+-+||      |                   |
+++      ||++||  ++--+   ||+---+|      +------+     +------+
+|       |+--+|          |+-++--+             |     |      |
+|       +----+      +---+--+|                +-+ +-+      |
+|                   +-------+                  | |        |
+|                                              | |        |
+|        +-+                +-+                | |        |
+|        +-+                +-+                +-+        |
+|  +-----+ |    ++                                        |
+|  +-++----+    ++                                        |
+|    ++                                                   |
+|    ||                                                   |
+++   |+-------------+                 +-------------------+
+||   |              |                 |                   |
+++   +---+ +--------+                 +------+     +------+
+|        | |                                 |     |      |
+|        | |                                 +-+ +-+      |
+|        | |                                   | |        |
+|        | |                                   | |        |
+|        | |                +-+                | |        |
+|        +-+                | |                | |        |
+|  +-----+ |    ++          | |                | |        |
+|  +-++----+    ++    +-----+ |                | +-----+  |
+|    ++               |+-+    |                |    +-+|  |
+|    ||               || |  +-+                +-+  | ||  |
+++   |+---------------+| +--+    +----------+    +--+ |+--+
+||   |                 |      +--+          +--+      |   |
+++   +---+ +-----------+  +---+   +--------+   +---+  +---+
+|        | |              |       |        |       |      |
+|        | |              +-+ +---+        +---+ +-+      |
+|        | |                | |                | |        |
+|        | |                | |                | |        |
+|        | |                | |                | |        |
++--------+-+----------------+-+----------------+-+--------+
+""".strip('\n')
 
     break_evil_pieces(INPUT_SHAPE)
     print('shape size: {}'.format(PERF_SHAPE_SIZE))
