@@ -14,10 +14,10 @@ Performance optimizations:
         work q loops: 15812
         direction loops: 58324
     
-        approach "2x2 sub-cells, process white spaces", runtime: 10.97s
+        approach "2x2 sub-cells, process white spaces", runtime: 11.33s
         shape matrix size: 15812
-        work q loops: 10002
-        direction loops: 35084
+        work q loops: 9615
+        direction loops: 33536
 
 """
 
@@ -28,6 +28,8 @@ PERFORMANCE_STATS = []
 PERF_SHAPE_SIZE, PERF_SHAPE_MATRIX_SIZE = None, None
 PERF_WORK_Q_LOOPS = 0
 PERF_DIRECTION_LOOPS = 0
+PERF_WHITE_CELLS_IN_LINE = []
+PERF_CHAR_COUNT = 0
 
 @Profile(stats=PERFORMANCE_STATS)
 def break_evil_pieces(shape):
@@ -144,9 +146,11 @@ def get_piece(cell, cells_to_be_processed, shape_matrix):
 
 @Profile(stats=PERFORMANCE_STATS)
 def process_white_spaces(cell, piece, work_q, cells_to_be_processed, shape_matrix):
-    for d_col in [1, -1]:
+    global PERF_WHITE_CELLS_IN_LINE, PERF_CHAR_COUNT
+    PERF_CHAR_COUNT = 0
+    for direction, d_col in [('l', 1), ('r', -1)]:
         row, col = cell
-        if not shape_matrix[cell] or 'l' in shape_matrix[cell]:
+        if len(shape_matrix[cell]) == 0 or direction in shape_matrix[cell]:
             next_cell = row, col + d_col
             while next_cell in cells_to_be_processed and \
                   len(shape_matrix[next_cell]) == 0:
@@ -154,7 +158,9 @@ def process_white_spaces(cell, piece, work_q, cells_to_be_processed, shape_matri
                 del cells_to_be_processed[cells_to_be_processed.index(next_cell)]
                 if next_cell in work_q:
                     del work_q[work_q.index(next_cell)]
-                next_cell = row, col + d_col
+                next_cell = next_cell[0], next_cell[1] + d_col
+                PERF_CHAR_COUNT += 1
+    PERF_WHITE_CELLS_IN_LINE.append(PERF_CHAR_COUNT)
     return
 
 @Profile(stats=PERFORMANCE_STATS)
@@ -270,13 +276,23 @@ def trim_piece(shape):
 
 if __name__ == '__main__':
 #     INPUT_SHAPE = """
-#      
+#        
 #  +-+ 
 #  | | 
 #  +-+ 
-#      
+#        
 # """.strip('\n')
-    
+
+#     INPUT_SHAPE = """
+# +-----------+
+# | +--------+|
+# +-+   +---+||
+# |     |+-+|||
+# |     || ++||
+# |     |+---+|
+# +-----+-----+
+# """.strip('\n')
+
     INPUT_SHAPE = """
 +--------+-+----------------+-+----------------+-+--------+
 |        | |                | |                | |        |
@@ -355,6 +371,9 @@ if __name__ == '__main__':
     with open('break_the_pieces_evilized_edition.csv', 'w') as outfile:
         for entry in PERFORMANCE_STATS:
             outfile.write('{}, {}\n'.format(entry[0], entry[1]))
+    with open('break_the_pieces_evilized_edition_white_chars.csv', 'w') as outfile:
+        for entry in PERF_WHITE_CELLS_IN_LINE:
+            outfile.write('{}\n'.format(entry))
     for counter, text_piece in enumerate(break_evil_pieces(INPUT_SHAPE)):
         print('\n{}.) piece:\n'.format(counter))
         print(text_piece)
