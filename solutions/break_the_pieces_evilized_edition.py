@@ -32,7 +32,7 @@ PERF_WHITE_CELLS_IN_LINE = []
 PERF_CHAR_COUNT = 0
 DEBUG_SHAPE_MATRIX = None
 
-@Profile(stats=PERFORMANCE_STATS)
+# @Profile(stats=PERFORMANCE_STATS)
 def break_evil_pieces(shape):
     """
     main function
@@ -56,7 +56,7 @@ def break_evil_pieces(shape):
             pieces.append(piece)
     return pieces
 
-@Profile(stats=PERFORMANCE_STATS)
+# @Profile(stats=PERFORMANCE_STATS)
 def get_blank_shape(shape_lines):
     """
     Generate a blank shape. Used later to add extracted characters that make up
@@ -65,7 +65,7 @@ def get_blank_shape(shape_lines):
     blank_shape_lines = [' ' * len(shape_line) for shape_line in shape_lines]
     return blank_shape_lines
 
-@Profile(stats=PERFORMANCE_STATS)
+# @Profile(stats=PERFORMANCE_STATS)
 def shape_to_matrix(shape_lines):
     """
     Transform the text lines into a data structure for processing.
@@ -95,7 +95,7 @@ def shape_to_matrix(shape_lines):
     PERF_SHAPE_MATRIX_SIZE = len(shape_matrix)
     return shape_matrix
 
-@Profile(stats=PERFORMANCE_STATS)
+# @Profile(stats=PERFORMANCE_STATS)
 def remove_loose_ends(shape_matrix):
     """
     For all '+' characters the lines that are not connected need to be removed.
@@ -118,11 +118,12 @@ def remove_loose_ends(shape_matrix):
                     shape_matrix[cell] = shape_matrix[cell].difference(border)
     return shape_matrix
 
-@Profile(stats=PERFORMANCE_STATS)
+# @Profile(stats=PERFORMANCE_STATS)
 def get_piece(cell, cells_to_be_processed, shape_matrix):
     """
     Extract a single piece given a start cell.
     """
+    DEBUG_WORK_Q_CONTENT = []
     global PERF_WORK_Q_LOOPS, PERF_DIRECTION_LOOPS, PERF_SHAPE_SIZE
     deltas = {'t': (-1, 0), 'b': (1, 0), 'l': (0, -1), 'r': (0, 1)}
     piece, edges, work_q = {}, [], []
@@ -132,9 +133,14 @@ def get_piece(cell, cells_to_be_processed, shape_matrix):
         PERF_WORK_Q_LOOPS += 1
         cell = work_q.pop()
         row, col = cell
-        piece[(row, col)] = shape_matrix[(row, col)]
+        piece[cell] = shape_matrix[cell]
         del cells_to_be_processed[cells_to_be_processed.index(cell)]
-        process_white_spaces(cell, piece, work_q, cells_to_be_processed, shape_matrix)
+        if len(shape_matrix[cell]) == 0:
+            follow_white_spaces(cell, piece, work_q,
+                                 cells_to_be_processed, shape_matrix)
+        else:
+            follow_border(cell, piece, work_q, cells_to_be_processed,
+                          shape_matrix)
         for direction in {'t', 'b', 'r', 'l'}.difference(shape_matrix[cell]):
             PERF_DIRECTION_LOOPS += 1
             d_row, d_col = deltas[direction]
@@ -144,11 +150,35 @@ def get_piece(cell, cells_to_be_processed, shape_matrix):
                 work_q.append((next_row, next_col))
         edges = add_edge(cell, piece[cell], start_cell, edges)
     if not is_inside_piece(start_cell, edges):
-        return None
+        piece = None
     return piece
 
-@Profile(stats=PERFORMANCE_STATS)
-def process_white_spaces(cell, piece, work_q, cells_to_be_processed, shape_matrix):
+def DEBUG_DISPLAY_PIECE(piece):
+    shape = [' ' * 15 for _ in range(15)] 
+    for cell in piece:
+        borders = piece[cell]
+        if len(borders) == 0:
+            cell_char = ' '
+        elif borders.intersection({'r', 'l'}) and \
+             borders.intersection({'t', 'b'}):
+            cell_char = '+'
+        elif borders.intersection({'r', 'l'}):
+            cell_char = '|'
+        elif borders.intersection({'t', 'b'}):
+            cell_char = '-'
+        row, col = cell
+        shape[row] = shape[row][:col] + cell_char + shape[row][col + 1:]
+    for line in shape:
+        print(line)
+    return
+
+# @Profile(stats=PERFORMANCE_STATS)
+def follow_white_spaces(cell, piece, work_q, cells_to_be_processed, shape_matrix):
+    
+    
+    
+    
+    
     global PERF_WHITE_CELLS_IN_LINE, PERF_CHAR_COUNT
     PERF_CHAR_COUNT = 0
     for direction, d_col in [('l', 1), ('r', -1)]:
@@ -166,7 +196,10 @@ def process_white_spaces(cell, piece, work_q, cells_to_be_processed, shape_matri
     PERF_WHITE_CELLS_IN_LINE.append(PERF_CHAR_COUNT)
     return
 
-@Profile(stats=PERFORMANCE_STATS)
+def follow_border(cell, piece, work_q, cells_to_be_processed, shape_matrix):
+    pass
+
+# @Profile(stats=PERFORMANCE_STATS)
 def add_edge(cell, cell_type, start_cell, edges):
     """
     Build a list of all vertical edges at the same row as the start cell. This
@@ -185,7 +218,7 @@ def add_edge(cell, cell_type, start_cell, edges):
                 edges.append(edge)
     return edges
 
-@Profile(stats=PERFORMANCE_STATS)
+# @Profile(stats=PERFORMANCE_STATS)
 def is_inside_piece(start_cell, edges):
     """
     Test wether a piece is closed and not just the area outside the piece. This
@@ -214,7 +247,7 @@ def is_inside_piece(start_cell, edges):
         result = True
     return result
 
-@Profile(stats=PERFORMANCE_STATS)
+# @Profile(stats=PERFORMANCE_STATS)
 def vector_intersection(v_1, v_2):
     """
     Calculate the intersection between two lines using Cramer's rule.
@@ -227,7 +260,7 @@ def vector_intersection(v_1, v_2):
     t_2 = (d1x * c_y - d1y * c_x) / m_div if m_div != 0 else None
     return t_1, t_2
 
-@Profile(stats=PERFORMANCE_STATS)
+# @Profile(stats=PERFORMANCE_STATS)
 def piece_to_lines(piece, blank_shape_lines):
     """
     Transform the piece matrix into a list of text lines.
@@ -258,7 +291,7 @@ def piece_to_lines(piece, blank_shape_lines):
         shape[s_row] = shape[s_row][:s_col] + cell_char + shape[s_row][s_col + 1:]
     return shape
 
-@Profile(stats=PERFORMANCE_STATS)
+# @Profile(stats=PERFORMANCE_STATS)
 def trim_piece(shape):
     """
     Remove all unnecessary white space around an extracted piece.
