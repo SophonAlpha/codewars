@@ -174,26 +174,22 @@ def DEBUG_DISPLAY_PIECE(piece):
 
 # @Profile(stats=PERFORMANCE_STATS)
 def follow_white_spaces(cell, piece, work_q, cells_to_be_processed, shape_matrix):
-    
-    
-    
-    
-    
-    global PERF_WHITE_CELLS_IN_LINE, PERF_CHAR_COUNT
-    PERF_CHAR_COUNT = 0
-    for direction, d_col in [('l', 1), ('r', -1)]:
-        row, col = cell
-        if len(shape_matrix[cell]) == 0 or direction in shape_matrix[cell]:
-            next_cell = row, col + d_col
-            while next_cell in cells_to_be_processed and \
-                  len(shape_matrix[next_cell]) == 0:
-                piece[next_cell] = shape_matrix[next_cell]
-                del cells_to_be_processed[cells_to_be_processed.index(next_cell)]
-                if next_cell in work_q:
-                    del work_q[work_q.index(next_cell)]
-                next_cell = next_cell[0], next_cell[1] + d_col
-                PERF_CHAR_COUNT += 1
-    PERF_WHITE_CELLS_IN_LINE.append(PERF_CHAR_COUNT)
+    deltas = [(-1, 0), (-1, 1), (0, 1), (1, 1),
+              (1, 0), (1, -1), (0, -1), (-1, -1)]
+    white_space_q = [cell]
+    while white_space_q:
+        row, col = white_space_q.pop()
+        neighbours = [(row + d_row, col + d_col)
+                      for d_row, d_col in deltas 
+                      if (row + d_row, col + d_col) in shape_matrix.keys() and
+                      (row + d_row, col + d_col) in cells_to_be_processed]
+        for neighbour in neighbours:
+            if len(shape_matrix[neighbour]) == 0:
+                white_space_q.append(neighbour)
+                piece[neighbour] = shape_matrix[neighbour]
+                del cells_to_be_processed[cells_to_be_processed.index(neighbour)]
+            else:
+                work_q.append(neighbour)
     return
 
 def follow_border(cell, piece, work_q, cells_to_be_processed, shape_matrix):
@@ -320,13 +316,15 @@ if __name__ == '__main__':
 # """.strip('\n')
 
     INPUT_SHAPE = """
-+---+-+
-|   | |
-| +-+ |
-| |   |
-| +---+
-|     |
-+-----+
+         
+ +---+-+ 
+ |   | | 
+ | +-+ | 
+ | |   | 
+ | +---+ 
+ |     | 
+ +-----+ 
+         
 """.strip('\n')
 
 #     INPUT_SHAPE = """
