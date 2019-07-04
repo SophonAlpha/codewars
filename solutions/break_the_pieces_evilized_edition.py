@@ -32,6 +32,31 @@ PERF_WHITE_CELLS_IN_LINE = []
 PERF_CHAR_COUNT = 0
 DEBUG_SHAPE_MATRIX = None
 
+TRANSITION = {
+    'ur': [['ur', ['r', 'lr']],
+           ['ul', ['u', 'ur']],
+           ['ll', ['l', 'ul']],
+           ['lr', ['d', 'll']]],
+    'ul': [['ul', ['u', 'ur']],
+           ['ll', ['l', 'ul']],
+           ['lr', ['d', 'll']],
+           ['ur', ['r', 'lr']]],
+    'll': [['ll', ['l', 'ul']],
+           ['lr', ['d', 'll']],
+           ['ur', ['r', 'lr']],
+           ['ul', ['u', 'ur']]],
+    'lr': [['lr', ['d', 'll']],
+           ['ur', ['r', 'lr']],
+           ['ul', ['u', 'ur']],
+           ['ll', ['l', 'ul']]],
+    'u': [['u', ['u', 'ur']]],
+    'd': [['d', ['d', 'll']]],
+    'l': [['l', ['l', 'ul']]],
+    'r': [['r', ['r', 'lr']]],
+    }
+NEIGHBOUR_CELLS = {'r': (-1, 0), 'l': (1, 0), 'd': (0, 1), 'u': (0, -1),
+                   'lr': (0, 1), 'll': (1, 0), 'ul': (0, -1), 'ur': (-1, 0)}
+
 # @Profile(stats=PERFORMANCE_STATS)
 def break_evil_pieces(shape):
     """
@@ -46,7 +71,7 @@ def break_evil_pieces(shape):
     shape_matrix = shape_to_matrix(shape_lines)
 #     shape_matrix = remove_loose_ends(shape_matrix)
     DEBUG_SHAPE_MATRIX = shape_matrix
-    cells_to_be_processed = list(shape_matrix.keys())
+    cells_to_be_processed = shape_matrix[:]
     while cells_to_be_processed:
         cell = cells_to_be_processed[0]
         piece = get_piece(cell, cells_to_be_processed, shape_matrix)
@@ -83,14 +108,15 @@ def shape_to_matrix(shape_lines):
     For '|' cells: r - right half, l - left half
     For ' ' cells: c - center
     """
-    states = {'+': {'ul': True, 'ur': True, 'll': True, 'lr': True},
-              '-': {'u': True, 'd': True},
-              '|': {'r': True, 'l': True},
-              ' ': {'c': True},}
-    shape_matrix = {}
+    directions = {'+': ['ul', 'ur', 'll', 'lr'],
+                  '-': ['u', 'd'],
+                  '|': ['r', 'l'],
+                  ' ': ['c'],}
+    shape_matrix = []
     for row, shape_line in enumerate(shape_lines):
         for col, cell in enumerate(shape_line):
-            shape_matrix[(row, col)] = states[cell]
+            for direction in directions[cell]:
+                shape_matrix.append((row, col, direction))
     return shape_matrix
 
 # @Profile(stats=PERFORMANCE_STATS)
@@ -147,19 +173,41 @@ def remove_loose_ends(shape_matrix):
     return shape_matrix
 
 def get_piece(cell, cells_to_be_processed, shape_matrix):
-    piece, edges, work_q = {}, [], []
+    piece, edges, work_q = [], [], []
     start_cell = cell
     work_q.append(start_cell)
     while work_q:
-        row, col = cell
-        piece[cell] = shape_matrix[cell]
-        del cells_to_be_processed[cells_to_be_processed.index(cell)]
+        cell = work_q.pop()
+        piece.append(cell)
         neighbours = get_neighbours(cell, cells_to_be_processed, shape_matrix)
+        for neighbour in neighbours:
+            if 'c' in shape_matrix[neighbour].keys():
+                work_q.append(neighbour)
         
     return
         
 def get_neighbours(cell, cells_to_be_processed, shape_matrix):
-    pass
+    deltas = {
+        'ul': [(0, -1, ['u', 'ur', 'c']), (-1, -1, ['d', 'r', 'lr', 'c']),
+               (-1, 0, ['l', 'll', 'c'])],
+        'ur': [(-1, 0, ['r', 'lr', 'c']), (-1, 1, ['d', 'l', 'll', 'c']),
+               (0, 1, ['l', 'ul', 'c'])],
+        'll': [(1, 0, ['l', 'ul', 'c']), (1, -1, ['u', 'r', 'ur', 'c']),
+               (0, -1), ['d', 'lr', 'c']],
+        'lr': [(0, 1), ['d', 'l', 'll', 'c'], (1, 1, ['u', 'l', 'ul', 'c']),
+               (1, 0), ['u', 'r', 'ur', 'c']],
+        'u': [(0, -1), (-1, -1), (-1, 0), (-1, 1), (0, 1)],
+        'd': [(0, 1), (1, 1), (1, 0), (1, -1), (0, -1)],
+        'r': [(-1, 0), (-1, 1), (0, 1), (1, 1), (1, 0)],
+        'l': [(1, 0), (1, -1), (0, -1), (-1, -1), (-1, 0)],
+        'c': [(-1, 0), (-1, 1), (0, 1), (1, 1),
+              (1, 0), (1, -1), (0, -1), (-1, -1)],
+        }
+    row, col, direction = cell
+    neighbours = [(row + d_row, col + d_col)
+                  for d_row, d_col in deltas[direction] 
+                  (row + d_row, col + d_col, direction) in cells_to_be_processed]
+    return neighbours
 
 def get_piece_old(cell, cells_to_be_processed, shape_matrix):
     start_cell = cell
