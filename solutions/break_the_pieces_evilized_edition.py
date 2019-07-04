@@ -10,12 +10,12 @@ Performance optimizations:
     
     2019-06-29 
         approach "2x2 sub-cells", runtime: 10.93s
-        shape matrix size: 15812
+        shape shape_matrix size: 15812
         work q loops: 15812
         direction loops: 58324
     
         approach "2x2 sub-cells, process white spaces", runtime: 11.33s
-        shape matrix size: 15812
+        shape shape_matrix size: 15812
         work q loops: 9615
         direction loops: 33536
 
@@ -44,7 +44,7 @@ def break_evil_pieces(shape):
     shape_lines = shape.split('\n')
     blank_shape_lines = get_blank_shape(shape_lines)
     shape_matrix = shape_to_matrix(shape_lines)
-    shape_matrix = remove_loose_ends(shape_matrix)
+#     shape_matrix = remove_loose_ends(shape_matrix)
     DEBUG_SHAPE_MATRIX = shape_matrix
     cells_to_be_processed = list(shape_matrix.keys())
     while cells_to_be_processed:
@@ -67,6 +67,34 @@ def get_blank_shape(shape_lines):
 
 # @Profile(stats=PERFORMANCE_STATS)
 def shape_to_matrix(shape_lines):
+    """
+    Transform the shape into a data structure that can be used for the flood fill
+    algorithm. Boolean status indicates whether the cell can be filled (True)
+    or not (False). ' ' cells can only be filled once, as the they can
+    only belong to one piece. '|' can belong to up to two pieces and '+' cells
+    to up to four pieces.
+
+    Each cell initialises with a dictionary that stores it's fill status.
+    The dictionary keys have the following meanings:
+
+    For '+' cells: ul - upper left corner, ur - upper right corner,
+                   ll - lower left corner, lr - lower right corner
+    For '-' cells: u - upper half, l - lower half
+    For '|' cells: r - right half, l - left half
+    For ' ' cells: c - center
+    """
+    states = {'+': {'ul': True, 'ur': True, 'll': True, 'lr': True},
+              '-': {'u': True, 'd': True},
+              '|': {'r': True, 'l': True},
+              ' ': {'c': True},}
+    shape_matrix = {}
+    for row, shape_line in enumerate(shape_lines):
+        for col, cell in enumerate(shape_line):
+            shape_matrix[(row, col)] = states[cell]
+    return shape_matrix
+
+# @Profile(stats=PERFORMANCE_STATS)
+def shape_to_matrix_v1(shape_lines):
     """
     Transform the text lines into a data structure for processing.
     Each cell is transformed into 2 x 2 cells. For each cell a set of
@@ -118,8 +146,51 @@ def remove_loose_ends(shape_matrix):
                     shape_matrix[cell] = shape_matrix[cell].difference(border)
     return shape_matrix
 
-# @Profile(stats=PERFORMANCE_STATS)
 def get_piece(cell, cells_to_be_processed, shape_matrix):
+    piece, edges, work_q = {}, [], []
+    start_cell = cell
+    work_q.append(start_cell)
+    while work_q:
+        row, col = cell
+        piece[cell] = shape_matrix[cell]
+        del cells_to_be_processed[cells_to_be_processed.index(cell)]
+        neighbours = get_neighbours(cell, cells_to_be_processed, shape_matrix)
+        
+    return
+        
+def get_neighbours(cell, cells_to_be_processed, shape_matrix):
+    pass
+
+def get_piece_old(cell, cells_to_be_processed, shape_matrix):
+    start_cell = cell
+    piece, edges = [], []
+    while cell and not is_piece_complete(piece, cell, shape_lines):
+        if cell_already_visited(cell, shape_matrix):
+            return None
+        row, col, _ = cell
+        piece.append((row, col, shape_lines[row][col]))
+        next_cell = get_next_cell(cell, shape_matrix)
+        shape_matrix[cell] = False
+        edges = add_edge(cell, next_cell, start_cell, edges)
+        cell = next_cell
+    if not (cell and is_inside_piece(start_cell, edges)):
+        return None
+    return piece
+
+def get_next_cell(cell, shape_matrix):
+    row, col, start_direction = cell
+    for directions in TRANSITION[start_direction]:
+        direction = directions[0]
+        d_row, d_col = NEIGHBOUR[direction]
+        next_row, next_col = row + d_row, col + d_col
+        for next_direction in directions[1]:
+            next_cell = (next_row, next_col, next_direction)
+            if next_cell in shape_matrix.keys():
+                return next_cell
+    return None
+
+# @Profile(stats=PERFORMANCE_STATS)
+def get_piece_v1(cell, cells_to_be_processed, shape_matrix):
     """
     Extract a single piece given a start cell.
     """
