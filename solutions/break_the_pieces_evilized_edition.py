@@ -173,40 +173,53 @@ def remove_loose_ends(shape_matrix):
     return shape_matrix
 
 def get_piece(cell, cells_to_be_processed, shape_matrix):
-    piece, edges, work_q = [], [], []
+    piece, work_q = [], []
     start_cell = cell
     work_q.append(start_cell)
+    cells_to_be_processed.remove(start_cell)
     while work_q:
-        cell = work_q.pop()
+        cell = work_q.pop() # TODO: performance optimize, around half of the sourrounding cells already in queue, avoid testing, maybe using sets helps
         piece.append(cell)
         neighbours = get_neighbours(cell, cells_to_be_processed, shape_matrix)
-        for neighbour in neighbours:
-            if 'c' in shape_matrix[neighbour].keys():
-                work_q.append(neighbour)
-        
-    return
+        work_q = work_q + neighbours
+    return piece
         
 def get_neighbours(cell, cells_to_be_processed, shape_matrix):
     deltas = {
-        'ul': [(0, -1, ['u', 'ur', 'c']), (-1, -1, ['d', 'r', 'lr', 'c']),
-               (-1, 0, ['l', 'll', 'c'])],
-        'ur': [(-1, 0, ['r', 'lr', 'c']), (-1, 1, ['d', 'l', 'll', 'c']),
-               (0, 1, ['l', 'ul', 'c'])],
-        'll': [(1, 0, ['l', 'ul', 'c']), (1, -1, ['u', 'r', 'ur', 'c']),
-               (0, -1), ['d', 'lr', 'c']],
-        'lr': [(0, 1), ['d', 'l', 'll', 'c'], (1, 1, ['u', 'l', 'ul', 'c']),
-               (1, 0), ['u', 'r', 'ur', 'c']],
-        'u': [(0, -1), (-1, -1), (-1, 0), (-1, 1), (0, 1)],
-        'd': [(0, 1), (1, 1), (1, 0), (1, -1), (0, -1)],
-        'r': [(-1, 0), (-1, 1), (0, 1), (1, 1), (1, 0)],
-        'l': [(1, 0), (1, -1), (0, -1), (-1, -1), (-1, 0)],
-        'c': [(-1, 0), (-1, 1), (0, 1), (1, 1),
-              (1, 0), (1, -1), (0, -1), (-1, -1)],
+        'ul': [(0, -1, ['u', 'r', 'ur', 'c']), (-1, -1, ['d', 'r', 'lr', 'c']),
+               (-1, 0, ['d', 'l', 'll', 'c'])],
+        'ur': [(-1, 0, ['d', 'r', 'lr', 'c']), (-1, 1, ['d', 'l', 'll', 'c']),
+               (0, 1, ['u', 'l', 'ul', 'c'])],
+        'll': [(-1, 0, ['u', 'l', 'ul', 'c']), (-1, -1, ['u', 'r', 'ur', 'c']),
+               (0, -1, ['d', 'r', 'lr', 'c'])],
+        'lr': [(0, 1, ['d', 'l', 'll', 'c']), (1, 1, ['u', 'l', 'ul', 'c']),
+               (1, 0, ['u', 'r', 'ur', 'c'])],
+        'u': [(0, -1, ['u', 'r', 'ur', 'c']), (-1, -1, ['d', 'r', 'lr', 'c']),
+              (-1, 0, ['d', 'll', 'lr', 'c']), (-1, 1, ['d', 'll', 'l', 'c']),
+              (0, 1, ['u', 'ul', 'l', 'c'])],
+        'd': [(0, 1, ['d', 'll', 'ul', 'c']), (1, 1, ['u', 'ul', 'l', 'c']),
+              (1, 0, ['u', 'ul', 'ur', 'c']), (1, -1, ['u', 'ur', 'r', 'c']),
+              (0, -1, ['d', 'ur', 'r', 'c'])],
+        'r': [(-1, 0, ['r', 'lr', 'c']), (-1, 1, ['d', 'l', 'll', 'c']),
+              (0, 1, ['l', 'ul', 'll', 'c']), (1, 1, ['u', 'l', 'ul', 'c']),
+              (1, 0, ['r', 'ur', 'c'])],
+        'l': [(1, 0, ['l', 'ul', 'c']), (1, -1, ['r', 'u', 'ur', 'c']),
+              (0, -1, ['r', 'ur', 'lr', 'c']), (-1, -1, ['r', 'd', 'lr', 'c']),
+              (-1, 0, ['l', 'll', 'c'])],
+        'c': [(-1, 0, ['d', 'll', 'lr', 'c']), (-1, 1, ['l', 'd', 'll', 'c']),
+              (0, 1, ['l', 'll', 'ul', 'c']), (1, 1, ['l', 'u', 'ul', 'c']),
+              (1, 0, ['u', 'ul', 'ur', 'c']), (1, -1, ['u', 'r', 'ur', 'c']),
+              (0, -1, ['r', 'ur', 'lr', 'c']), (-1, -1, ['d', 'r', 'lr', 'c'])],
         }
+    # TODO: performance optimize, avoid the 32 loops, use sets
     row, col, direction = cell
-    neighbours = [(row + d_row, col + d_col)
-                  for d_row, d_col in deltas[direction] 
-                  (row + d_row, col + d_col, direction) in cells_to_be_processed]
+    neighbours = []
+    for d_row, d_col, next_directions in deltas[direction]:
+        for next_direction in next_directions:
+            next_cell = (row + d_row, col + d_col, next_direction)
+            if next_cell in cells_to_be_processed:
+                neighbours.append(next_cell)
+                cells_to_be_processed.remove(next_cell)
     return neighbours
 
 def get_piece_old(cell, cells_to_be_processed, shape_matrix):
@@ -426,25 +439,26 @@ def trim_piece(shape):
     return shape_new
 
 if __name__ == '__main__':
-#     INPUT_SHAPE = """
-#        
-#  +-+ 
-#  | | 
-#  +-+ 
-#        
-# """.strip('\n')
-
     INPUT_SHAPE = """
-         
- +---+-+ 
- |   | | 
+          
+ +-+-+-+ 
+ | | | | 
  | +-+ | 
- | |   | 
- | +---+ 
- |     | 
  +-----+ 
-         
+          
 """.strip('\n')
+
+#     INPUT_SHAPE = """
+#          
+#  +---+-+ 
+#  |   | | 
+#  | +-+ | 
+#  | |   | 
+#  | +---+ 
+#  |     | 
+#  +-----+ 
+#          
+# """.strip('\n')
 
 #     INPUT_SHAPE = """
 # +----+---+
