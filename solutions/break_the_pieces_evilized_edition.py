@@ -178,7 +178,9 @@ def get_piece(cell, cells_to_be_processed, shape_matrix):
     work_q.append(start_cell)
     cells_to_be_processed.remove(start_cell)
     while work_q:
-        cell = work_q.pop() # TODO: performance optimize, around half of the sourrounding cells already in queue, avoid testing, maybe using sets helps
+        # TODO: performance optimize, around half of the sourrounding cells 
+        #       already in queue, avoid testing, maybe using sets helps
+        cell = work_q.pop()
         piece.append(cell)
         neighbours = get_neighbours(cell, cells_to_be_processed, shape_matrix)
         work_q = work_q + neighbours
@@ -194,12 +196,12 @@ def get_neighbours(cell, cells_to_be_processed, shape_matrix):
                (0, -1, ['d', 'r', 'lr', 'c'])],
         'lr': [(0, 1, ['d', 'l', 'll', 'c']), (1, 1, ['u', 'l', 'ul', 'c']),
                (1, 0, ['u', 'r', 'ur', 'c'])],
-        'u': [(0, -1, ['u', 'r', 'ur', 'c']), (-1, -1, ['d', 'r', 'lr', 'c']),
+        'u': [(0, -1, ['u', 'ur', 'c']), (-1, -1, ['d', 'r', 'lr', 'c']),
               (-1, 0, ['d', 'll', 'lr', 'c']), (-1, 1, ['d', 'll', 'l', 'c']),
-              (0, 1, ['u', 'ul', 'l', 'c'])],
-        'd': [(0, 1, ['d', 'll', 'ul', 'c']), (1, 1, ['u', 'ul', 'l', 'c']),
+              (0, 1, ['u', 'ul', 'c'])],
+        'd': [(0, 1, ['d', 'll', 'c']), (1, 1, ['u', 'ul', 'l', 'c']),
               (1, 0, ['u', 'ul', 'ur', 'c']), (1, -1, ['u', 'ur', 'r', 'c']),
-              (0, -1, ['d', 'ur', 'r', 'c'])],
+              (0, -1, ['d', 'lr', 'c'])],
         'r': [(-1, 0, ['r', 'lr', 'c']), (-1, 1, ['d', 'l', 'll', 'c']),
               (0, 1, ['l', 'ul', 'll', 'c']), (1, 1, ['u', 'l', 'ul', 'c']),
               (1, 0, ['r', 'ur', 'c'])],
@@ -393,30 +395,11 @@ def piece_to_lines(piece, blank_shape_lines):
     """
     Transform the piece matrix into a list of text lines.
     """
-    deltas = [(0, 0), (0, 1), (1, 0), (1, 1)]
+    cell_to_char = {'c': ' ', 'u': '-', 'd': '-', 'l': '|', 'r': '|',
+                    'ul': '+', 'ur': '+', 'll': '+', 'lr': '+'}
     shape = blank_shape_lines[:]
-    work_q = list(piece.keys())
-    while work_q:
-        row, col = work_q.pop()
-        row, col = (row // 2) * 2, (col // 2) * 2
-        cells = [(row + d_row, col + d_col) for d_row, d_col in deltas]
-        for cell in cells:
-            if cell in work_q:
-                del work_q[work_q.index(cell)]
-        cell_types = [elem for elem in [piece[cell] for cell in cells
-                                        if cell in piece.keys()]]
-        cell_types = set().union(*cell_types)
-        if not cell_types:
-            cell_char = ' '
-        elif cell_types.intersection({'r', 'l'}) and \
-             cell_types.intersection({'t', 'b'}):
-            cell_char = '+'
-        elif cell_types.intersection({'r', 'l'}):
-            cell_char = '|'
-        elif cell_types.intersection({'t', 'b'}):
-            cell_char = '-'
-        s_row, s_col = row // 2, col // 2
-        shape[s_row] = shape[s_row][:s_col] + cell_char + shape[s_row][s_col + 1:]
+    for row, col, cell in piece:
+        shape[row] = shape[row][:col] + cell_to_char[cell] + shape[row][col + 1:]
     return shape
 
 # @Profile(stats=PERFORMANCE_STATS)
