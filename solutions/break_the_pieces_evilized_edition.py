@@ -68,13 +68,16 @@ def break_evil_pieces(shape):
     pieces = []
     shape_lines = shape.split('\n')
     blank_shape_lines = get_blank_shape(shape_lines)
+    shape_lines = add_frame(shape_lines)
     shape_matrix = shape_to_matrix(shape_lines)
 #     shape_matrix = remove_loose_ends(shape_matrix)
     DEBUG_SHAPE_MATRIX = shape_matrix
-    cells_to_be_processed = shape_matrix[:]
+    cells_to_be_processed = [(row, col, direction) 
+                             for row, col, direction in shape_matrix
+                             if direction]
     while cells_to_be_processed:
         cell = cells_to_be_processed[0]
-        piece = get_piece(cell, cells_to_be_processed, shape_matrix)
+        piece = get_piece(cell, cells_to_be_processed, shape_matrix, blank_shape_lines)
         if piece:
             piece = piece_to_lines(piece, blank_shape_lines)
             piece = trim_piece(piece)
@@ -89,6 +92,13 @@ def get_blank_shape(shape_lines):
     """
     blank_shape_lines = [' ' * len(shape_line) for shape_line in shape_lines]
     return blank_shape_lines
+
+def add_frame(shape_lines):
+    framed_shape = ['#' * (len(shape_lines[0]) + 2)]
+    for line in shape_lines:
+        framed_shape.append('#' + line + '#')
+    framed_shape.append('#' * (len(shape_lines[-1]) + 2))
+    return framed_shape
 
 # @Profile(stats=PERFORMANCE_STATS)
 def shape_to_matrix(shape_lines):
@@ -111,7 +121,8 @@ def shape_to_matrix(shape_lines):
     directions = {'+': ['ul', 'ur', 'll', 'lr'],
                   '-': ['u', 'd'],
                   '|': ['r', 'l'],
-                  ' ': ['c'],}
+                  ' ': ['c'],
+                  '#': [None],}
     shape_matrix = []
     for row, shape_line in enumerate(shape_lines):
         for col, cell in enumerate(shape_line):
@@ -172,7 +183,7 @@ def remove_loose_ends(shape_matrix):
                     shape_matrix[cell] = shape_matrix[cell].difference(border)
     return shape_matrix
 
-def get_piece(cell, cells_to_be_processed, shape_matrix):
+def get_piece(cell, cells_to_be_processed, shape_matrix, blank_shape_lines):
     piece, work_q = [], []
     start_cell = cell
     work_q.append(start_cell)
@@ -184,15 +195,18 @@ def get_piece(cell, cells_to_be_processed, shape_matrix):
         piece.append(cell)
         neighbours = get_neighbours(cell, cells_to_be_processed, shape_matrix)
         work_q = work_q + neighbours
+        # TODO: remove debug statement
+        for line in piece_to_lines(piece, blank_shape_lines): print('>{}<'.format(line))
+        print()
     return piece
-        
+
 def get_neighbours(cell, cells_to_be_processed, shape_matrix):
     deltas = {
         'ul': [(0, -1, ['u', 'r', 'ur', 'c']), (-1, -1, ['d', 'r', 'lr', 'c']),
                (-1, 0, ['d', 'l', 'll', 'c'])],
         'ur': [(-1, 0, ['d', 'r', 'lr', 'c']), (-1, 1, ['d', 'l', 'll', 'c']),
                (0, 1, ['u', 'l', 'ul', 'c'])],
-        'll': [(-1, 0, ['u', 'l', 'ul', 'c']), (-1, -1, ['u', 'r', 'ur', 'c']),
+        'll': [(1, 0, ['u', 'l', 'ul', 'c']), (1, -1, ['u', 'r', 'ur', 'c']),
                (0, -1, ['d', 'r', 'lr', 'c'])],
         'lr': [(0, 1, ['d', 'l', 'll', 'c']), (1, 1, ['u', 'l', 'ul', 'c']),
                (1, 0, ['u', 'r', 'ur', 'c'])],
@@ -217,8 +231,11 @@ def get_neighbours(cell, cells_to_be_processed, shape_matrix):
     row, col, direction = cell
     neighbours = []
     for d_row, d_col, next_directions in deltas[direction]:
+        next_row, next_col = row + d_row, col + d_col
+        if (next_row, next_col, None) in shape_matrix:
+            return None
         for next_direction in next_directions:
-            next_cell = (row + d_row, col + d_col, next_direction)
+            next_cell = (next_row, next_col, next_direction)
             if next_cell in cells_to_be_processed:
                 neighbours.append(next_cell)
                 cells_to_be_processed.remove(next_cell)
@@ -423,12 +440,10 @@ def trim_piece(shape):
 
 if __name__ == '__main__':
     INPUT_SHAPE = """
-          
- +-+-+-+ 
- | | | | 
- | +-+ | 
- +-----+ 
-          
++-+-+-+
+| | | |
+| +-+ |
++-----+
 """.strip('\n')
 
 #     INPUT_SHAPE = """
