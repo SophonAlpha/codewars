@@ -26,30 +26,40 @@ from solutions.performance import Profile
 
 PERFORMANCE_STATS = []
 
-# TRANSITION = {
-#     'ur': [['ur', ['r', 'lr']],
-#            ['ul', ['u', 'ur']],
-#            ['ll', ['l', 'ul']],
-#            ['lr', ['d', 'll']]],
-#     'ul': [['ul', ['u', 'ur']],
-#            ['ll', ['l', 'ul']],
-#            ['lr', ['d', 'll']],
-#            ['ur', ['r', 'lr']]],
-#     'll': [['ll', ['l', 'ul']],
-#            ['lr', ['d', 'll']],
-#            ['ur', ['r', 'lr']],
-#            ['ul', ['u', 'ur']]],
-#     'lr': [['lr', ['d', 'll']],
-#            ['ur', ['r', 'lr']],
-#            ['ul', ['u', 'ur']],
-#            ['ll', ['l', 'ul']]],
-#     'u': [['u', ['u', 'ur']]],
-#     'd': [['d', ['d', 'll']]],
-#     'l': [['l', ['l', 'ul']]],
-#     'r': [['r', ['r', 'lr']]],
-#     }
-# NEIGHBOUR_CELLS = {'r': (-1, 0), 'l': (1, 0), 'd': (0, 1), 'u': (0, -1),
-#                    'lr': (0, 1), 'll': (1, 0), 'ul': (0, -1), 'ur': (-1, 0)}
+DELTAS = {
+    'ul': [(0, -1, ['u', 'r', 'ur', ' ']), (-1, -1, ['d', 'r', 'lr', ' ']),
+           (-1, 0, ['d', 'l', 'll', ' '])],
+    'ur': [(-1, 0, ['d', 'r', 'lr', ' ']), (-1, 1, ['d', 'l', 'll', ' ']),
+           (0, 1, ['u', 'l', 'ul', ' '])],
+    'll': [(1, 0, ['u', 'l', 'ul', ' ']), (1, -1, ['u', 'r', 'ur', ' ']),
+           (0, -1, ['d', 'r', 'lr', ' '])],
+    'lr': [(0, 1, ['d', 'l', 'll', ' ']), (1, 1, ['u', 'l', 'ul', ' ']),
+           (1, 0, ['u', 'r', 'ur', ' '])],
+    'u': [(0, -1, ['u', 'ur', ' ']), (-1, -1, ['d', 'r', 'lr', ' ']),
+          (-1, 0, ['d', 'll', 'lr', ' ']), (-1, 1, ['d', 'll', 'l', ' ']),
+          (0, 1, ['u', 'ul', ' '])],
+    'd': [(0, 1, ['d', 'll', ' ']), (1, 1, ['u', 'ul', 'l', ' ']),
+          (1, 0, ['u', 'ul', 'ur', ' ']), (1, -1, ['u', 'ur', 'r', ' ']),
+          (0, -1, ['d', 'lr', ' '])],
+    'r': [(-1, 0, ['r', 'lr', ' ']), (-1, 1, ['d', 'l', 'll', ' ']),
+          (0, 1, ['l', 'ul', 'll', ' ']), (1, 1, ['u', 'l', 'ul', ' ']),
+          (1, 0, ['r', 'ur', ' '])],
+    'l': [(1, 0, ['l', 'ul', ' ']), (1, -1, ['r', 'u', 'ur', ' ']),
+          (0, -1, ['r', 'ur', 'lr', ' ']), (-1, -1, ['r', 'd', 'lr', ' ']),
+          (-1, 0, ['l', 'll', ' '])],
+    ' ': [(-1, 0, ['d', 'll', 'lr', ' ']), (-1, 1, ['l', 'd', 'll', ' ']),
+          (0, 1, ['l', 'll', 'ul', ' ']), (1, 1, ['l', 'u', 'ul', ' ']),
+          (1, 0, ['u', 'ul', 'ur', ' ']), (1, -1, ['u', 'r', 'ur', ' ']),
+          (0, -1, ['r', 'ur', 'lr', ' ']), (-1, -1, ['d', 'r', 'lr', ' '])],
+    '#': [],
+    }
+
+MAPPING = {
+    'ul': [(-1, 0, 'l'), (0, -1, 'u')],
+    'ur': [(-1, 0, 'r'), (0, 1, 'u')],
+    'lr': [(0, 1, 'd'), (1, 0, 'r')],
+    'll': [(1, 0, 'l'), (0, -1, 'd')],
+}
 
 @Profile(stats=PERFORMANCE_STATS)
 def break_evil_pieces(shape):
@@ -61,16 +71,13 @@ def break_evil_pieces(shape):
     pieces = []
     shape_lines = shape.split('\n')
     blank_shape_lines = get_blank_shape(shape_lines)
-    shape_lines = add_frame(shape_lines)
-    shape_matrix = shape_to_matrix(shape_lines)
-    cells_to_be_processed = [(row, col, shape_matrix[(row, col)])
-                             [(row, col, shape_matrix[(row, col)]) for (row, col) in 
-                             [(row, col) for row, col in shape_matrix]
-                             if not '#' in shape_matrix[(row, col)]]
+    shape_matrix, border = shape_to_matrix(shape_lines)
+    cells_to_be_processed = shape_matrix[:]
     while cells_to_be_processed:
         cell = cells_to_be_processed[0]
-        piece = get_piece(cell, cells_to_be_processed, shape_matrix, blank_shape_lines)
+        piece = get_piece(cell, cells_to_be_processed, shape_matrix, border, blank_shape_lines)
         if piece:
+            piece = plus_to_lines(piece)
             piece = piece_to_lines(piece, blank_shape_lines)
             piece = trim_piece(piece)
             pieces.append(piece)
@@ -84,13 +91,6 @@ def get_blank_shape(shape_lines):
     """
     blank_shape_lines = [' ' * len(shape_line) for shape_line in shape_lines]
     return blank_shape_lines
-
-def add_frame(shape_lines):
-    framed_shape = ['#' * (len(shape_lines[0]) + 2)]
-    for line in shape_lines:
-        framed_shape.append('#' + line + '#')
-    framed_shape.append('#' * (len(shape_lines[-1]) + 2))
-    return framed_shape
 
 # @Profile(stats=PERFORMANCE_STATS)
 def shape_to_matrix(shape_lines):
@@ -108,304 +108,115 @@ def shape_to_matrix(shape_lines):
                    ll - lower left corner, lr - lower right corner
     For '-' cells: u - upper half, l - lower half
     For '|' cells: r - right half, l - left half
-    For ' ' cells: c - center
+    For ' ' cells:   - center
     """
     directions = {'+': ['ul', 'ur', 'll', 'lr'],
                   '-': ['u', 'd'],
                   '|': ['r', 'l'],
-                  ' ': [' '],
-                  '#': ['#'],}
-    shape_matrix = {}
+                  ' ': [' '],}
+    shape_matrix = []
+    border = set()
+    for elem in range(len(shape_lines[0]) + 2):
+        border.add((-1, elem - 1))
     for row, shape_line in enumerate(shape_lines):
+        border.add((row, -1))
+        border.add((row, len(shape_line)))
         for col, cell in enumerate(shape_line):
-            shape_matrix[(row, col)] = directions
-    return shape_matrix
+            for direction in directions[cell]:
+                shape_matrix.append((row, col, direction))
+    for elem in range(len(shape_lines[-1]) + 2):
+        border.add((len(shape_lines), elem - 1))
+    return shape_matrix, border
 
-# @Profile(stats=PERFORMANCE_STATS)
-# def shape_to_matrix_v1(shape_lines):
-#     """
-#     Transform the text lines into a data structure for processing.
-#     Each cell is transformed into 2 x 2 cells. For each cell a set of
-#     characters indicates which border line is set. The characters have the
-#     following meaning: 'r' - right, 'l' - left, 'b' - bottom, 't' - top.
-# 
-#     An example: a single cell with the character '+' at row 0 and
-#     column 0 = (0, 0) is translated into the following four cells:
-#         (0, 0,) = {'r', 'b'}, (0, 1) = {'l', 'b'},
-#         (1, 0) = {'r', 't'}, (1, 1) = {'l', 't'}
-#     """
-#     global PERF_SHAPE_SIZE, PERF_SHAPE_MATRIX_SIZE
-#     shape_matrix = {}
-#     mapping = {
-#         ' ': [[0, 0, set()], [0, 1, set()], [1, 0, set()], [1, 1, set()]],
-#         '+': [[0, 0, {'r', 'b'}], [0, 1, {'l', 'b'}],
-#               [1, 0, {'r', 't'}], [1, 1, {'l', 't'}]],
-#         '-': [[0, 0, {'b'}], [0, 1, {'b'}], [1, 0, {'t'}], [1, 1, {'t'}]],
-#         '|': [[0, 0, {'r'}], [0, 1, {'l'}], [1, 0, {'r'}], [1, 1, {'l'}]]
-#         }
-#     for row, shape_line in enumerate(shape_lines):
-#         for col, cell_type in enumerate(shape_line):
-#             for d_row, d_col, borders in mapping[cell_type]:
-#                 shape_matrix[(row * 2 + d_row, col * 2 + d_col)] = borders
-#     PERF_SHAPE_SIZE = (len(shape_lines), len(shape_lines[0]))
-#     PERF_SHAPE_MATRIX_SIZE = len(shape_matrix)
-#     return shape_matrix
-
-# @Profile(stats=PERFORMANCE_STATS)
-# def remove_loose_ends(shape_matrix):
-#     """
-#     For all '+' characters the lines that are not connected need to be removed.
-#     This is a neccessary preparation for later to correctly test whether
-#     a piece is closed and not just the outside area around a piece.
-#     """
-#     deltas = [{'r': (-1, 0), 'b': (0, -1)},
-#               {'l': (-1, 0), 'b': (0, 1)},
-#               {'r': (1, 0), 't': (0, -1)},
-#               {'l': (1, 0), 't': (0, 1)}]
-#     for cell in shape_matrix.keys():
-#         neighbours = [entry for entry in deltas
-#                       if set(entry.keys()) == shape_matrix[cell]]
-#         if neighbours:
-#             borders = neighbours[0]
-#             for border in borders:
-#                 cell_to_check = tuple(map(sum, zip(cell, borders[border])))
-#                 if not cell_to_check in shape_matrix or \
-#                    not shape_matrix[cell_to_check].intersection(set(border)):
-#                     shape_matrix[cell] = shape_matrix[cell].difference(border)
-#     return shape_matrix
-
-def get_piece(cell, cells_to_be_processed, shape_matrix, blank_shape_lines):
-    piece, work_q = [], []
+def get_piece(cell, cells_to_be_processed, shape_matrix, border, blank_shape_lines):
+#     cell_to_char = {' ': ' ', 'u': '-', 'd': '-', 'l': '|', 'r': '|',
+#                     'ul': '+', 'ur': '+', 'll': '+', 'lr': '+'}
+    piece= {}
+    work_q = set()
     is_a_piece = True
-    start_cell = cell
-    work_q.append(start_cell)
-    cells_to_be_processed.remove(start_cell)
+    work_q.add(cell)
+    cells_to_be_processed.remove(cell)
     while work_q:
         # TODO: performance optimize, around half of the sourrounding cells 
         #       already in queue, avoid testing, maybe using sets helps
-        cell = work_q.pop()
-        if cell[2] == '#':
+        row, col, cell_type = work_q.pop()
+        if cell_type == '#':
             is_a_piece = False
             piece = None
         if is_a_piece:
-            piece.append(cell)
-        neighbours = get_neighbours(cell, cells_to_be_processed, shape_matrix)
-        work_q = work_q + neighbours
-        # TODO: remove debug statement
-        for line in piece_to_lines(piece, blank_shape_lines): print('>{}<'.format(line))
-        print()
+            piece = add_piece(row, col, cell_type, piece)
+        neighbours = get_neighbours((row, col, cell_type),
+                                    cells_to_be_processed,
+                                    shape_matrix, border)
+        work_q = work_q.union(neighbours)
     return piece
 
-def get_neighbours(cell, cells_to_be_processed, shape_matrix):
-    deltas = {
-        'ul': [(0, -1, ['u', 'r', 'ur', 'c']), (-1, -1, ['d', 'r', 'lr', 'c']),
-               (-1, 0, ['d', 'l', 'll', 'c'])],
-        'ur': [(-1, 0, ['d', 'r', 'lr', 'c']), (-1, 1, ['d', 'l', 'll', 'c']),
-               (0, 1, ['u', 'l', 'ul', 'c'])],
-        'll': [(1, 0, ['u', 'l', 'ul', 'c']), (1, -1, ['u', 'r', 'ur', 'c']),
-               (0, -1, ['d', 'r', 'lr', 'c'])],
-        'lr': [(0, 1, ['d', 'l', 'll', 'c']), (1, 1, ['u', 'l', 'ul', 'c']),
-               (1, 0, ['u', 'r', 'ur', 'c'])],
-        'u': [(0, -1, ['u', 'ur', 'c']), (-1, -1, ['d', 'r', 'lr', 'c']),
-              (-1, 0, ['d', 'll', 'lr', 'c']), (-1, 1, ['d', 'll', 'l', 'c']),
-              (0, 1, ['u', 'ul', 'c'])],
-        'd': [(0, 1, ['d', 'll', 'c']), (1, 1, ['u', 'ul', 'l', 'c']),
-              (1, 0, ['u', 'ul', 'ur', 'c']), (1, -1, ['u', 'ur', 'r', 'c']),
-              (0, -1, ['d', 'lr', 'c'])],
-        'r': [(-1, 0, ['r', 'lr', 'c']), (-1, 1, ['d', 'l', 'll', 'c']),
-              (0, 1, ['l', 'ul', 'll', 'c']), (1, 1, ['u', 'l', 'ul', 'c']),
-              (1, 0, ['r', 'ur', 'c'])],
-        'l': [(1, 0, ['l', 'ul', 'c']), (1, -1, ['r', 'u', 'ur', 'c']),
-              (0, -1, ['r', 'ur', 'lr', 'c']), (-1, -1, ['r', 'd', 'lr', 'c']),
-              (-1, 0, ['l', 'll', 'c'])],
-        ' ': [(-1, 0, ['d', 'll', 'lr', 'c']), (-1, 1, ['l', 'd', 'll', 'c']),
-              (0, 1, ['l', 'll', 'ul', 'c']), (1, 1, ['l', 'u', 'ul', 'c']),
-              (1, 0, ['u', 'ul', 'ur', 'c']), (1, -1, ['u', 'r', 'ur', 'c']),
-              (0, -1, ['r', 'ur', 'lr', 'c']), (-1, -1, ['d', 'r', 'lr', 'c'])],
-        '#': [],
-        }
+def add_piece(row, col, cell_type, piece):
+    if (row, col) in piece.keys():
+        piece[(row, col)].add(cell_type)
+    else:
+        piece[(row, col)] = {cell_type}
+    return piece
+
+def get_neighbours(cell, cells_to_be_processed, shape_matrix, border):
     # TODO: performance optimize, avoid the 32 loops, use sets
     row, col, direction = cell
-    neighbours = []
-    for d_row, d_col, next_directions in deltas[direction]:
+    neighbours = set()
+    for d_row, d_col, next_directions in DELTAS[direction]:
         next_row, next_col = row + d_row, col + d_col
         for next_direction in next_directions:
             next_cell = (next_row, next_col, next_direction)
             if next_cell in cells_to_be_processed:
-                neighbours.append(next_cell)
+                neighbours.add(next_cell)
                 cells_to_be_processed.remove(next_cell)
-            elif shape_matrix[(next_row, next_col)] == '#':
-                neighbours.append(next_cell)
+            elif (next_row, next_col) in border and \
+                 not (next_row, next_col, '#') in neighbours:
+                neighbours.add((next_row, next_col, '#'))
     return neighbours
 
-# def get_piece_old(cell, cells_to_be_processed, shape_matrix):
-#     start_cell = cell
-#     piece, edges = [], []
-#     while cell and not is_piece_complete(piece, cell, shape_lines):
-#         if cell_already_visited(cell, shape_matrix):
-#             return None
-#         row, col, _ = cell
-#         piece.append((row, col, shape_lines[row][col]))
-#         next_cell = get_next_cell(cell, shape_matrix)
-#         shape_matrix[cell] = False
-#         edges = add_edge(cell, next_cell, start_cell, edges)
-#         cell = next_cell
-#     if not (cell and is_inside_piece(start_cell, edges)):
-#         return None
-#     return piece
-
-# def get_next_cell(cell, shape_matrix):
-#     row, col, start_direction = cell
-#     for directions in TRANSITION[start_direction]:
-#         direction = directions[0]
-#         d_row, d_col = NEIGHBOUR[direction]
-#         next_row, next_col = row + d_row, col + d_col
-#         for next_direction in directions[1]:
-#             next_cell = (next_row, next_col, next_direction)
-#             if next_cell in shape_matrix.keys():
-#                 return next_cell
-#     return None
+# @Profile(stats=PERFORMANCE_STATS)
+def plus_to_lines(piece):
+    """
+    Transform all '+' that are no longer corners or intersections into '|' or
+    '-'.
+    """
+    plus_types = {'ul', 'ur', 'lr', 'll'}
+    for row, col in piece.keys():
+        cell_types = piece[(row, col)]
+        if plus_types.intersection(cell_types):
+            piece = should_be_line(row, col, cell_types, piece)
+    return piece
 
 # @Profile(stats=PERFORMANCE_STATS)
-# def get_piece_v1(cell, cells_to_be_processed, shape_matrix):
-#     """
-#     Extract a single piece given a start cell.
-#     """
-#     deltas = {'t': (-1, 0), 'b': (1, 0), 'l': (0, -1), 'r': (0, 1)}
-#     piece, edges, work_q = {}, [], []
-#     start_cell = cell
-#     work_q.append(start_cell)
-#     while work_q:
-#         cell = work_q.pop()
-#         row, col = cell
-#         piece[cell] = shape_matrix[cell]
-#         del cells_to_be_processed[cells_to_be_processed.index(cell)]
-#         if len(shape_matrix[cell]) == 0:
-#             follow_white_spaces(cell, piece, work_q,
-#                                  cells_to_be_processed, shape_matrix)
-#         else:
-#             follow_border(cell, piece, work_q, cells_to_be_processed,
-#                           shape_matrix)
-#         for direction in {'t', 'b', 'r', 'l'}.difference(shape_matrix[cell]):
-#             d_row, d_col = deltas[direction]
-#             next_row, next_col = row + d_row, col + d_col
-#             if (next_row, next_col) in cells_to_be_processed and \
-#                (next_row, next_col) not in work_q:
-#                 work_q.append((next_row, next_col))
-#         edges = add_edge(cell, piece[cell], start_cell, edges)
-#     if not is_inside_piece(start_cell, edges):
-#         piece = None
-#     return piece
-
-def DEBUG_DISPLAY_PIECE(piece):
-    shape = [' ' * 15 for _ in range(15)] 
-    for cell in piece:
-        borders = piece[cell]
-        if len(borders) == 0:
-            cell_char = ' '
-        elif borders.intersection({'r', 'l'}) and \
-             borders.intersection({'t', 'b'}):
-            cell_char = '+'
-        elif borders.intersection({'r', 'l'}):
-            cell_char = '|'
-        elif borders.intersection({'t', 'b'}):
-            cell_char = '-'
-        row, col = cell
-        shape[row] = shape[row][:col] + cell_char + shape[row][col + 1:]
-    for line in shape:
-        print(line)
-    return
-
-# @Profile(stats=PERFORMANCE_STATS)
-def follow_white_spaces(cell, piece, work_q, cells_to_be_processed, shape_matrix):
-    deltas = [(-1, 0), (-1, 1), (0, 1), (1, 1),
-              (1, 0), (1, -1), (0, -1), (-1, -1)]
-    white_space_q = [cell]
-    while white_space_q:
-        row, col = white_space_q.pop()
-        neighbours = [(row + d_row, col + d_col)
-                      for d_row, d_col in deltas 
-                      if (row + d_row, col + d_col) in shape_matrix.keys() and
-                      (row + d_row, col + d_col) in cells_to_be_processed]
-        for neighbour in neighbours:
-            if len(shape_matrix[neighbour]) == 0:
-                white_space_q.append(neighbour)
-                piece[neighbour] = shape_matrix[neighbour]
-                del cells_to_be_processed[cells_to_be_processed.index(neighbour)]
-            else:
-                work_q.append(neighbour)
-    return
-
-# @Profile(stats=PERFORMANCE_STATS)
-def add_edge(cell, cell_type, start_cell, edges):
+def should_be_line(row, col, cell_types, piece):
     """
-    Build a list of all vertical edges at the same row as the start cell. This
-    will later be used to detect whether a test point is inside or outside a
-    piece.
+    Transform all '+' that are no longer corners or intersections into '|' or
+    '-'.
     """
-    start_row, _ = start_cell
-    row, _ = cell
-    if row == start_row:
-        cell_type = cell_type.intersection({'r', 'l'})
-        if len(cell_type) != 0:
-            cell_type = list(cell_type)[0]
-            deltas = {'r': (0, 1, 1, 1), 'l': (0, 0, 1, 0)}
-            edge = tuple(map(sum, zip(cell + cell, deltas[cell_type])))
-            if edge not in edges:
-                edges.append(edge)
-    return edges
-
-# @Profile(stats=PERFORMANCE_STATS)
-def is_inside_piece(start_cell, edges):
-    """
-    Test wether a piece is closed and not just the area outside the piece. This
-    is done using the ray casting algorithm (crossing number algorithm or
-    even-odd rule algorithm). A test point is placed at what we expect to be
-    inside the piece. We cast a horizontal ray from the test point and count
-    how many times it crosses the boundary. If it is odd, the point is
-    inside, even the point is outside.
-    """
-    result = False
-    cross_points_right, cross_points_left = 0, 0
-    start_x, start_y = start_cell
-    test_x, test_y = start_x + 0.25, start_y + 0.25
-    for edge_start_x, edge_start_y, edge_end_x, edge_end_y in edges:
-        if  edge_start_x <= test_x < edge_end_x or \
-            edge_end_x <= test_x < edge_start_x:
-            v_1 = (edge_start_x, edge_start_y,
-                   edge_end_x - edge_start_x, edge_end_y - edge_start_y)
-            v_2 = (test_x, test_y, 0, 1)
-            _, t_2 = vector_intersection(v_1, v_2)
-            if t_2 < 0:
-                cross_points_right += 1
-            else:
-                cross_points_left += 1
-    if cross_points_right % 2 != 0 and cross_points_left % 2 != 0:
-        result = True
-    return result
-
-# @Profile(stats=PERFORMANCE_STATS)
-def vector_intersection(v_1, v_2):
-    """
-    Calculate the intersection between two lines using Cramer's rule.
-    """
-    p1x, p1y, d1x, d1y = v_1
-    p2x, p2y, d2x, d2y = v_2
-    c_x, c_y = p2x - p1x, p2y - p1y
-    m_div = d1y * d2x - d1x * d2y
-    t_1 = (c_y * d2x - c_x * d2y) / m_div if m_div != 0 else None
-    t_2 = (d1x * c_y - d1y * c_x) / m_div if m_div != 0 else None
-    return t_1, t_2
+    # TODO: can this nested loop be optimized?
+    neighbours = []
+    for cell_type in cell_types:
+        for d_row, d_col, new_cell_type in MAPPING[cell_type]:
+            try:
+                if piece[row + d_row, col + d_col] != ' ':
+                    neighbours.append(new_cell_type)
+            except KeyError:
+                pass
+    if len(neighbours) < 2:
+        new_cell_type = neighbours.pop()
+        piece[row, col] = {new_cell_type}
+    return piece
 
 # @Profile(stats=PERFORMANCE_STATS)
 def piece_to_lines(piece, blank_shape_lines):
     """
     Transform the piece matrix into a list of text lines.
     """
-    cell_to_char = {'c': ' ', 'u': '-', 'd': '-', 'l': '|', 'r': '|',
-                    'ul': '+', 'ur': '+', 'll': '+', 'lr': '+'}
+    cell_to_char = {' ': ' ', 'u': '-', 'd': '-', 'l': '|', 'r': '|',
+                    'ul': '+', 'ur': '+', 'lr': '+', 'll': '+'}
     shape = blank_shape_lines[:]
-    for row, col, cell in piece:
+    for row, col in piece.keys():
+        cell = piece[(row, col)].pop()
         shape[row] = shape[row][:col] + cell_to_char[cell] + shape[row][col + 1:]
     return shape
 
@@ -430,10 +241,13 @@ def trim_piece(shape):
 
 if __name__ == '__main__':
     INPUT_SHAPE = """
-+-+-+-+
-| | | |
-| +-+ |
-+-----+
++-------------------+--+
+|                   |  |
+|                   |  |
+|  +----------------+  |
+|  |                   |
+|  |                   |
++--+-------------------+
 """.strip('\n')
 
 #     INPUT_SHAPE = """
@@ -529,18 +343,10 @@ if __name__ == '__main__':
 # """.strip('\n')
 
     pieces = break_evil_pieces(INPUT_SHAPE)
-#     print('shape size: {}'.format(PERF_SHAPE_SIZE))
-#     print('shape matrix size: {}'.format(PERF_SHAPE_MATRIX_SIZE))
-#     print('work q loops: {}'.format(PERF_WORK_Q_LOOPS))
-#     print('direction loops: {}'.format(PERF_DIRECTION_LOOPS))    
     with open('break_the_pieces_evilized_edition.csv', 'w') as outfile:
         for entry in PERFORMANCE_STATS:
             outfile.write('{}, {}\n'.format(entry[0], entry[1]))
-#     with open('break_the_pieces_evilized_edition_white_chars.csv', 'w') as outfile:
-#         for entry in PERF_WHITE_CELLS_IN_LINE:
-#             outfile.write('{}\n'.format(entry))
     for counter, text_piece in enumerate(pieces):
         print('\n{}.) piece:\n'.format(counter))
         print(text_piece)
     print()
-    print(DEBUG_SHAPE_MATRIX)
