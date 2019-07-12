@@ -29,33 +29,86 @@ from solutions.performance import Profile
 
 PERFORMANCE_STATS = []
 
-DELTAS = {
-    'ul': [(0, -1, ['u', 'r', 'ur', ' ']), (-1, -1, ['d', 'r', 'lr', ' ']),
-           (-1, 0, ['d', 'l', 'll', ' '])],
-    'ur': [(-1, 0, ['d', 'r', 'lr', ' ']), (-1, 1, ['d', 'l', 'll', ' ']),
-           (0, 1, ['u', 'l', 'ul', ' '])],
-    'll': [(1, 0, ['u', 'l', 'ul', ' ']), (1, -1, ['u', 'r', 'ur', ' ']),
-           (0, -1, ['d', 'r', 'lr', ' '])],
-    'lr': [(0, 1, ['d', 'l', 'll', ' ']), (1, 1, ['u', 'l', 'ul', ' ']),
-           (1, 0, ['u', 'r', 'ur', ' '])],
-    'u': [(0, -1, ['u', 'ur', ' ']), (-1, -1, ['d', 'r', 'lr', ' ']),
-          (-1, 0, ['d', 'll', 'lr', ' ']), (-1, 1, ['d', 'll', 'l', ' ']),
-          (0, 1, ['u', 'ul', ' '])],
-    'd': [(0, 1, ['d', 'll', ' ']), (1, 1, ['u', 'ul', 'l', ' ']),
-          (1, 0, ['u', 'ul', 'ur', ' ']), (1, -1, ['u', 'ur', 'r', ' ']),
-          (0, -1, ['d', 'lr', ' '])],
-    'r': [(-1, 0, ['r', 'lr', ' ']), (-1, 1, ['d', 'l', 'll', ' ']),
-          (0, 1, ['l', 'ul', 'll', ' ']), (1, 1, ['u', 'l', 'ul', ' ']),
-          (1, 0, ['r', 'ur', ' '])],
-    'l': [(1, 0, ['l', 'ul', ' ']), (1, -1, ['r', 'u', 'ur', ' ']),
-          (0, -1, ['r', 'ur', 'lr', ' ']), (-1, -1, ['r', 'd', 'lr', ' ']),
-          (-1, 0, ['l', 'll', ' '])],
-    ' ': [(-1, 0, ['d', 'll', 'lr', ' ']), (-1, 1, ['l', 'd', 'll', ' ']),
-          (0, 1, ['l', 'll', 'ul', ' ']), (1, 1, ['l', 'u', 'ul', ' ']),
-          (1, 0, ['u', 'ul', 'ur', ' ']), (1, -1, ['u', 'r', 'ur', ' ']),
-          (0, -1, ['r', 'ur', 'lr', ' ']), (-1, -1, ['d', 'r', 'lr', ' '])],
-    '#': [],
-    }
+# VALID_NEIGHBOURS = {
+#     'ul': [(0, -1, ['u', 'r', 'ur', ' ']), (-1, -1, ['d', 'r', 'lr', ' ']),
+#            (-1, 0, ['d', 'l', 'll', ' '])],
+#     'ur': [(-1, 0, ['d', 'r', 'lr', ' ']), (-1, 1, ['d', 'l', 'll', ' ']),
+#            (0, 1, ['u', 'l', 'ul', ' '])],
+#     'll': [(1, 0, ['u', 'l', 'ul', ' ']), (1, -1, ['u', 'r', 'ur', ' ']),
+#            (0, -1, ['d', 'r', 'lr', ' '])],
+#     'lr': [(0, 1, ['d', 'l', 'll', ' ']), (1, 1, ['u', 'l', 'ul', ' ']),
+#            (1, 0, ['u', 'r', 'ur', ' '])],
+#     'u': [(0, -1, ['u', 'ur', ' ']), (-1, -1, ['d', 'r', 'lr', ' ']),
+#           (-1, 0, ['d', 'll', 'lr', ' ']), (-1, 1, ['d', 'll', 'l', ' ']),
+#           (0, 1, ['u', 'ul', ' '])],
+#     'd': [(0, 1, ['d', 'll', ' ']), (1, 1, ['u', 'ul', 'l', ' ']),
+#           (1, 0, ['u', 'ul', 'ur', ' ']), (1, -1, ['u', 'ur', 'r', ' ']),
+#           (0, -1, ['d', 'lr', ' '])],
+#     'r': [(-1, 0, ['r', 'lr', ' ']), (-1, 1, ['d', 'l', 'll', ' ']),
+#           (0, 1, ['l', 'ul', 'll', ' ']), (1, 1, ['u', 'l', 'ul', ' ']),
+#           (1, 0, ['r', 'ur', ' '])],
+#     'l': [(1, 0, ['l', 'ul', ' ']), (1, -1, ['r', 'u', 'ur', ' ']),
+#           (0, -1, ['r', 'ur', 'lr', ' ']), (-1, -1, ['r', 'd', 'lr', ' ']),
+#           (-1, 0, ['l', 'll', ' '])],
+#     ' ': [(-1, 0, ['d', 'll', 'lr', ' ']), (-1, 1, ['l', 'd', 'll', ' ']),
+#           (0, 1, ['l', 'll', 'ul', ' ']), (1, 1, ['l', 'u', 'ul', ' ']),
+#           (1, 0, ['u', 'ul', 'ur', ' ']), (1, -1, ['u', 'r', 'ur', ' ']),
+#           (0, -1, ['r', 'ur', 'lr', ' ']), (-1, -1, ['d', 'r', 'lr', ' '])],
+#     '#': [],
+#     }
+# 
+# NEW_DELTAS = {}
+# for dir_ in VALID_NEIGHBOURS:
+#     new_set = set()
+#     for (row, col, cell_dirs) in VALID_NEIGHBOURS[dir_]:
+#         new_set = new_set.union({(row, col, cell_dir)
+#                                  for cell_dir in cell_dirs})
+#     NEW_DELTAS[dir_] = new_set
+
+VALID_NEIGHBOURS = {
+    'ul': {(0, -1, 'ur'), (-1, -1, ' '), (-1, 0, 'd'), (-1, 0, 'll'),
+           (-1, 0, 'l'), (-1, -1, 'd'), (-1, -1, 'lr'), (0, -1, 'u'),
+           (-1, -1, 'r'), (0, -1, ' '), (0, -1, 'r'), (-1, 0, ' ')},
+    'ur': {(-1, 0, 'r'), (-1, 1, ' '), (0, 1, 'l'), (-1, 0, 'lr'),
+           (-1, 0, 'd'), (0, 1, ' '), (-1, 1, 'd'), (-1, 1, 'l'),
+           (0, 1, 'u'), (-1, 1, 'll'), (0, 1, 'ul'), (-1, 0, ' ')},
+    'll': {(1, 0, ' '), (1, -1, 'ur'), (1, -1, 'r'), (1, 0, 'u'),
+           (1, 0, 'ul'), (1, -1, 'u'), (0, -1, 'd'), (0, -1, 'lr'),
+           (1, -1, ' '), (0, -1, ' '), (0, -1, 'r'), (1, 0, 'l')},
+    'lr': {(1, 0, 'r'), (0, 1, 'll'), (1, 0, ' '), (1, 1, 'l'),
+           (1, 0, 'u'), (0, 1, 'l'), (0, 1, ' '), (1, 1, 'ul'),
+           (1, 0, 'ur'), (1, 1, ' '), (1, 1, 'u'), (0, 1, 'd')},
+    'u': {(-1, -1, ' '), (0, -1, 'ur'), (-1, 1, ' '), (-1, 0, 'lr'),
+          (-1, 0, 'd'), (0, 1, 'ul'), (0, 1, ' '), (-1, 0, 'll'),
+          (-1, -1, 'd'), (-1, -1, 'lr'), (-1, 1, 'd'), (-1, 1, 'l'),
+          (0, -1, 'u'), (-1, 1, 'll'), (0, 1, 'u'), (-1, -1, 'r'),
+          (0, -1, ' '), (-1, 0, ' ')},
+    'd': {(0, 1, 'll'), (1, 0, ' '), (1, 1, 'l'), (1, -1, 'ur'),
+          (1, 0, 'u'), (1, -1, 'r'), (1, 0, 'ul'), (0, 1, ' '),
+          (1, -1, 'u'), (0, -1, 'd'), (0, -1, 'lr'), (1, 1, 'ul'),
+          (1, 0, 'ur'), (1, -1, ' '), (1, 1, ' '), (0, -1, ' '),
+          (1, 1, 'u'), (0, 1, 'd')},
+    'r': {(-1, 0, 'r'), (1, 0, 'r'), (0, 1, 'll'), (1, 0, ' '),
+          (1, 1, 'l'), (1, 1, 'u'), (-1, 1, ' '), (0, 1, 'l'),
+          (-1, 0, 'lr'), (0, 1, ' '), (-1, 1, 'd'), (-1, 1, 'l'),
+          (1, 1, 'ul'), (1, 1, ' '), (-1, 1, 'll'), (1, 0, 'ur'),
+          (0, 1, 'ul'), (-1, 0, ' ')},
+    'l': {(1, 0, ' '), (1, -1, 'ur'), (1, -1, 'r'), (0, -1, 'ur'),
+          (-1, -1, ' '), (1, 0, 'ul'), (1, -1, 'u'), (0, -1, 'lr'),
+          (-1, 0, 'll'), (-1, -1, 'd'), (1, -1, ' '), (-1, -1, 'lr'),
+          (-1, 0, 'l'), (-1, -1, 'r'), (0, -1, ' '), (0, -1, 'r'),
+          (1, 0, 'l'), (-1, 0, ' ')},
+    ' ': {(1, -1, 'ur'), (-1, -1, ' '), (0, 1, 'l'), (-1, 0, 'lr'),
+          (1, -1, 'u'), (-1, 0, 'll'), (-1, -1, 'lr'), (-1, 1, 'd'),
+          (-1, 1, 'l'), (1, 1, 'ul'), (1, 1, ' '), (1, -1, ' '),
+          (0, -1, ' '), (1, 1, 'u'), (-1, 0, ' '), (0, 1, 'll'),
+          (1, 0, ' '), (1, 1, 'l'), (1, -1, 'r'), (1, 0, 'u'),
+          (0, -1, 'ur'), (-1, 1, ' '), (-1, 0, 'd'), (1, 0, 'ul'),
+          (0, 1, ' '), (0, -1, 'lr'), (-1, -1, 'd'), (1, 0, 'ur'),
+          (-1, 1, 'll'), (-1, -1, 'r'), (0, 1, 'ul'), (0, -1, 'r')},
+    '#': set()}
+
+
 
 MAPPING = {
     'ul': [(-1, 0, 'l'), (0, -1, 'u')],
@@ -74,11 +127,11 @@ def break_evil_pieces(shape):
     pieces = []
     shape_lines = shape.split('\n')
     blank_shape_lines = get_blank_shape(shape_lines)
-    shape_matrix, border = shape_to_matrix(shape_lines)
-    cells_to_be_processed = shape_matrix[:]
-    while cells_to_be_processed:
-        cell = cells_to_be_processed[0]
-        piece = get_piece(cell, cells_to_be_processed, border)
+    shape_cell_q, shape_cells, shape_border = pre_process(shape_lines)
+    shape_neighbour_map = get_neighbour_map(shape_cells, shape_border)
+    while shape_cell_q:
+        cell = shape_cell_q[0]
+        piece = get_piece(cell, shape_cell_q, shape_neighbour_map, shape_border)
         if piece:
             piece = plus_to_lines(piece)
             piece = piece_to_lines(piece, blank_shape_lines)
@@ -96,22 +149,65 @@ def get_blank_shape(shape_lines):
     return blank_shape_lines
 
 @Profile(stats=PERFORMANCE_STATS)
-def shape_to_matrix(shape_lines):
+def pre_process(shape_lines):
     """
     Transform the shape into a data structure that can be used for the flood fill
-    algorithm. Boolean status indicates whether the cell can be filled (True)
-    or not (False). ' ' cells can only be filled once, as the they can
-    only belong to one piece. '|' can belong to up to two pieces and '+' cells
-    to up to four pieces.
+    algorithm.
+    """
+    directions = {'+': ['ul', 'ur', 'll', 'lr'],
+                  '-': ['u', 'd'],
+                  '|': ['r', 'l'],
+                  ' ': [' '],}
+    shape_cell_q = []
+    shape_cells = {}
+    shape_border = set()
+    shape_border = add_top_border(shape_border, shape_lines)
+    for row, shape_line in enumerate(shape_lines):
+        shape_border = add_right_left_border(shape_border, row, shape_line)
+        for col, cell in enumerate(shape_line):
+            for direction in directions[cell]:
+                shape_cell_q.append((row, col, direction))
+            shape_cells[(row, col)] =  directions[cell]
+    shape_border = add_bottom_border(shape_border, shape_lines)
+    return shape_cell_q, shape_cells, shape_border
 
-    Each cell initialises with a dictionary that stores it's fill status.
-    The dictionary keys have the following meanings:
+def get_neighbour_map(shape_cells, shape_border):
+    deltas = [(-1, 0), (-1, 1), (0, 1), (1, 1),
+              (1, 0), (1, -1), (0, -1), (-1, -1),]
+    shape_neighbour_map = {}
+    for row, col in shape_cells:
+        neighbour_cells = set()
+        for d_row, d_col in deltas:
+            n_row, n_col = row + d_row, col + d_col
+            if (n_row, n_col) in shape_cells.keys():
+                new_set = {(n_row, n_col, cell)
+                           for cell in shape_cells[(n_row, n_col)]}
+                neighbour_cells = neighbour_cells.union(new_set)
+            if (n_row, n_col) in shape_border:
+                neighbour_cells.add((n_row, n_col, '#'))
+        shape_neighbour_map[(row, col)] = neighbour_cells
+    return shape_neighbour_map
 
-    For '+' cells: ul - upper left corner, ur - upper right corner,
-                   ll - lower left corner, lr - lower right corner
-    For '-' cells: u - upper half, l - lower half
-    For '|' cells: r - right half, l - left half
-    For ' ' cells:   - center
+def add_top_border(shape_border, shape_lines):
+    for elem in range(len(shape_lines[0]) + 2):
+        shape_border.add((-1, elem - 1))
+    return shape_border
+
+def add_right_left_border(shape_border, row, shape_line):
+    shape_border.add((row, -1))
+    shape_border.add((row, len(shape_line)))
+    return shape_border
+
+def add_bottom_border(shape_border, shape_lines):
+    for elem in range(len(shape_lines[-1]) + 2):
+        shape_border.add((len(shape_lines), elem - 1))    
+    return shape_border
+
+@Profile(stats=PERFORMANCE_STATS)
+def shape_to_matrix_v1(shape_lines):
+    """
+    Transform the shape into a data structure that can be used for the flood fill
+    algorithm.
     """
     directions = {'+': ['ul', 'ur', 'll', 'lr'],
                   '-': ['u', 'd'],
@@ -132,12 +228,12 @@ def shape_to_matrix(shape_lines):
     return shape_matrix, border
 
 @Profile(stats=PERFORMANCE_STATS)
-def get_piece(cell, cells_to_be_processed, border):
+def get_piece(cell, shape_cell_q, shape_neighbour_map, shape_border):
     piece= {}
     work_q = set()
     is_a_piece = True
     work_q.add(cell)
-    cells_to_be_processed.remove(cell)
+    shape_cell_q.remove(cell)
     while work_q:
         # TODO: performance optimize, around half of the sourrounding cells 
         #       already in queue, avoid testing, maybe using sets helps
@@ -148,8 +244,8 @@ def get_piece(cell, cells_to_be_processed, border):
         if is_a_piece:
             piece = add_piece(row, col, cell_type, piece)
         neighbours = get_neighbours((row, col, cell_type),
-                                    cells_to_be_processed,
-                                    border)
+                                    shape_cell_q, shape_neighbour_map,
+                                    shape_border)
         work_q = work_q.union(neighbours)
     return piece
 
@@ -162,18 +258,17 @@ def add_piece(row, col, cell_type, piece):
     return piece
 
 @Profile(stats=PERFORMANCE_STATS)
-def get_neighbours(cell, cells_to_be_processed, border):
-    # TODO: performance optimize, avoid the 32 loops, use sets
+def get_neighbours(cell, shape_cell_q, shape_neighbour_map, shape_border):
     row, col, direction = cell
     neighbours = set()
-    for d_row, d_col, next_directions in DELTAS[direction]:
+    for d_row, d_col, next_directions in VALID_NEIGHBOURS[direction]:
         next_row, next_col = row + d_row, col + d_col
         for next_direction in next_directions:
             next_cell = (next_row, next_col, next_direction)
-            if next_cell in cells_to_be_processed:
+            if next_cell in shape_cell_q:
                 neighbours.add(next_cell)
-                cells_to_be_processed.remove(next_cell)
-            elif (next_row, next_col) in border and \
+                shape_cell_q.remove(next_cell)
+            elif (next_row, next_col) in shape_border and \
                  not (next_row, next_col, '#') in neighbours:
                 neighbours.add((next_row, next_col, '#'))
     return neighbours
