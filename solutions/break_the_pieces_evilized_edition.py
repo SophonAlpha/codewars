@@ -30,33 +30,33 @@ from solutions.performance import Profile
 PERFORMANCE_STATS = []
 
 # VALID_NEIGHBOURS = {
-#     'ul': [(0, -1, ['u', 'r', 'ur', ' ']), (-1, -1, ['d', 'r', 'lr', ' ']),
-#            (-1, 0, ['d', 'l', 'll', ' '])],
-#     'ur': [(-1, 0, ['d', 'r', 'lr', ' ']), (-1, 1, ['d', 'l', 'll', ' ']),
-#            (0, 1, ['u', 'l', 'ul', ' '])],
-#     'll': [(1, 0, ['u', 'l', 'ul', ' ']), (1, -1, ['u', 'r', 'ur', ' ']),
-#            (0, -1, ['d', 'r', 'lr', ' '])],
-#     'lr': [(0, 1, ['d', 'l', 'll', ' ']), (1, 1, ['u', 'l', 'ul', ' ']),
-#            (1, 0, ['u', 'r', 'ur', ' '])],
-#     'u': [(0, -1, ['u', 'ur', ' ']), (-1, -1, ['d', 'r', 'lr', ' ']),
-#           (-1, 0, ['d', 'll', 'lr', ' ']), (-1, 1, ['d', 'll', 'l', ' ']),
-#           (0, 1, ['u', 'ul', ' '])],
-#     'd': [(0, 1, ['d', 'll', ' ']), (1, 1, ['u', 'ul', 'l', ' ']),
-#           (1, 0, ['u', 'ul', 'ur', ' ']), (1, -1, ['u', 'ur', 'r', ' ']),
-#           (0, -1, ['d', 'lr', ' '])],
-#     'r': [(-1, 0, ['r', 'lr', ' ']), (-1, 1, ['d', 'l', 'll', ' ']),
-#           (0, 1, ['l', 'ul', 'll', ' ']), (1, 1, ['u', 'l', 'ul', ' ']),
-#           (1, 0, ['r', 'ur', ' '])],
-#     'l': [(1, 0, ['l', 'ul', ' ']), (1, -1, ['r', 'u', 'ur', ' ']),
-#           (0, -1, ['r', 'ur', 'lr', ' ']), (-1, -1, ['r', 'd', 'lr', ' ']),
-#           (-1, 0, ['l', 'll', ' '])],
-#     ' ': [(-1, 0, ['d', 'll', 'lr', ' ']), (-1, 1, ['l', 'd', 'll', ' ']),
-#           (0, 1, ['l', 'll', 'ul', ' ']), (1, 1, ['l', 'u', 'ul', ' ']),
-#           (1, 0, ['u', 'ul', 'ur', ' ']), (1, -1, ['u', 'r', 'ur', ' ']),
-#           (0, -1, ['r', 'ur', 'lr', ' ']), (-1, -1, ['d', 'r', 'lr', ' '])],
+#     'ul': [(0, -1, ['u', 'r', 'ur', ' ', '#']), (-1, -1, ['d', 'r', 'lr', ' ', '#']),
+#            (-1, 0, ['d', 'l', 'll', ' ', '#'])],
+#     'ur': [(-1, 0, ['d', 'r', 'lr', ' ', '#']), (-1, 1, ['d', 'l', 'll', ' ', '#']),
+#            (0, 1, ['u', 'l', 'ul', ' ', '#'])],
+#     'll': [(1, 0, ['u', 'l', 'ul', ' ', '#']), (1, -1, ['u', 'r', 'ur', ' ', '#']),
+#            (0, -1, ['d', 'r', 'lr', ' ', '#'])],
+#     'lr': [(0, 1, ['d', 'l', 'll', ' ', '#']), (1, 1, ['u', 'l', 'ul', ' ', '#']),
+#            (1, 0, ['u', 'r', 'ur', ' ', '#'])],
+#     'u': [(0, -1, ['u', 'ur', ' ', '#']), (-1, -1, ['d', 'r', 'lr', ' ', '#']),
+#           (-1, 0, ['d', 'll', 'lr', ' ', '#']), (-1, 1, ['d', 'll', 'l', ' ', '#']),
+#           (0, 1, ['u', 'ul', ' ', '#'])],
+#     'd': [(0, 1, ['d', 'll', ' ', '#']), (1, 1, ['u', 'ul', 'l', ' ', '#']),
+#           (1, 0, ['u', 'ul', 'ur', ' ', '#']), (1, -1, ['u', 'ur', 'r', ' ', '#']),
+#           (0, -1, ['d', 'lr', ' ', '#'])],
+#     'r': [(-1, 0, ['r', 'lr', ' ', '#']), (-1, 1, ['d', 'l', 'll', ' ', '#']),
+#           (0, 1, ['l', 'ul', 'll', ' ', '#']), (1, 1, ['u', 'l', 'ul', ' ', '#']),
+#           (1, 0, ['r', 'ur', ' ', '#'])],
+#     'l': [(1, 0, ['l', 'ul', ' ', '#']), (1, -1, ['r', 'u', 'ur', ' ', '#']),
+#           (0, -1, ['r', 'ur', 'lr', ' ', '#']), (-1, -1, ['r', 'd', 'lr', ' ', '#']),
+#           (-1, 0, ['l', 'll', ' ', '#'])],
+#     ' ': [(-1, 0, ['d', 'll', 'lr', ' ', '#']), (-1, 1, ['l', 'd', 'll', ' ', '#']),
+#           (0, 1, ['l', 'll', 'ul', ' ', '#']), (1, 1, ['l', 'u', 'ul', ' ', '#']),
+#           (1, 0, ['u', 'ul', 'ur', ' ', '#']), (1, -1, ['u', 'r', 'ur', ' ', '#']),
+#           (0, -1, ['r', 'ur', 'lr', ' ', '#']), (-1, -1, ['d', 'r', 'lr', ' ', '#'])],
 #     '#': [],
 #     }
-# 
+#  
 # NEW_DELTAS = {}
 # for dir_ in VALID_NEIGHBOURS:
 #     new_set = set()
@@ -66,48 +66,54 @@ PERFORMANCE_STATS = []
 #     NEW_DELTAS[dir_] = new_set
 
 VALID_NEIGHBOURS = {
-    'ul': {(0, -1, 'ur'), (-1, -1, ' '), (-1, 0, 'd'), (-1, 0, 'll'),
-           (-1, 0, 'l'), (-1, -1, 'd'), (-1, -1, 'lr'), (0, -1, 'u'),
-           (-1, -1, 'r'), (0, -1, ' '), (0, -1, 'r'), (-1, 0, ' ')},
-    'ur': {(-1, 0, 'r'), (-1, 1, ' '), (0, 1, 'l'), (-1, 0, 'lr'),
-           (-1, 0, 'd'), (0, 1, ' '), (-1, 1, 'd'), (-1, 1, 'l'),
-           (0, 1, 'u'), (-1, 1, 'll'), (0, 1, 'ul'), (-1, 0, ' ')},
-    'll': {(1, 0, ' '), (1, -1, 'ur'), (1, -1, 'r'), (1, 0, 'u'),
-           (1, 0, 'ul'), (1, -1, 'u'), (0, -1, 'd'), (0, -1, 'lr'),
-           (1, -1, ' '), (0, -1, ' '), (0, -1, 'r'), (1, 0, 'l')},
-    'lr': {(1, 0, 'r'), (0, 1, 'll'), (1, 0, ' '), (1, 1, 'l'),
-           (1, 0, 'u'), (0, 1, 'l'), (0, 1, ' '), (1, 1, 'ul'),
-           (1, 0, 'ur'), (1, 1, ' '), (1, 1, 'u'), (0, 1, 'd')},
-    'u': {(-1, -1, ' '), (0, -1, 'ur'), (-1, 1, ' '), (-1, 0, 'lr'),
-          (-1, 0, 'd'), (0, 1, 'ul'), (0, 1, ' '), (-1, 0, 'll'),
-          (-1, -1, 'd'), (-1, -1, 'lr'), (-1, 1, 'd'), (-1, 1, 'l'),
-          (0, -1, 'u'), (-1, 1, 'll'), (0, 1, 'u'), (-1, -1, 'r'),
-          (0, -1, ' '), (-1, 0, ' ')},
-    'd': {(0, 1, 'll'), (1, 0, ' '), (1, 1, 'l'), (1, -1, 'ur'),
-          (1, 0, 'u'), (1, -1, 'r'), (1, 0, 'ul'), (0, 1, ' '),
-          (1, -1, 'u'), (0, -1, 'd'), (0, -1, 'lr'), (1, 1, 'ul'),
-          (1, 0, 'ur'), (1, -1, ' '), (1, 1, ' '), (0, -1, ' '),
-          (1, 1, 'u'), (0, 1, 'd')},
-    'r': {(-1, 0, 'r'), (1, 0, 'r'), (0, 1, 'll'), (1, 0, ' '),
-          (1, 1, 'l'), (1, 1, 'u'), (-1, 1, ' '), (0, 1, 'l'),
-          (-1, 0, 'lr'), (0, 1, ' '), (-1, 1, 'd'), (-1, 1, 'l'),
-          (1, 1, 'ul'), (1, 1, ' '), (-1, 1, 'll'), (1, 0, 'ur'),
-          (0, 1, 'ul'), (-1, 0, ' ')},
-    'l': {(1, 0, ' '), (1, -1, 'ur'), (1, -1, 'r'), (0, -1, 'ur'),
-          (-1, -1, ' '), (1, 0, 'ul'), (1, -1, 'u'), (0, -1, 'lr'),
-          (-1, 0, 'll'), (-1, -1, 'd'), (1, -1, ' '), (-1, -1, 'lr'),
-          (-1, 0, 'l'), (-1, -1, 'r'), (0, -1, ' '), (0, -1, 'r'),
-          (1, 0, 'l'), (-1, 0, ' ')},
-    ' ': {(1, -1, 'ur'), (-1, -1, ' '), (0, 1, 'l'), (-1, 0, 'lr'),
-          (1, -1, 'u'), (-1, 0, 'll'), (-1, -1, 'lr'), (-1, 1, 'd'),
-          (-1, 1, 'l'), (1, 1, 'ul'), (1, 1, ' '), (1, -1, ' '),
-          (0, -1, ' '), (1, 1, 'u'), (-1, 0, ' '), (0, 1, 'll'),
-          (1, 0, ' '), (1, 1, 'l'), (1, -1, 'r'), (1, 0, 'u'),
-          (0, -1, 'ur'), (-1, 1, ' '), (-1, 0, 'd'), (1, 0, 'ul'),
-          (0, 1, ' '), (0, -1, 'lr'), (-1, -1, 'd'), (1, 0, 'ur'),
-          (-1, 1, 'll'), (-1, -1, 'r'), (0, 1, 'ul'), (0, -1, 'r')},
-    '#': set()}
-
+    'ul': {(0, -1, '#'), (-1, -1, 'd'), (-1, -1, 'r'), (-1, 0, 'l'),
+           (-1, 0, '#'), (-1, 0, 'd'), (-1, -1, ' '), (-1, -1, 'lr'),
+           (-1, -1, '#'), (0, -1, 'u'), (-1, 0, ' '), (0, -1, ' '),
+           (-1, 0, 'll'), (0, -1, 'ur'), (0, -1, 'r')},
+    'ur': {(-1, 1, ' '), (-1, 1, '#'), (-1, 1, 'd'), (-1, 1, 'll'),
+           (0, 1, '#'), (-1, 0, '#'), (-1, 0, 'lr'), (-1, 0, 'd'),
+           (0, 1, 'l'), (-1, 1, 'l'), (0, 1, 'ul'), (-1, 0, ' '),
+           (0, 1, ' '), (0, 1, 'u'), (-1, 0, 'r')},
+    'll': {(1, 0, 'ul'), (0, -1, 'lr'), (0, -1, '#'), (1, 0, ' '),
+           (1, 0, 'u'), (1, -1, '#'), (1, -1, ' '), (0, -1, 'd'),
+           (1, -1, 'ur'), (1, -1, 'r'), (0, -1, ' '), (1, 0, '#'),
+           (1, 0, 'l'), (1, -1, 'u'), (0, -1, 'r')},
+    'lr': {(1, 1, ' '), (1, 1, '#'), (1, 0, 'r'), (1, 0, 'ur'), (1, 0, ' '),
+           (0, 1, '#'), (0, 1, 'l'), (1, 0, 'u'), (0, 1, 'll'), (1, 1, 'l'),
+           (1, 1, 'u'), (1, 0, '#'), (0, 1, ' '), (0, 1, 'd'), (1, 1, 'ul')},
+    'u': {(-1, 1, ' '), (0, -1, '#'), (-1, -1, 'd'), (-1, 1, 'll'),
+          (0, 1, '#'), (-1, 0, 'lr'), (-1, 0, 'd'), (-1, -1, ' '),
+          (-1, -1, 'lr'), (0, -1, 'u'), (0, 1, 'ul'), (-1, 0, ' '),
+          (0, 1, ' '), (-1, 1, '#'), (-1, 1, 'd'), (-1, -1, 'r'),
+          (-1, 0, '#'), (-1, -1, '#'), (-1, 1, 'l'), (0, -1, ' '),
+          (0, -1, 'ur'), (-1, 0, 'll'), (0, 1, 'u')},
+    'd': {(1, 1, ' '), (0, -1, '#'), (0, 1, '#'), (1, 0, 'u'), (0, 1, 'll'),
+          (1, -1, ' '), (1, 1, 'l'), (1, -1, 'ur'), (1, 1, 'u'), (1, 0, '#'),
+          (0, 1, ' '), (1, 1, '#'), (1, 0, 'ul'), (1, 0, 'ur'), (0, -1, 'lr'),
+          (1, 0, ' '), (1, -1, '#'), (0, -1, 'd'), (1, -1, 'r'), (0, -1, ' '),
+          (1, -1, 'u'), (0, 1, 'd'), (1, 1, 'ul')},
+    'r': {(-1, 1, ' '), (1, 1, ' '), (1, 0, 'r'), (-1, 1, 'll'), (0, 1, '#'),
+          (-1, 0, 'lr'), (0, 1, 'll'), (1, 1, 'l'), (0, 1, 'ul'), (1, 1, 'u'),
+          (1, 0, '#'), (-1, 0, ' '), (0, 1, ' '), (-1, 1, '#'), (1, 1, '#'),
+          (1, 0, 'ur'), (-1, 1, 'd'), (1, 0, ' '), (-1, 0, '#'), (0, 1, 'l'),
+          (-1, 1, 'l'), (1, 1, 'ul'), (-1, 0, 'r')},
+    'l': {(0, -1, '#'), (-1, -1, 'd'), (-1, 0, 'l'), (1, -1, ' '),
+          (-1, -1, ' '), (-1, -1, 'lr'), (1, -1, 'ur'), (1, 0, '#'),
+          (-1, 0, ' '), (0, -1, 'r'), (1, 0, 'ul'), (0, -1, 'lr'), (1, 0, ' '),
+          (-1, -1, 'r'), (-1, 0, '#'), (1, -1, '#'), (1, -1, 'u'),
+          (-1, -1, '#'), (1, -1, 'r'), (0, -1, ' '), (1, 0, 'l'),
+          (0, -1, 'ur'), (-1, 0, 'll')},
+    ' ': {(0, -1, '#'), (-1, 0, 'lr'), (1, 0, 'u'), (-1, 0, 'd'),
+          (-1, -1, 'lr'), (1, 1, 'l'), (1, 1, 'u'), (0, 1, ' '), (0, -1, 'r'),
+          (-1, 1, '#'), (1, 1, '#'), (1, 0, 'ur'), (0, -1, 'lr'), (1, 0, ' '),
+          (-1, -1, 'r'), (0, 1, 'l'), (1, -1, '#'), (-1, 1, 'l'),
+          (-1, -1, '#'), (1, -1, 'r'), (0, -1, 'ur'), (1, 1, 'ul'),
+          (-1, 1, ' '), (1, 1, ' '), (-1, 1, 'll'), (-1, -1, 'd'), (0, 1, '#'),
+          (0, 1, 'll'), (1, -1, ' '), (-1, -1, ' '), (1, -1, 'ur'),
+          (0, 1, 'ul'), (1, 0, '#'), (-1, 0, ' '), (1, 0, 'ul'), (-1, 1, 'd'),
+          (-1, 0, '#'), (0, -1, ' '), (1, -1, 'u'), (-1, 0, 'll')},
+    '#': set(),
+    }
 
 
 MAPPING = {
@@ -117,7 +123,7 @@ MAPPING = {
     'll': [(1, 0, 'l'), (0, -1, 'd')],
 }
 
-@Profile(stats=PERFORMANCE_STATS)
+# @Profile(stats=PERFORMANCE_STATS)
 def break_evil_pieces(shape):
     """
     main function
@@ -139,7 +145,7 @@ def break_evil_pieces(shape):
             pieces.append(piece)
     return pieces
 
-@Profile(stats=PERFORMANCE_STATS)
+# @Profile(stats=PERFORMANCE_STATS)
 def get_blank_shape(shape_lines):
     """
     Generate a blank shape. Used later to add extracted characters that make up
@@ -148,7 +154,7 @@ def get_blank_shape(shape_lines):
     blank_shape_lines = [' ' * len(shape_line) for shape_line in shape_lines]
     return blank_shape_lines
 
-@Profile(stats=PERFORMANCE_STATS)
+# @Profile(stats=PERFORMANCE_STATS)
 def pre_process(shape_lines):
     """
     Transform the shape into a data structure that can be used for the flood fill
@@ -171,6 +177,7 @@ def pre_process(shape_lines):
     shape_border = add_bottom_border(shape_border, shape_lines)
     return shape_cell_q, shape_cells, shape_border
 
+# @Profile(stats=PERFORMANCE_STATS)
 def get_neighbour_map(shape_cells, shape_border):
     deltas = [(-1, 0), (-1, 1), (0, 1), (1, 1),
               (1, 0), (1, -1), (0, -1), (-1, -1),]
@@ -180,7 +187,7 @@ def get_neighbour_map(shape_cells, shape_border):
         for d_row, d_col in deltas:
             n_row, n_col = row + d_row, col + d_col
             if (n_row, n_col) in shape_cells.keys():
-                new_set = {(n_row, n_col, cell)
+                new_set = {(d_row, d_col, cell)
                            for cell in shape_cells[(n_row, n_col)]}
                 neighbour_cells = neighbour_cells.union(new_set)
             if (n_row, n_col) in shape_border:
@@ -188,22 +195,25 @@ def get_neighbour_map(shape_cells, shape_border):
         shape_neighbour_map[(row, col)] = neighbour_cells
     return shape_neighbour_map
 
+# @Profile(stats=PERFORMANCE_STATS)
 def add_top_border(shape_border, shape_lines):
     for elem in range(len(shape_lines[0]) + 2):
         shape_border.add((-1, elem - 1))
     return shape_border
 
+# @Profile(stats=PERFORMANCE_STATS)
 def add_right_left_border(shape_border, row, shape_line):
     shape_border.add((row, -1))
     shape_border.add((row, len(shape_line)))
     return shape_border
 
+# @Profile(stats=PERFORMANCE_STATS)
 def add_bottom_border(shape_border, shape_lines):
     for elem in range(len(shape_lines[-1]) + 2):
         shape_border.add((len(shape_lines), elem - 1))    
     return shape_border
 
-@Profile(stats=PERFORMANCE_STATS)
+# @Profile(stats=PERFORMANCE_STATS)
 def shape_to_matrix_v1(shape_lines):
     """
     Transform the shape into a data structure that can be used for the flood fill
@@ -227,7 +237,7 @@ def shape_to_matrix_v1(shape_lines):
         border.add((len(shape_lines), elem - 1))
     return shape_matrix, border
 
-@Profile(stats=PERFORMANCE_STATS)
+# @Profile(stats=PERFORMANCE_STATS)
 def get_piece(cell, shape_cell_q, shape_neighbour_map, shape_border):
     piece= {}
     work_q = set()
@@ -249,7 +259,7 @@ def get_piece(cell, shape_cell_q, shape_neighbour_map, shape_border):
         work_q = work_q.union(neighbours)
     return piece
 
-@Profile(stats=PERFORMANCE_STATS)
+# @Profile(stats=PERFORMANCE_STATS)
 def add_piece(row, col, cell_type, piece):
     if (row, col) in piece.keys():
         piece[(row, col)].add(cell_type)
@@ -257,23 +267,26 @@ def add_piece(row, col, cell_type, piece):
         piece[(row, col)] = {cell_type}
     return piece
 
-@Profile(stats=PERFORMANCE_STATS)
+# @Profile(stats=PERFORMANCE_STATS)
 def get_neighbours(cell, shape_cell_q, shape_neighbour_map, shape_border):
-    row, col, direction = cell
-    neighbours = set()
-    for d_row, d_col, next_directions in VALID_NEIGHBOURS[direction]:
-        next_row, next_col = row + d_row, col + d_col
-        for next_direction in next_directions:
-            next_cell = (next_row, next_col, next_direction)
-            if next_cell in shape_cell_q:
-                neighbours.add(next_cell)
-                shape_cell_q.remove(next_cell)
-            elif (next_row, next_col) in shape_border and \
-                 not (next_row, next_col, '#') in neighbours:
-                neighbours.add((next_row, next_col, '#'))
+    neighbours = []
+    row, col, cell_type = cell
+    if cell_type != '#':
+        neighbours = VALID_NEIGHBOURS[cell_type].intersection(shape_neighbour_map[(row, col)])
+        neighbours = get_absolut_positions(cell, neighbours)
+        for neighbour in neighbours:
+            if neighbour in shape_cell_q:
+                shape_cell_q.remove(neighbour)
     return neighbours
 
-@Profile(stats=PERFORMANCE_STATS)
+# @Profile(stats=PERFORMANCE_STATS)
+def get_absolut_positions(cell, neighbours):
+    row, col, _ = cell
+    neighbours = [(row + d_row, col + d_col, cell_type)
+                  for d_row, d_col, cell_type in neighbours]
+    return neighbours
+
+# @Profile(stats=PERFORMANCE_STATS)
 def plus_to_lines(piece):
     """
     Transform all '+' that are no longer corners or intersections into '|' or
@@ -286,7 +299,7 @@ def plus_to_lines(piece):
             piece = should_be_line(row, col, piece)
     return piece
 
-@Profile(stats=PERFORMANCE_STATS)
+# @Profile(stats=PERFORMANCE_STATS)
 def should_be_line(row, col, piece):
     """
     Transform all '+' that are no longer corners or intersections into '|' or
@@ -306,7 +319,7 @@ def should_be_line(row, col, piece):
         piece[row, col] = {'r'}
     return piece
 
-@Profile(stats=PERFORMANCE_STATS)
+# @Profile(stats=PERFORMANCE_STATS)
 def piece_to_lines(piece, blank_shape_lines):
     """
     Transform the piece matrix into a list of text lines.
@@ -319,7 +332,7 @@ def piece_to_lines(piece, blank_shape_lines):
         shape[row] = shape[row][:col] + cell_to_char[cell] + shape[row][col + 1:]
     return shape
 
-@Profile(stats=PERFORMANCE_STATS)
+# @Profile(stats=PERFORMANCE_STATS)
 def trim_piece(shape):
     """
     Remove all unnecessary white space around an extracted piece.
@@ -348,17 +361,17 @@ if __name__ == '__main__':
 # ++++++++++++
 # """.strip('\n')
 
-#     INPUT_SHAPE = """
-#          
-#  +---+-+ 
-#  |   | | 
-#  | +-+ | 
-#  | |   | 
-#  | +---+ 
-#  |     | 
-#  +-----+ 
-#          
-# """.strip('\n')
+    INPUT_SHAPE = """
+          
+ +---+-+ 
+ |   | | 
+ | +-+ | 
+ | |   | 
+ | +---+ 
+ |     | 
+ +-----+ 
+          
+""".strip('\n')
 
 #     INPUT_SHAPE = """
 # +----+---+
@@ -370,75 +383,75 @@ if __name__ == '__main__':
 # +--------+
 # """.strip('\n')
 
-    INPUT_SHAPE = """
-+--------+-+----------------+-+----------------+-+--------+
-|        | |                | |                | |        |
-|        ++++               | |                | |        |
-|        ++++               | |                | |        |
-|        ++++             +-+ +-+            +-+ +-+      |
-|        ++++             |     |            |     |      |
-+-----------+      +------+     +------------+     +------+
-| +--------+|      |                                      |
-+-+   +---+||      +--------------------------------------+
-|     |+-+|||                                             |
-|     || ++||                                             |
-|     |+---+|                                             |
-|     +-----+                                             |
-|        +-+                +-+                +-+        |
-|        +-+                | |                | |        |
-|    +------+               | |                | |        |
-|    |+----+|         +-----+ |                | |        |
-|    ||+--+||         |+-+    |              +-+ +-+      |
-|    |||++|||         || |  +-+              |     |      |
-++   |||++|||      +--+| +--+    +-----------+     +------+
-||   |||+-+||      |   |      +--+                        |
-++   ||+---+|      +---+  +---+   +-----------------------+
-|    |+-++--+             |       |                       |
-|+---+--+|                +-+ +---+                       |
-|+-------+                  | |                           |
-|                           | |                           |
-|        +-+                | |                +-+        |
-|        +-+                +-+                +-+        |
-|                       +------+                          |
-|                       |+----+|                          |
-|                       ||+--+||                          |
-|       +----+          |||++|||                          |
-++      |+--+|  ++--+   |||++|||      +-------------------+
-||      ||++||  ||  |   |||+-+||      |                   |
-++      ||++||  ++--+   ||+---+|      +------+     +------+
-|       |+--+|          |+-++--+             |     |      |
-|       +----+      +---+--+|                +-+ +-+      |
-|                   +-------+                  | |        |
-|                                              | |        |
-|        +-+                +-+                | |        |
-|        +-+                +-+                +-+        |
-|  +-----+ |    ++                                        |
-|  +-++----+    ++                                        |
-|    ++                                                   |
-|    ||                                                   |
-++   |+-------------+                 +-------------------+
-||   |              |                 |                   |
-++   +---+ +--------+                 +------+     +------+
-|        | |                                 |     |      |
-|        | |                                 +-+ +-+      |
-|        | |                                   | |        |
-|        | |                                   | |        |
-|        | |                +-+                | |        |
-|        +-+                | |                | |        |
-|  +-----+ |    ++          | |                | |        |
-|  +-++----+    ++    +-----+ |                | +-----+  |
-|    ++               |+-+    |                |    +-+|  |
-|    ||               || |  +-+                +-+  | ||  |
-++   |+---------------+| +--+    +----------+    +--+ |+--+
-||   |                 |      +--+          +--+      |   |
-++   +---+ +-----------+  +---+   +--------+   +---+  +---+
-|        | |              |       |        |       |      |
-|        | |              +-+ +---+        +---+ +-+      |
-|        | |                | |                | |        |
-|        | |                | |                | |        |
-|        | |                | |                | |        |
-+--------+-+----------------+-+----------------+-+--------+
-""".strip('\n')
+#     INPUT_SHAPE = """
+# +--------+-+----------------+-+----------------+-+--------+
+# |        | |                | |                | |        |
+# |        ++++               | |                | |        |
+# |        ++++               | |                | |        |
+# |        ++++             +-+ +-+            +-+ +-+      |
+# |        ++++             |     |            |     |      |
+# +-----------+      +------+     +------------+     +------+
+# | +--------+|      |                                      |
+# +-+   +---+||      +--------------------------------------+
+# |     |+-+|||                                             |
+# |     || ++||                                             |
+# |     |+---+|                                             |
+# |     +-----+                                             |
+# |        +-+                +-+                +-+        |
+# |        +-+                | |                | |        |
+# |    +------+               | |                | |        |
+# |    |+----+|         +-----+ |                | |        |
+# |    ||+--+||         |+-+    |              +-+ +-+      |
+# |    |||++|||         || |  +-+              |     |      |
+# ++   |||++|||      +--+| +--+    +-----------+     +------+
+# ||   |||+-+||      |   |      +--+                        |
+# ++   ||+---+|      +---+  +---+   +-----------------------+
+# |    |+-++--+             |       |                       |
+# |+---+--+|                +-+ +---+                       |
+# |+-------+                  | |                           |
+# |                           | |                           |
+# |        +-+                | |                +-+        |
+# |        +-+                +-+                +-+        |
+# |                       +------+                          |
+# |                       |+----+|                          |
+# |                       ||+--+||                          |
+# |       +----+          |||++|||                          |
+# ++      |+--+|  ++--+   |||++|||      +-------------------+
+# ||      ||++||  ||  |   |||+-+||      |                   |
+# ++      ||++||  ++--+   ||+---+|      +------+     +------+
+# |       |+--+|          |+-++--+             |     |      |
+# |       +----+      +---+--+|                +-+ +-+      |
+# |                   +-------+                  | |        |
+# |                                              | |        |
+# |        +-+                +-+                | |        |
+# |        +-+                +-+                +-+        |
+# |  +-----+ |    ++                                        |
+# |  +-++----+    ++                                        |
+# |    ++                                                   |
+# |    ||                                                   |
+# ++   |+-------------+                 +-------------------+
+# ||   |              |                 |                   |
+# ++   +---+ +--------+                 +------+     +------+
+# |        | |                                 |     |      |
+# |        | |                                 +-+ +-+      |
+# |        | |                                   | |        |
+# |        | |                                   | |        |
+# |        | |                +-+                | |        |
+# |        +-+                | |                | |        |
+# |  +-----+ |    ++          | |                | |        |
+# |  +-++----+    ++    +-----+ |                | +-----+  |
+# |    ++               |+-+    |                |    +-+|  |
+# |    ||               || |  +-+                +-+  | ||  |
+# ++   |+---------------+| +--+    +----------+    +--+ |+--+
+# ||   |                 |      +--+          +--+      |   |
+# ++   +---+ +-----------+  +---+   +--------+   +---+  +---+
+# |        | |              |       |        |       |      |
+# |        | |              +-+ +---+        +---+ +-+      |
+# |        | |                | |                | |        |
+# |        | |                | |                | |        |
+# |        | |                | |                | |        |
+# +--------+-+----------------+-+----------------+-+--------+
+# """.strip('\n')
 
     pieces = break_evil_pieces(INPUT_SHAPE)
     with open('break_the_pieces_evilized_edition.csv', 'w') as outfile:
