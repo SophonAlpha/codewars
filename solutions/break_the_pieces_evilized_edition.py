@@ -26,14 +26,12 @@ Performance optimizations:
     2019-07-15
         approach "replace loops with set operations in get_neighbours()",
         runtime: 0.57s
-
 """
 
 import re
 from solutions.performance import Profile
 
 PERFORMANCE_STATS = []
-
 
 VALID_NEIGHBOURS = {
     'ul': {(0, -1, '#'), (-1, -1, 'd'), (-1, -1, 'r'), (-1, 0, 'l'),
@@ -95,11 +93,12 @@ def break_evil_pieces(shape):
     pieces = []
     shape_lines = shape.split('\n')
     blank_shape_lines = get_blank_shape(shape_lines)
-    shape_cell_q, shape_cells, shape_border = pre_process(shape_lines)
-    shape_neighbour_map = get_neighbour_map(shape_cells, shape_border)
+    shape_cell_q, shape_cells, shape_inside = pre_process(shape_lines)
+    shape_neighbour_map = get_neighbour_map(shape_cells)
     while shape_cell_q:
         cell = shape_cell_q.pop()
-        piece, shape_cell_q = get_piece(cell, shape_cell_q, shape_neighbour_map, shape_border)
+        piece, shape_cell_q = get_piece(cell, shape_cell_q,
+                                        shape_neighbour_map, shape_inside)
         if piece:
             piece = plus_to_lines(piece)
             piece = piece_to_lines(piece, blank_shape_lines)
@@ -119,14 +118,16 @@ def get_blank_shape(shape_lines):
 @Profile(stats=PERFORMANCE_STATS)
 def pre_process(shape_lines):
     """
-    Transform the shape into data structures that can be used for a flood fill
-    based algorithm.
+    Transform the shape into several data structures that will be used for
+    extracting individual pieces.
 
     shape_cell_q - a queue filled with all the cells that need to be evaluated
-    shape_cells  - a dictionary that allows to address indiviual cells by row, column
-    shape_border - a border is added to the shape that enables detection of
-                   pieces that are 'outside' parts
-
+    shape_cells  - a dictionary that allows to address indiviual cells by
+                   row, column
+    shape_inside - all cells of the shape. This is used to detect whether a
+                   row, column tuple is outside the shape (at the border).
+                   It indicates that a set of cells is a border element and not
+                   a valid piece.
     """
     cell_types = {'+': ['ul', 'ur', 'll', 'lr'],
                   '-': ['u', 'd'],
@@ -134,19 +135,16 @@ def pre_process(shape_lines):
                   ' ': [' '],}
     shape_cell_q = set()
     shape_cells = {}
-    shape_border = set()
-    shape_border = add_top_border(shape_border, shape_lines)
     for row, shape_line in enumerate(shape_lines):
-        shape_border = add_right_left_border(shape_border, row, shape_line)
         for col, cell in enumerate(shape_line):
             for direction in cell_types[cell]:
                 shape_cell_q.add((row, col, direction))
             shape_cells[(row, col)] = cell_types[cell]
-    shape_border = add_bottom_border(shape_border, shape_lines)
-    return shape_cell_q, shape_cells, shape_border
+    shape_inside = shape_cell_q.copy()
+    return shape_cell_q, shape_cells, shape_inside
 
 @Profile(stats=PERFORMANCE_STATS)
-def get_neighbour_map(shape_cells, shape_border):
+def get_neighbour_map(shape_cells):
     """
     Build a dictionary data structure where for each cell (a row, column tuple)
     all neighbouring cells are returned.
@@ -162,40 +160,13 @@ def get_neighbour_map(shape_cells, shape_border):
                 new_set = {(d_row, d_col, cell)
                            for cell in shape_cells[(n_row, n_col)]}
                 neighbour_cells = neighbour_cells.union(new_set)
-            if (n_row, n_col, '#') in shape_border:
+            else:
                 neighbour_cells.add((d_row, d_col, '#'))
         shape_neighbour_map[(row, col)] = neighbour_cells
     return shape_neighbour_map
 
 @Profile(stats=PERFORMANCE_STATS)
-def add_top_border(shape_border, shape_lines):
-    """
-    Add the top of the border to the shape.
-    """
-    for elem in range(len(shape_lines[0]) + 2):
-        shape_border.add((-1, elem - 1, '#'))
-    return shape_border
-
-@Profile(stats=PERFORMANCE_STATS)
-def add_right_left_border(shape_border, row, shape_line):
-    """
-    Add right and left parts of the border to the shape.
-    """
-    shape_border.add((row, -1, '#'))
-    shape_border.add((row, len(shape_line), '#'))
-    return shape_border
-
-@Profile(stats=PERFORMANCE_STATS)
-def add_bottom_border(shape_border, shape_lines):
-    """
-    Add the bottom part of the border to the shape.
-    """
-    for elem in range(len(shape_lines[-1]) + 2):
-        shape_border.add((len(shape_lines), elem - 1, '#'))
-    return shape_border
-
-@Profile(stats=PERFORMANCE_STATS)
-def get_piece(cell, shape_cell_q, shape_neighbour_map, shape_border):
+def get_piece(cell, shape_cell_q, shape_neighbour_map, shape_inside):
     """
     Extract a single piece.
     """
@@ -211,8 +182,9 @@ def get_piece(cell, shape_cell_q, shape_neighbour_map, shape_border):
             piece = None
         if is_a_piece:
             piece = add_cell(cell, piece)
-        shape_cell_q, neighbours = get_neighbours(cell, shape_cell_q, shape_neighbour_map,
-                                                  shape_border)
+        shape_cell_q, neighbours = get_neighbours(cell, shape_cell_q,
+                                                  shape_neighbour_map,
+                                                  shape_inside)
         work_q = work_q.union(neighbours)
     return piece, shape_cell_q
 
@@ -229,7 +201,7 @@ def add_cell(cell, piece):
     return piece
 
 @Profile(stats=PERFORMANCE_STATS)
-def get_neighbours(cell, shape_cell_q, shape_neighbour_map, shape_border):
+def get_neighbours(cell, shape_cell_q, shape_neighbour_map, shape_inside):
     """
     For a given cell extract all valid neighbour and border cells. This is done
     via set operations for significantly higher performance compared to operating
@@ -242,7 +214,7 @@ def get_neighbours(cell, shape_cell_q, shape_neighbour_map, shape_border):
         next_cells = get_absolut_positions(cell, next_cells)
         neighbours = shape_cell_q.intersection(next_cells)
         shape_cell_q = shape_cell_q.difference(neighbours)
-        neighbours = neighbours.union(shape_border.intersection(next_cells))
+        neighbours = neighbours.union(next_cells.difference(shape_inside))
     return shape_cell_q, neighbours
 
 @Profile(stats=PERFORMANCE_STATS)
@@ -263,8 +235,7 @@ def plus_to_lines(piece):
     """
     plus_types = {'ul', 'ur', 'lr', 'll'}
     for row, col in piece.keys():
-        cell_types = piece[(row, col)]
-        if plus_types.intersection(cell_types):
+        if plus_types.intersection(piece[(row, col)]):
             piece = should_be_line(row, col, piece)
     return piece
 
@@ -275,16 +246,16 @@ def should_be_line(row, col, piece):
     '-'.
     """
     if piece[row, col] == {'ul', 'ur'} and \
-       piece[row - 1, col].issubset({' ', 'd'}):
+       piece[row - 1, col].intersection({' ', 'd'}):
         piece[row, col] = {'u'}
     elif piece[row, col] == {'ll', 'lr'} and \
-         piece[row + 1, col].issubset({' ', 'u'}):
+         piece[row + 1, col].intersection({' ', 'u'}):
         piece[row, col] = {'d'}
     elif piece[row, col] == {'ul', 'll'} and \
-         piece[row, col - 1].issubset({' ', 'r'}):
+         piece[row, col - 1].intersection({' ', 'r'}):
         piece[row, col] = {'l'}
     elif piece[row, col] == {'ur', 'lr'} and \
-         piece[row, col + 1].issubset({' ', 'l'}):
+         piece[row, col + 1].intersection({' ', 'l'}):
         piece[row, col] = {'r'}
     return piece
 
@@ -322,25 +293,16 @@ def trim_piece(shape):
 
 if __name__ == '__main__':
 #     INPUT_SHAPE = """
-#    +-----+
-#    +-++--+
-# +----+|
-# +-----+
-# """.strip('\n')
-
-#     INPUT_SHAPE = """
-# ++
-# ++
-# """.strip('\n')
-
-#     INPUT_SHAPE = """
-# +----+---+
-# |    |   |
-# | +--+   |
-# | |      |
-# | +------+
-# |        |
-# +--------+
+#     +------+
+#     |+----+|
+#     ||+--+||
+#     |||++|||
+#     |||++|||
+#     |||+-+||
+#     ||+---+|
+#     |+-++--+
+# +---+--+|
+# +-------+
 # """.strip('\n')
 
     INPUT_SHAPE = """
@@ -415,6 +377,7 @@ if __name__ == '__main__':
 
     ALL_PIECES = break_evil_pieces(INPUT_SHAPE)
     with open('break_the_pieces_evilized_edition.csv', 'w') as outfile:
+        outfile.write('{}, {}\n'.format('function', 'time'))
         for entry in PERFORMANCE_STATS:
             outfile.write('{}, {}\n'.format(entry[0], entry[1]))
     for counter, text_piece in enumerate(ALL_PIECES):
