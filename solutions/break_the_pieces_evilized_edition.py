@@ -7,22 +7,22 @@ Level: 1 kyu
 Performance optimizations:
 
     reference shape size: 67 rows, 59 columns
-    
-    2019-06-29 
+
+    2019-06-29
         approach "2x2 sub-cells",
         runtime: 10.93s
-    
+
         approach "2x2 sub-cells, process white spaces",
         runtime: 11.33s
 
     2019-07-12
         approach "original shape (no sub-cells), traverse via dictionary",
         runtime: 8.44s
-        
+
     2019-07-14
         approach "build neighbours for each cell and set intersection",
         runtime: 2.33s
-        
+
     2019-07-15
         approach "replace loops with set operations in get_neighbours()",
         runtime: 0.57s
@@ -119,8 +119,14 @@ def get_blank_shape(shape_lines):
 @Profile(stats=PERFORMANCE_STATS)
 def pre_process(shape_lines):
     """
-    Transform the shape into a data structure that can be used for the flood fill
-    algorithm.
+    Transform the shape into data structures that can be used for a flood fill
+    based algorithm.
+
+    shape_cell_q - a queue filled with all the cells that need to be evaluated
+    shape_cells  - a dictionary that allows to address indiviual cells by row, column
+    shape_border - a border is added to the shape that enables detection of
+                   pieces that are 'outside' parts
+
     """
     cell_types = {'+': ['ul', 'ur', 'll', 'lr'],
                   '-': ['u', 'd'],
@@ -135,12 +141,16 @@ def pre_process(shape_lines):
         for col, cell in enumerate(shape_line):
             for direction in cell_types[cell]:
                 shape_cell_q.add((row, col, direction))
-            shape_cells[(row, col)] =  cell_types[cell]
+            shape_cells[(row, col)] = cell_types[cell]
     shape_border = add_bottom_border(shape_border, shape_lines)
     return shape_cell_q, shape_cells, shape_border
 
 @Profile(stats=PERFORMANCE_STATS)
 def get_neighbour_map(shape_cells, shape_border):
+    """
+    Build a dictionary data structure where for each cell (a row, column tuple)
+    all neighbouring cells are returned.
+    """
     deltas = [(-1, 0), (-1, 1), (0, 1), (1, 1),
               (1, 0), (1, -1), (0, -1), (-1, -1),]
     shape_neighbour_map = {}
@@ -159,25 +169,37 @@ def get_neighbour_map(shape_cells, shape_border):
 
 @Profile(stats=PERFORMANCE_STATS)
 def add_top_border(shape_border, shape_lines):
+    """
+    Add the top of the border to the shape.
+    """
     for elem in range(len(shape_lines[0]) + 2):
         shape_border.add((-1, elem - 1, '#'))
     return shape_border
 
 @Profile(stats=PERFORMANCE_STATS)
 def add_right_left_border(shape_border, row, shape_line):
+    """
+    Add right and left parts of the border to the shape.
+    """
     shape_border.add((row, -1, '#'))
     shape_border.add((row, len(shape_line), '#'))
     return shape_border
 
 @Profile(stats=PERFORMANCE_STATS)
 def add_bottom_border(shape_border, shape_lines):
+    """
+    Add the bottom part of the border to the shape.
+    """
     for elem in range(len(shape_lines[-1]) + 2):
-        shape_border.add((len(shape_lines), elem - 1, '#'))    
+        shape_border.add((len(shape_lines), elem - 1, '#'))
     return shape_border
 
 @Profile(stats=PERFORMANCE_STATS)
 def get_piece(cell, shape_cell_q, shape_neighbour_map, shape_border):
-    piece= {}
+    """
+    Extract a single piece.
+    """
+    piece = {}
     work_q = set()
     is_a_piece = True
     work_q.add(cell)
@@ -196,6 +218,9 @@ def get_piece(cell, shape_cell_q, shape_neighbour_map, shape_border):
 
 @Profile(stats=PERFORMANCE_STATS)
 def add_cell(cell, piece):
+    """
+    Add a single cell to the current piece.
+    """
     row, col, cell_type = cell
     if (row, col) in piece.keys():
         piece[(row, col)].add(cell_type)
@@ -205,6 +230,11 @@ def add_cell(cell, piece):
 
 @Profile(stats=PERFORMANCE_STATS)
 def get_neighbours(cell, shape_cell_q, shape_neighbour_map, shape_border):
+    """
+    For a given cell extract all valid neighbour and border cells. This is done
+    via set operations for significantly higher performance compared to operating
+    on lists.
+    """
     neighbours = set()
     row, col, cell_type = cell
     if cell_type != '#':
@@ -217,6 +247,9 @@ def get_neighbours(cell, shape_cell_q, shape_neighbour_map, shape_border):
 
 @Profile(stats=PERFORMANCE_STATS)
 def get_absolut_positions(cell, neighbours):
+    """
+    Transform relative row, column coordinates into absolute coordinates.
+    """
     row, col, _ = cell
     neighbours = {(row + d_row, col + d_col, cell_type)
                   for d_row, d_col, cell_type in neighbours}
@@ -380,11 +413,11 @@ if __name__ == '__main__':
 +--------+-+----------------+-+----------------+-+--------+
 """.strip('\n')
 
-    pieces = break_evil_pieces(INPUT_SHAPE)
+    ALL_PIECES = break_evil_pieces(INPUT_SHAPE)
     with open('break_the_pieces_evilized_edition.csv', 'w') as outfile:
         for entry in PERFORMANCE_STATS:
             outfile.write('{}, {}\n'.format(entry[0], entry[1]))
-    for counter, text_piece in enumerate(pieces):
+    for counter, text_piece in enumerate(ALL_PIECES):
         print('\n{}.) piece:\n'.format(counter))
         print(text_piece)
     print()
