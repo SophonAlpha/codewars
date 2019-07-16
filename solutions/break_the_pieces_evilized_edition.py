@@ -171,22 +171,40 @@ def get_piece(cell, shape_cell_q, shape_neighbour_map, shape_inside):
     Extract a single piece.
     """
     piece = {}
-    work_q = set()
     is_a_piece = True
+    work_q = set()
     work_q.add(cell)
     while work_q:
-        cell = work_q.pop()
-        _, _, cell_type = cell
-        if cell_type == '#' and is_a_piece:
-            is_a_piece = False
-            piece = None
-        if is_a_piece:
-            piece = add_cell(cell, piece)
+        cell, work_q, is_a_piece, piece = get_cell(work_q, is_a_piece, piece)
+#         cell = work_q.pop()
+#         _, _, cell_type = cell
+#         if cell_type == '#' and is_a_piece:
+#             is_a_piece = False
+#             piece = None
+#         if is_a_piece:
+#             piece = add_cell(cell, piece)
         shape_cell_q, neighbours = get_neighbours(cell, shape_cell_q,
                                                   shape_neighbour_map,
                                                   shape_inside)
-        work_q = work_q.union(neighbours)
+        work_q = update_work_queue(work_q, neighbours)
+#         work_q = work_q.union(neighbours)
     return piece, shape_cell_q
+
+@Profile(stats=PERFORMANCE_STATS)
+def get_cell(work_q, is_a_piece, piece):
+    cell = work_q.pop()
+    _, _, cell_type = cell
+    if cell_type == '#' and is_a_piece:
+        is_a_piece = False
+        piece = None
+    if is_a_piece:
+        piece = add_cell(cell, piece)
+    return cell, work_q, is_a_piece, piece
+
+@Profile(stats=PERFORMANCE_STATS)
+def update_work_queue(work_q, neighbours):
+    work_q = work_q.union(neighbours)
+    return work_q
 
 @Profile(stats=PERFORMANCE_STATS)
 def add_cell(cell, piece):
@@ -377,9 +395,9 @@ if __name__ == '__main__':
 
     ALL_PIECES = break_evil_pieces(INPUT_SHAPE)
     with open('break_the_pieces_evilized_edition.csv', 'w') as outfile:
-        outfile.write('{}, {}\n'.format('function', 'time'))
+        outfile.write('{}; {}; {}\n'.format('function', 'time', 'arguments'))
         for entry in PERFORMANCE_STATS:
-            outfile.write('{}, {}\n'.format(entry[0], entry[1]))
+            outfile.write('{}; {}; {}\n'.format(entry[0], entry[1], entry[2]))
     for counter, text_piece in enumerate(ALL_PIECES):
         print('\n{}.) piece:\n'.format(counter))
         print(text_piece)

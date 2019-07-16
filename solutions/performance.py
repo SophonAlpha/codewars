@@ -18,7 +18,7 @@ class _Profile:
         ret_values = self.func(*args, **kwargs)
         end_time = time.perf_counter()
         run_time = end_time - start_time
-        self.stats.append([self.func.__name__, run_time])
+        self.stats.append([self.func.__name__, run_time, *args])
         return ret_values
 
 def Profile(stats=None):
