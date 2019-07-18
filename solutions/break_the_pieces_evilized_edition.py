@@ -94,27 +94,23 @@ def break_evil_pieces(shape):
     pieces = []
     shape_lines = shape.split('\n')
     blank_shape_lines = get_blank_shape(shape_lines)
-    shape_cell_q, shape_cells, shape_inside, shape_white_spaces = pre_process(shape_lines)
+    shape_cell_q, shape_cells, shape_inside, shape_space_cells, shape_border_cells = pre_process(shape_lines)
     shape_neighbour_map = get_neighbour_map(shape_cells)
-    
-    DEBUG_start_time = time.perf_counter()
+    # TODO: white pieces and borders to classes
     shape_white_pieces, shape_cell_to_white_piece_map = get_white_piece_map(shape_neighbour_map,
-                                                                            shape_white_spaces)
-    DEBUG_end_time = time.perf_counter()
-    DEBUG_run_time = DEBUG_end_time - DEBUG_start_time
-#     DEBUG_display_white_piece_map(shape_white_pieces, shape_cells, blank_shape_lines)
+                                                                            shape_inside,
+                                                                            shape_space_cells)
+    shape_borders, shape_border_to_white_piece_map = get_border_map(shape_neighbour_map,
+                                                                    shape_inside,
+                                                                    shape_space_cells,
+                                                                    shape_border_cells,
+                                                                    shape_white_pieces,
+                                                                    shape_cell_to_white_piece_map)
     while shape_cell_q:
         cell = shape_cell_q.pop()
-
-        DEBUG_start_time = time.perf_counter()
         piece, shape_cell_q = get_piece(cell, shape_cell_q, shape_neighbour_map,
                                         shape_inside, shape_white_pieces,
                                         shape_cell_to_white_piece_map)
-        DEBUG_end_time = time.perf_counter()
-        DEBUG_run_time = DEBUG_end_time - DEBUG_start_time
-        PERFORMANCE_STATS.append(['get_piece', DEBUG_run_time,
-                                  cell, len(piece) if piece else '0'])
-        
         if piece:
             piece = set_to_dict(piece)
             piece = plus_to_lines(piece)
@@ -166,41 +162,119 @@ def pre_process(shape_lines):
                   '-': ['u', 'd'],
                   '|': ['r', 'l'],
                   ' ': [' '],}
-    shape_cell_q = set()
     shape_cells = {}
-    shape_white_spaces = set()
+    shape_space_cells = set()
+    shape_border_cells = set()
     for row, shape_line in enumerate(shape_lines):
-        for col, cell in enumerate(shape_line):
-            if cell == ' ':
-                shape_white_spaces.add((row, col, ' '))
-            for direction in cell_types[cell]:
-                shape_cell_q.add((row, col, direction))
-            shape_cells[(row, col)] = cell_types[cell]
+        for col, cell_type in enumerate(shape_line):
+            if cell_type == ' ':
+                shape_space_cells.add((row, col, ' '))
+            else:
+                shape_border_cells = shape_border_cells.union({(row, col, dir_)
+                                                               for dir_ in cell_types[cell_type]})
+            shape_cells[(row, col)] = cell_types[cell_type]
+    # TODO: check if shape_cell_q is still needed
+    shape_cell_q = shape_space_cells.union(shape_border_cells)
     shape_inside = shape_cell_q.copy()
-    return shape_cell_q, shape_cells, shape_inside, shape_white_spaces
+    # TODO: transform into Shape class
+    return shape_cell_q, shape_cells, shape_inside, shape_space_cells, shape_border_cells
 
-def get_white_piece_map(shape_neighbour_map, shape_white_spaces):
+def get_white_piece_map(shape_neighbour_map, shape_inside, shape_white_spaces):
+    # TODO: add border detection
     shape_cell_to_white_piece_map = {}
     shape_white_pieces = {}
     white_piece_idx = 0
     white_space_q = shape_white_spaces.copy()
     piece_q = set()
+    # TODO: change name to main_q
     while white_space_q:
         piece_q.add(white_space_q.pop())
         white_piece = set()
+        # TODO: change name to single_white_piece_q
         while piece_q:
             cell = piece_q.pop()
             white_piece.add(cell)
             row, col, _ = cell
             shape_cell_to_white_piece_map[(row, col)] = white_piece_idx
-            next_cells = get_absolut_positions(cell, shape_neighbour_map[(row, col)])
-            next_cells = next_cells.difference(white_piece)
-            next_cells = shape_white_spaces.intersection(next_cells)
-            piece_q = piece_q.union(next_cells)
-            white_space_q = white_space_q.difference(next_cells)
-        shape_white_pieces[white_piece_idx] = white_piece
+            # get neighbour cells
+            neighbours = get_absolut_positions(cell, shape_neighbour_map[(row, col)])
+            # remove neighbour cells that are outside the shape
+            outside = neighbours.difference(shape_inside)
+            if outside:
+                # mark this white space as an outside element, this will not be a
+                # valid piece
+                shape_white_pieces[white_piece_idx] = '#'
+                # remove all neighbour cells that are outside the shape
+                neighbours = neighbours.difference(outside)
+            # remove space cells already processed
+            neighbours = neighbours.difference(white_piece)
+            # remove all cells that are not white space cells
+            neighbours = shape_white_spaces.intersection(neighbours)
+            # add neighbours to work queue
+            piece_q = piece_q.union(neighbours)
+            # remove neighbours from main queue
+            white_space_q = white_space_q.difference(neighbours)
+        if white_piece_idx not in shape_white_pieces.keys():
+            shape_white_pieces[white_piece_idx] = white_piece
+        # TODO: rename to idx
         white_piece_idx += 1
     return shape_white_pieces, shape_cell_to_white_piece_map    
+
+def get_border_map(shape_neighbour_map, shape_inside, shape_space_cells,
+                   shape_border_cells, shape_white_pieces,
+                   shape_cell_to_white_piece_map):
+    # TODO: break into separate functions
+    main_q = shape_border_cells.copy()
+    idx = 0
+    shape_borders = {}
+    shape_border_to_white_piece_map = {}
+    while main_q:
+        shape_borders[idx] = set()
+        single_border_q = {main_q.pop()}
+        piece = set()
+        white_piece_idx = None
+        while single_border_q:
+            cell = single_border_q.pop()
+            piece.add(cell)
+            row, col, cell_type = cell
+            # get all neighbour cells
+            neighbours = VALID_NEIGHBOURS[cell_type].intersection(shape_neighbour_map[(row, col)])
+            # transform relative positions to absolute positions
+            neighbours = get_absolut_positions(cell, neighbours)
+            # remove neighbour cells that are outside the shape
+            outside = neighbours.difference(shape_inside)
+            if outside:
+                # mark this piece as an outside element, this will not be a
+                # valid piece
+                shape_border_to_white_piece_map[idx] = '#'
+                # remove all neighbour cells that are outside the shape
+                neighbours = neighbours.difference(outside)
+            # get all neighbour space cells 
+            space_cells = shape_space_cells.intersection(neighbours)
+            # when there is one or more space cell, get the index of the
+            # white piece and store it in the border_to_white_piece_map
+            if space_cells:
+                # remove space cells from neighbours set (we only traverse along
+                # piece cells)
+                neighbours = neighbours.difference(space_cells)
+                s_row, s_col, _ = space_cells.pop()
+                white_piece_idx = shape_cell_to_white_piece_map[(s_row, s_col)]
+                # TODO: union not required if shape_borders[white_piece_idx]
+                # already exist
+                piece = piece.union(shape_white_pieces[white_piece_idx])
+                # TODO: remove shape_border_to_white_piece_map
+                shape_border_to_white_piece_map[idx] = shape_cell_to_white_piece_map[(s_row, s_col)]
+            # remove neighbour cells that have been processed already (they are
+            # no longer in the main_q)
+            neighbours = neighbours.intersection(main_q)
+            # remove neighbours from main work queue
+            main_q = main_q.difference(neighbours)
+            # add neighbours to work queue
+            single_border_q = single_border_q.union(neighbours)
+        if white_piece_idx:
+            shape_borders[idx] = piece
+            idx += 1
+    return shape_borders, shape_border_to_white_piece_map
 
 # @Profile(stats=PERFORMANCE_STATS)
 def get_neighbour_map(shape_cells):
@@ -278,8 +352,8 @@ def add_cell(cell, piece):
     return piece
 
 # @Profile(stats=PERFORMANCE_STATS)
-def get_neighbours(cell, shape_cell_q, shape_neighbour_map, shape_inside,
-                   shape_white_pieces, shape_cell_to_white_piece_map):
+def get_neighbours_v1(cell, shape_cell_q, shape_neighbour_map, shape_inside,
+                      shape_white_pieces, shape_cell_to_white_piece_map):
     """
     For a given cell extract all valid neighbour and border cells. This is done
     via set operations for significantly higher performance compared to operating
@@ -379,14 +453,21 @@ def trim_piece(shape):
     return shape_new
 
 if __name__ == '__main__':
+#     INPUT_SHAPE = """
+#          
+#          
+#   +-+-+  
+#   | | |  
+#   +-+-+  
+#   |   |  
+#   +---+  
+#          
+#          
+# """.strip('\n')
+
     INPUT_SHAPE = """
-       
-       
-  +-+  
-  | |  
-  +-+  
-       
-       
+++
+++
 """.strip('\n')
 
 #     INPUT_SHAPE = """
