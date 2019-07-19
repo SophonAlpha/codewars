@@ -84,7 +84,17 @@ VALID_NEIGHBOURS = {
     '#': set(),
     }
 
-# @Profile(stats=PERFORMANCE_STATS)
+class Shape:
+    def __init__(self):
+        self.cells = {}
+        self.inside = set()
+        self.space_cells = set()
+        self.border_cells = set()
+        self.neighbour_map = {}
+        self.white_pieces = {}
+        self.cell_to_white_piece_map = {}
+    
+@Profile(stats=PERFORMANCE_STATS)
 def break_evil_pieces(shape):
     """
     main function
@@ -94,18 +104,10 @@ def break_evil_pieces(shape):
     txt_pieces = []
     shape_lines = shape.split('\n')
     blank_shape_lines = get_blank_shape(shape_lines)
-    shape_cell_q, shape_cells, shape_inside, shape_space_cells, shape_border_cells = pre_process(shape_lines)
-    shape_neighbour_map = get_neighbour_map(shape_cells)
-    # TODO: white pieces and borders to classes
-    shape_white_pieces, shape_cell_to_white_piece_map = get_white_piece_map(shape_neighbour_map,
-                                                                            shape_inside,
-                                                                            shape_space_cells)
-    pieces = get_pieces(shape_neighbour_map,
-                        shape_inside,
-                        shape_space_cells,
-                        shape_border_cells,
-                        shape_white_pieces,
-                        shape_cell_to_white_piece_map)
+    shape = pre_process(shape_lines)
+    shape = get_neighbour_map(shape)
+    shape = get_white_piece_map(shape)
+    pieces = get_pieces(shape)
     for idx in pieces:
         piece = pieces[idx]
         piece = set_to_dict(piece)
@@ -131,7 +133,7 @@ def DEBUG_display_white_piece_map(shape_white_pieces, shape_cells, blank_shape_l
         print(row)
     return
 
-# @Profile(stats=PERFORMANCE_STATS)
+@Profile(stats=PERFORMANCE_STATS)
 def get_blank_shape(shape_lines):
     """
     Generate a blank shape. Used later to add extracted characters that make up
@@ -140,16 +142,15 @@ def get_blank_shape(shape_lines):
     blank_shape_lines = [' ' * len(shape_line) for shape_line in shape_lines]
     return blank_shape_lines
 
-# @Profile(stats=PERFORMANCE_STATS)
+@Profile(stats=PERFORMANCE_STATS)
 def pre_process(shape_lines):
     """
     Transform the shape into several data structures that will be used for
     extracting individual pieces.
 
-    shape_cell_q - a queue filled with all the cells that need to be evaluated
-    shape_cells  - a dictionary that allows to address indiviual cells by
+    shape.cells  - a dictionary that allows to address indiviual cells by
                    row, column
-    shape_inside - all cells of the shape. This is used to detect whether a
+    shape.inside - all cells of the shape. This is used to detect whether a
                    row, column tuple is outside the shape (at the border).
                    It indicates that a set of cells is a border element and not
                    a valid piece.
@@ -158,28 +159,23 @@ def pre_process(shape_lines):
                   '-': ['u', 'd'],
                   '|': ['r', 'l'],
                   ' ': [' '],}
-    shape_cells = {}
-    shape_space_cells = set()
-    shape_border_cells = set()
+    shape = Shape()
     for row, shape_line in enumerate(shape_lines):
         for col, cell_type in enumerate(shape_line):
             if cell_type == ' ':
-                shape_space_cells.add((row, col, ' '))
+                shape.space_cells.add((row, col, ' '))
             else:
-                shape_border_cells = shape_border_cells.union({(row, col, dir_)
+                shape.border_cells = shape.border_cells.union({(row, col, dir_)
                                                                for dir_ in cell_types[cell_type]})
-            shape_cells[(row, col)] = cell_types[cell_type]
-    # TODO: check if shape_cell_q is still needed
-    shape_cell_q = shape_space_cells.union(shape_border_cells)
-    shape_inside = shape_cell_q.copy()
+            shape.cells[(row, col)] = cell_types[cell_type]
+    shape.inside = shape.space_cells.union(shape.border_cells)
     # TODO: transform into Shape class
-    return shape_cell_q, shape_cells, shape_inside, shape_space_cells, shape_border_cells
+    return shape
 
-def get_white_piece_map(shape_neighbour_map, shape_inside, shape_white_spaces):
-    shape_cell_to_white_piece_map = {}
-    shape_white_pieces = {}
+@Profile(stats=PERFORMANCE_STATS)
+def get_white_piece_map(shape):
     white_piece_idx = 0
-    main_q = shape_white_spaces.copy()
+    main_q = shape.space_cells.copy()
     piece_q = set()
     while main_q:
         piece_q.add(main_q.pop())
@@ -188,36 +184,35 @@ def get_white_piece_map(shape_neighbour_map, shape_inside, shape_white_spaces):
             cell = piece_q.pop()
             white_piece.add(cell)
             row, col, _ = cell
-            shape_cell_to_white_piece_map[(row, col)] = white_piece_idx
+            shape.cell_to_white_piece_map[(row, col)] = white_piece_idx
             # get neighbour cells
-            neighbours = get_absolut_positions(cell, shape_neighbour_map[(row, col)])
+            neighbours = get_absolut_positions(cell, shape.neighbour_map[(row, col)])
             # remove neighbour cells that are outside the shape
-            outside = neighbours.difference(shape_inside)
+            outside = neighbours.difference(shape.inside)
             if outside:
                 # mark this white space as an outside element, this will not be a
                 # valid piece
-                shape_white_pieces[white_piece_idx] = '#'
+                shape.white_pieces[white_piece_idx] = '#'
                 # remove all neighbour cells that are outside the shape
                 neighbours = neighbours.difference(outside)
             # remove space cells already processed
             neighbours = neighbours.difference(white_piece)
             # remove all cells that are not white space cells
-            neighbours = shape_white_spaces.intersection(neighbours)
+            neighbours = shape.space_cells.intersection(neighbours)
             # add neighbours to work queue
             piece_q = piece_q.union(neighbours)
             # remove neighbours from main queue
             main_q = main_q.difference(neighbours)
-        if white_piece_idx not in shape_white_pieces.keys():
-            shape_white_pieces[white_piece_idx] = white_piece
+        if white_piece_idx not in shape.white_pieces.keys():
+            shape.white_pieces[white_piece_idx] = white_piece
         # TODO: rename to idx
         white_piece_idx += 1
-    return shape_white_pieces, shape_cell_to_white_piece_map    
+    return shape
 
-def get_pieces(shape_neighbour_map, shape_inside, shape_space_cells,
-                   shape_border_cells, shape_white_pieces,
-                   shape_cell_to_white_piece_map):
+@Profile(stats=PERFORMANCE_STATS)
+def get_pieces(shape):
     # TODO: break into separate functions
-    main_q = shape_border_cells.copy()
+    main_q = shape.border_cells.copy()
     idx = 0
     pieces = {}
     while main_q:
@@ -231,11 +226,11 @@ def get_pieces(shape_neighbour_map, shape_inside, shape_space_cells,
             piece.add(cell)
             row, col, cell_type = cell
             # get all neighbour cells
-            neighbours = VALID_NEIGHBOURS[cell_type].intersection(shape_neighbour_map[(row, col)])
+            neighbours = VALID_NEIGHBOURS[cell_type].intersection(shape.neighbour_map[(row, col)])
             # transform relative positions to absolute positions
             neighbours = get_absolut_positions(cell, neighbours)
             # remove neighbour cells that are outside the shape
-            outside = neighbours.difference(shape_inside)
+            outside = neighbours.difference(shape.inside)
             if outside:
                 # mark this piece as an outside element, this will not be a
                 # valid piece
@@ -243,7 +238,7 @@ def get_pieces(shape_neighbour_map, shape_inside, shape_space_cells,
                 # remove all neighbour cells that are outside the shape
                 neighbours = neighbours.difference(outside)
             # get all neighbour space cells 
-            space_cells = shape_space_cells.intersection(neighbours)
+            space_cells = shape.space_cells.intersection(neighbours)
             # when there is one or more space cell, get the index of the
             # white piece and store it in the border_to_white_piece_map
             if space_cells:
@@ -251,12 +246,12 @@ def get_pieces(shape_neighbour_map, shape_inside, shape_space_cells,
                 # piece cells)
                 neighbours = neighbours.difference(space_cells)
                 s_row, s_col, _ = space_cells.pop()
-                white_piece_idx = shape_cell_to_white_piece_map[(s_row, s_col)]
-                if shape_white_pieces[white_piece_idx] == '#':
+                white_piece_idx = shape.cell_to_white_piece_map[(s_row, s_col)]
+                if shape.white_pieces[white_piece_idx] == '#':
                     is_a_piece = False
                 elif not white_piece_added:
                     # add all white spaces to the piece
-                    piece = piece.union(shape_white_pieces[white_piece_idx])
+                    piece = piece.union(shape.white_pieces[white_piece_idx])
                     # we do this only once, all border cells point to the same
                     # white space piece
                     white_piece_added = True
@@ -278,29 +273,28 @@ def get_pieces(shape_neighbour_map, shape_inside, shape_space_cells,
             pieces[p_idx] = piece
     return pieces
 
-# @Profile(stats=PERFORMANCE_STATS)
-def get_neighbour_map(shape_cells):
+@Profile(stats=PERFORMANCE_STATS)
+def get_neighbour_map(shape):
     """
     Build a dictionary data structure where for each cell (a row, column tuple)
     all neighbouring cells are returned.
     """
     deltas = [(-1, 0), (-1, 1), (0, 1), (1, 1),
               (1, 0), (1, -1), (0, -1), (-1, -1),]
-    shape_neighbour_map = {}
-    for row, col in shape_cells:
+    for row, col in shape.cells:
         neighbour_cells = set()
         for d_row, d_col in deltas:
             n_row, n_col = row + d_row, col + d_col
-            if (n_row, n_col) in shape_cells.keys():
+            if (n_row, n_col) in shape.cells.keys():
                 new_set = {(d_row, d_col, cell)
-                           for cell in shape_cells[(n_row, n_col)]}
+                           for cell in shape.cells[(n_row, n_col)]}
                 neighbour_cells = neighbour_cells.union(new_set)
             else:
                 neighbour_cells.add((d_row, d_col, '#'))
-        shape_neighbour_map[(row, col)] = neighbour_cells
-    return shape_neighbour_map
+        shape.neighbour_map[(row, col)] = neighbour_cells
+    return shape
 
-# @Profile(stats=PERFORMANCE_STATS)
+@Profile(stats=PERFORMANCE_STATS)
 def get_absolut_positions(cell, neighbours):
     """
     Transform relative row, column coordinates into absolute coordinates.
@@ -310,6 +304,7 @@ def get_absolut_positions(cell, neighbours):
                   for d_row, d_col, cell_type in neighbours}
     return neighbours
 
+@Profile(stats=PERFORMANCE_STATS)
 def set_to_dict(piece):
     dict_piece = {}
     for row, col, cell_type in piece:
@@ -319,7 +314,7 @@ def set_to_dict(piece):
             dict_piece[(row, col)] = {cell_type}
     return dict_piece
 
-# @Profile(stats=PERFORMANCE_STATS)
+@Profile(stats=PERFORMANCE_STATS)
 def plus_to_lines(piece):
     """
     Transform all '+' that are no longer corners or intersections into '|' or
@@ -331,7 +326,7 @@ def plus_to_lines(piece):
             piece = should_be_line(row, col, piece)
     return piece
 
-# @Profile(stats=PERFORMANCE_STATS)
+@Profile(stats=PERFORMANCE_STATS)
 def should_be_line(row, col, piece):
     """
     Transform all '+' that are no longer corners or intersections into '|' or
@@ -351,7 +346,7 @@ def should_be_line(row, col, piece):
         piece[row, col] = {'r'}
     return piece
 
-# @Profile(stats=PERFORMANCE_STATS)
+@Profile(stats=PERFORMANCE_STATS)
 def piece_to_lines(piece, blank_shape_lines):
     """
     Transform the piece matrix into a list of text lines.
@@ -364,7 +359,7 @@ def piece_to_lines(piece, blank_shape_lines):
         shape[row] = shape[row][:col] + cell_to_char[cell] + shape[row][col + 1:]
     return shape
 
-# @Profile(stats=PERFORMANCE_STATS)
+@Profile(stats=PERFORMANCE_STATS)
 def trim_piece(shape):
     """
     Remove all unnecessary white space around an extracted piece.
@@ -385,16 +380,27 @@ def trim_piece(shape):
 
 if __name__ == '__main__':
     INPUT_SHAPE = """
-+---+-+
-|   | |
-| +-+ |
-| |   |
-+-+---+
-
- +-+
- +-+
-
++-+--+-+
+| |  | |
+| +--+ |
+|  ++  |
+|  ++  |
+| +--+ |
+| |  | |
++-+--+-+
 """.strip('\n')
+
+#     INPUT_SHAPE = """
+# +---+-+
+# |   | |
+# | +-+ |
+# | |   |
+# +-+---+
+# 
+#  +-+
+#  +-+
+# 
+# """.strip('\n')
 
 #     INPUT_SHAPE = """
 #             
