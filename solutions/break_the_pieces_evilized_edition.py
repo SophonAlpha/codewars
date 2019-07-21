@@ -253,51 +253,80 @@ def build_white_piece_map(shape):
 # TODO: rename 'pieces' to 'borders'
 def get_pieces(shape):
     main_q = shape.border_cells.copy()
-    border_idx = 0
-    pieces = {}
-    border_to_white_spaces_map = {}
-    white_space_to_borders_map = {}
+    idx = 0
+    borders = {}
+    border_to_spaces_map = {}
+    space_to_borders_map = {}
     while main_q:
         cell = main_q.pop()
-        piece = set()
-        main_q, piece, attached_white_spaces = get_one_piece(main_q, cell, shape)
-        if piece:
-            pieces[border_idx] = piece
+        border = set()
+        main_q, border, attached_white_spaces = get_one_border(main_q, cell, shape)
+        if border:
+            borders[idx] = border
             if attached_white_spaces:
-                for white_space in attached_white_spaces:
-                    if white_space in white_space_to_borders_map.keys():
-                        white_space_to_borders_map[white_space].add(border_idx)                    
-                    else:
-                        white_space_to_borders_map[white_space] = {border_idx}
-                if border_idx in border_to_white_spaces_map.keys():
-                    border_to_white_spaces_map[border_idx].add(attached_white_spaces)
-                else:
-                    border_to_white_spaces_map[border_idx] = attached_white_spaces
-            border_idx += 1
+                space_to_borders_map = add_to_white_space_map(attached_white_spaces,
+                                                              idx,
+                                                              space_to_borders_map)
+                border_to_spaces_map = add_to_border_map(attached_white_spaces,
+                                                         idx,
+                                                         border_to_spaces_map)
+            idx += 1
+    pieces = join_borders(borders, space_to_borders_map, border_to_spaces_map)
     return pieces
 
-def get_one_piece(main_q, cell, shape):
-    is_a_piece = True
-    piece = set()
+def add_to_white_space_map(attached_white_spaces, border_idx, space_to_borders_map):
+    for white_space in attached_white_spaces:
+        if white_space in space_to_borders_map.keys():
+            space_to_borders_map[white_space].add(border_idx)                    
+        else:
+            space_to_borders_map[white_space] = {border_idx}
+    return space_to_borders_map    
+
+def add_to_border_map(attached_white_spaces, border_idx, border_to_spaces_map):
+    if border_idx in border_to_spaces_map.keys():
+        border_to_spaces_map[border_idx].add(attached_white_spaces)
+    else:
+        border_to_spaces_map[border_idx] = attached_white_spaces
+    return border_to_spaces_map
+
+def join_borders(borders, space_to_borders_map, border_to_spaces_map):
+    pieces = []
+    segments = []
+    for border in border_to_spaces_map:
+        segment = set()
+        work_q = set()
+        work_q.add(border)
+        while work_q:
+            border = work_q.pop()
+            segment.add(border)
+            for space in border_to_spaces_map[border]:
+                work_q = work_q.union(space_to_borders_map[space])
+            work_q = work_q.difference(segment)
+        segments.append(segment)
+    return pieces
+
+def get_one_border(main_q, cell, shape):
+    is_a_border = True
+    border = set()
     attached_white_spaces = set()
-    while cell not in piece:
-        piece.add(cell)
+    while cell not in border:
+        border.add(cell)
         row, col, cell_type = cell
         # check if cell is at the outside of shape
         d_row, d_col = BESIDE[cell_type]
         b_pos = (row + d_row, col + d_col)
         if b_pos not in shape.cells.keys():
-            is_a_piece = False
-        # check if beside the cell there is a white space piece
+            is_a_border = False
+        # check if beside the cell there is white space
         if b_pos in shape.cell_to_white_space_map.keys():
             key = shape.cell_to_white_space_map[b_pos]
             attached_white_spaces.add(key)
             if shape.white_spaces[key] == '#':
-                is_a_piece = False
+                is_a_border = False
         cell, main_q = get_next_cell(cell, main_q, shape)
-    if not is_a_piece:
-        piece = False
-    return main_q, piece, attached_white_spaces
+    if not is_a_border:
+        border = False
+    return main_q, border, attached_white_spaces
 
 def get_next_cell(cell, main_q, shape):
     # get neighbours of current cell
@@ -420,28 +449,52 @@ def trim_piece(shape):
     return shape_new
 
 if __name__ == '__main__':
-    INPUT_SHAPE = """
-+-+--+-+
-| |  | |
-| +--+ |
-|  ++  |
-|  ++  |
-| +--+ |
-| |  | |
-+-+--+-+
-""".strip('\n')
+#     INPUT_SHAPE = """
+# +-+--+-+
+# | |  | |
+# | +--+ |
+# |  ++  |
+# |  ++  |
+# | +--+ |
+# | |  | |
+# +-+--+-+
+# """.strip('\n')
 
 #     INPUT_SHAPE = """
-# +-+-+-----+
-# | | |     |
-# | +-+     |
-# |   +-+   |
-# |   +-+   |
-# | +-+ +-+ |
-# | | +-+ | |
-# | | | | | |
-# +-+-+-+-+-+
+# +-------------+
+# | ++       ++ |
+# | ||+-----+|| |
+# | ||+-----+|| |
+# | ||  ++   || |
+# | ||  ||+-+|| |
+# | ||  ||+-+|| |
+# | ||  ||   || |
+# | ||  ||+-+|| |
+# | ||  ||+-+|| |
+# | ||  ++   || |
+# | ||+-----+|| |
+# | ||+-----+|| |
+# | ++       ++ |
+# +-------------+
 # """.strip('\n')
+
+    INPUT_SHAPE = """
++-------------+
+| ++       ++ |
+| |+-------+| |
+| |+-------+| |
+| ||  ++   || |
+| ||  ||+-+|| |
+| ||  ||+-+|| |
+| ||  ||   || |
+| ||  ||+-+|| |
+| ||  ||+-+|| |
+| ||  ++   || |
+| |+-------+| |
+| |+-------+| |
+| ++       ++ |
++-------------+
+""".strip('\n')
 
 #     INPUT_SHAPE = """
 # +---+-+
