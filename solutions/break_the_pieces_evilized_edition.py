@@ -30,7 +30,6 @@ Performance optimizations:
 
 import re
 from solutions.performance import Profile
-import time
 
 PERFORMANCE_STATS = []
 
@@ -223,6 +222,7 @@ def get_pieces(shape):
     pieces = join_pieces(borders, segments)
     return pieces
 
+@Profile(stats=PERFORMANCE_STATS)
 def add_to_white_space_map(attached_white_spaces, border_idx, space_to_borders_map):
     for white_space in attached_white_spaces:
         if white_space in space_to_borders_map.keys():
@@ -231,6 +231,7 @@ def add_to_white_space_map(attached_white_spaces, border_idx, space_to_borders_m
             space_to_borders_map[white_space] = {border_idx}
     return space_to_borders_map    
 
+@Profile(stats=PERFORMANCE_STATS)
 def add_to_border_map(attached_white_spaces, border_idx, border_to_spaces_map):
     if border_idx in border_to_spaces_map.keys():
         border_to_spaces_map[border_idx].add(attached_white_spaces)
@@ -238,6 +239,7 @@ def add_to_border_map(attached_white_spaces, border_idx, border_to_spaces_map):
         border_to_spaces_map[border_idx] = attached_white_spaces
     return border_to_spaces_map
 
+@Profile(stats=PERFORMANCE_STATS)
 def join_segments(space_to_borders_map, border_to_spaces_map):
     segments = []
     border_IDs = list(border_to_spaces_map.keys())
@@ -256,6 +258,7 @@ def join_segments(space_to_borders_map, border_to_spaces_map):
         segments.append(segment)
     return segments
 
+@Profile(stats=PERFORMANCE_STATS)
 def join_pieces(borders, segments):
     border_IDs = list(borders.keys())
     pieces = []
@@ -269,12 +272,12 @@ def join_pieces(borders, segments):
         pieces.append(borders[border_ID])
     return pieces
 
+@Profile(stats=PERFORMANCE_STATS)
 def get_one_border(main_q, cell, shape):
     is_a_border = True
     border = set()
     attached_white_spaces = set()
     while cell not in border:
-#         border.add(cell)
         row, col, cell_type = cell
         # check if cell is at the outside of shape
         d_row, d_col = BESIDE[cell_type]
@@ -292,6 +295,7 @@ def get_one_border(main_q, cell, shape):
         border = False
     return main_q, border, attached_white_spaces
 
+@Profile(stats=PERFORMANCE_STATS)
 def get_next_cell(cell, border, main_q, shape):
     # get neighbours of current cell
     row, col, cell_type = cell
@@ -374,10 +378,10 @@ def should_be_line(row, col, piece):
         piece[row + 1, col].intersection({'l', 'r', 'ul', 'ur'}) and \
         ((row, col - 1) not in piece.keys() or \
         ((row, col - 1) in piece.keys() and \
-         piece[row, col - 1].intersection({'u', 'd'}))) and \
+         piece[row, col - 1].intersection({'l', 'r'}))) and \
         ((row, col + 1) not in piece.keys() or \
         ((row, col + 1) in piece.keys() and \
-         piece[row, col + 1].intersection({'u', 'd'}))):
+         piece[row, col + 1].intersection({'l', 'r'}))):
         piece[row, col] = {'l', 'r'}
     elif (row, col - 1) in piece.keys() and \
         piece[row, col - 1].intersection({'u', 'd', 'ur', 'lr'}) and \
@@ -385,10 +389,10 @@ def should_be_line(row, col, piece):
         piece[row, col + 1].intersection({'u', 'd', 'ul', 'll'}) and \
         ((row - 1, col) not in piece.keys() or \
         ((row - 1, col) in piece.keys() and \
-         piece[row - 1, col].intersection({'l', 'r'}))) and \
+         piece[row - 1, col].intersection({'u', 'd'}))) and \
         ((row + 1, col) not in piece.keys() or \
         ((row + 1, col) in piece.keys() and \
-         piece[row + 1, col].intersection({'l', 'r'}))):
+         piece[row + 1, col].intersection({'u', 'd'}))):
         piece[row, col] = {'u', 'd'}
     return piece
 
@@ -425,169 +429,92 @@ def trim_piece(shape):
     return shape_new
 
 if __name__ == '__main__':
+#     INPUT_SHAPE = """
+#     +------+
+#     |+----+|
+#     ||+--+||
+#     |||++|||
+#     |||++|||
+#     |||+-+||
+#     ||+---+|
+#     |+-++--+
+# +---+--+|
+# +-------+
+# """.strip('\n')
+
     INPUT_SHAPE = """
-    +------+
-    |+----+|
-    ||+--+||
-    |||++|||
-    |||++|||
-    |||+-+||
-    ||+---+|
-    |+-++--+
-+---+--+|
-+-------+
++--------+-+----------------+-+----------------+-+--------+
+|        | |                | |                | |        |
+|        ++++               | |                | |        |
+|        ++++               | |                | |        |
+|        ++++             +-+ +-+            +-+ +-+      |
+|        ++++             |     |            |     |      |
++-----------+      +------+     +------------+     +------+
+| +--------+|      |                                      |
++-+   +---+||      +--------------------------------------+
+|     |+-+|||                                             |
+|     || ++||                                             |
+|     |+---+|                                             |
+|     +-----+                                             |
+|        +-+                +-+                +-+        |
+|        +-+                | |                | |        |
+|    +------+               | |                | |        |
+|    |+----+|         +-----+ |                | |        |
+|    ||+--+||         |+-+    |              +-+ +-+      |
+|    |||++|||         || |  +-+              |     |      |
+++   |||++|||      +--+| +--+    +-----------+     +------+
+||   |||+-+||      |   |      +--+                        |
+++   ||+---+|      +---+  +---+   +-----------------------+
+|    |+-++--+             |       |                       |
+|+---+--+|                +-+ +---+                       |
+|+-------+                  | |                           |
+|                           | |                           |
+|        +-+                | |                +-+        |
+|        +-+                +-+                +-+        |
+|                       +------+                          |
+|                       |+----+|                          |
+|                       ||+--+||                          |
+|       +----+          |||++|||                          |
+++      |+--+|  ++--+   |||++|||      +-------------------+
+||      ||++||  ||  |   |||+-+||      |                   |
+++      ||++||  ++--+   ||+---+|      +------+     +------+
+|       |+--+|          |+-++--+             |     |      |
+|       +----+      +---+--+|                +-+ +-+      |
+|                   +-------+                  | |        |
+|                                              | |        |
+|        +-+                +-+                | |        |
+|        +-+                +-+                +-+        |
+|  +-----+ |    ++                                        |
+|  +-++----+    ++                                        |
+|    ++                                                   |
+|    ||                                                   |
+++   |+-------------+                 +-------------------+
+||   |              |                 |                   |
+++   +---+ +--------+                 +------+     +------+
+|        | |                                 |     |      |
+|        | |                                 +-+ +-+      |
+|        | |                                   | |        |
+|        | |                                   | |        |
+|        | |                +-+                | |        |
+|        +-+                | |                | |        |
+|  +-----+ |    ++          | |                | |        |
+|  +-++----+    ++    +-----+ |                | +-----+  |
+|    ++               |+-+    |                |    +-+|  |
+|    ||               || |  +-+                +-+  | ||  |
+++   |+---------------+| +--+    +----------+    +--+ |+--+
+||   |                 |      +--+          +--+      |   |
+++   +---+ +-----------+  +---+   +--------+   +---+  +---+
+|        | |              |       |        |       |      |
+|        | |              +-+ +---+        +---+ +-+      |
+|        | |                | |                | |        |
+|        | |                | |                | |        |
+|        | |                | |                | |        |
++--------+-+----------------+-+----------------+-+--------+
 """.strip('\n')
-
-#     INPUT_SHAPE = """
-# +-+--+-+
-# | |  | |
-# | +--+ |
-# |  ++  |
-# |  ++  |
-# | +--+ |
-# | |  | |
-# +-+--+-+
-# """.strip('\n')
-
-#     INPUT_SHAPE = """
-# +-------------+
-# | ++       ++ |
-# | ||+-----+|| |
-# | ||+-----+|| |
-# | ||  ++   || |
-# | ||  ||+-+|| |
-# | ||  ||+-+|| |
-# | ||  ||   || |
-# | ||  ||+-+|| |
-# | ||  ||+-+|| |
-# | ||  ++   || |
-# | ||+-----+|| |
-# | ||+-----+|| |
-# | ++       ++ |
-# +-------------+
-# """.strip('\n')
-
-#     INPUT_SHAPE = """
-# +-------------+
-# | ++       ++ |
-# | |+-------+| |
-# | |+-------+| |
-# | ||  ++   || |
-# | ||  ||+-+|| |
-# | ||  ||+-+|| |
-# | ||  ||   || |
-# | ||  ||+-+|| |
-# | ||  ||+-+|| |
-# | ||  ++   || |
-# | |+-------+| |
-# | |+-------+| |
-# | ++       ++ |
-# +-------------+
-# """.strip('\n')
-
-#     INPUT_SHAPE = """
-# +---+-+
-# |   | |
-# | +-+ |
-# | |   |
-# +-+---+
-# 
-#  +-+
-#  +-+
-# 
-# """.strip('\n')
-
-#     INPUT_SHAPE = """
-#             
-#             
-#   +-+-+  
-#   | | |  
-#   +-+-+  
-#   |   |  
-#   +---+  
-#             
-#             
-# """.strip('\n')
-
-#     INPUT_SHAPE = """
-# ++
-# ++
-# """.strip('\n')
-
-#     INPUT_SHAPE = """
-# +--------+-+----------------+-+----------------+-+--------+
-# |        | |                | |                | |        |
-# |        ++++               | |                | |        |
-# |        ++++               | |                | |        |
-# |        ++++             +-+ +-+            +-+ +-+      |
-# |        ++++             |     |            |     |      |
-# +-----------+      +------+     +------------+     +------+
-# | +--------+|      |                                      |
-# +-+   +---+||      +--------------------------------------+
-# |     |+-+|||                                             |
-# |     || ++||                                             |
-# |     |+---+|                                             |
-# |     +-----+                                             |
-# |        +-+                +-+                +-+        |
-# |        +-+                | |                | |        |
-# |    +------+               | |                | |        |
-# |    |+----+|         +-----+ |                | |        |
-# |    ||+--+||         |+-+    |              +-+ +-+      |
-# |    |||++|||         || |  +-+              |     |      |
-# ++   |||++|||      +--+| +--+    +-----------+     +------+
-# ||   |||+-+||      |   |      +--+                        |
-# ++   ||+---+|      +---+  +---+   +-----------------------+
-# |    |+-++--+             |       |                       |
-# |+---+--+|                +-+ +---+                       |
-# |+-------+                  | |                           |
-# |                           | |                           |
-# |        +-+                | |                +-+        |
-# |        +-+                +-+                +-+        |
-# |                       +------+                          |
-# |                       |+----+|                          |
-# |                       ||+--+||                          |
-# |       +----+          |||++|||                          |
-# ++      |+--+|  ++--+   |||++|||      +-------------------+
-# ||      ||++||  ||  |   |||+-+||      |                   |
-# ++      ||++||  ++--+   ||+---+|      +------+     +------+
-# |       |+--+|          |+-++--+             |     |      |
-# |       +----+      +---+--+|                +-+ +-+      |
-# |                   +-------+                  | |        |
-# |                                              | |        |
-# |        +-+                +-+                | |        |
-# |        +-+                +-+                +-+        |
-# |  +-----+ |    ++                                        |
-# |  +-++----+    ++                                        |
-# |    ++                                                   |
-# |    ||                                                   |
-# ++   |+-------------+                 +-------------------+
-# ||   |              |                 |                   |
-# ++   +---+ +--------+                 +------+     +------+
-# |        | |                                 |     |      |
-# |        | |                                 +-+ +-+      |
-# |        | |                                   | |        |
-# |        | |                                   | |        |
-# |        | |                +-+                | |        |
-# |        +-+                | |                | |        |
-# |  +-----+ |    ++          | |                | |        |
-# |  +-++----+    ++    +-----+ |                | +-----+  |
-# |    ++               |+-+    |                |    +-+|  |
-# |    ||               || |  +-+                +-+  | ||  |
-# ++   |+---------------+| +--+    +----------+    +--+ |+--+
-# ||   |                 |      +--+          +--+      |   |
-# ++   +---+ +-----------+  +---+   +--------+   +---+  +---+
-# |        | |              |       |        |       |      |
-# |        | |              +-+ +---+        +---+ +-+      |
-# |        | |                | |                | |        |
-# |        | |                | |                | |        |
-# |        | |                | |                | |        |
-# +--------+-+----------------+-+----------------+-+--------+
-# """.strip('\n')
 
     ALL_PIECES = break_evil_pieces(INPUT_SHAPE)
     with open('break_the_pieces_evilized_edition.csv', 'w') as outfile:
-        outfile.write('{}; {}; {}; {}\n'.format('function', 'time',
-                                            'arguments', 'size of piece'))
+        outfile.write('{}; {}\n'.format('function', 'time'))
         for entry in PERFORMANCE_STATS:
             text_line = ' '.join(['{};'.format(item) for item in entry]) + '\n'
             outfile.write(text_line)
