@@ -38,7 +38,7 @@ NEXT_MAP = {
     'r': [('r', {(-1, 0, 'r')}), ('r', {(-1, 0, 'lr')}),],
     'l': [('l', {(1, 0, 'l')}), ('l', {(1, 0, 'ul')}),],
     'u': [('u', {(0, -1, 'u')}), ('u', {(0, -1, 'ur')}),],
-    'd': [('d', {(0, 1, 'd')}), ('r', {(0, 1, 'll')}),],
+    'd': [('d', {(0, 1, 'd')}), ('d', {(0, 1, 'll')}),],
     'lr': [('lr', {(0, 1, 'd'), (0, 1, 'll')}),
            ('ur', {(-1, 0, 'r'), (-1, 0, 'lr')}),
            ('ul', {(0, -1, 'u'), (0, -1, 'ur')}),
@@ -60,56 +60,6 @@ NEXT_MAP = {
 BESIDE = {
     'r': (0, 1), 'l': (0, -1), 'u': (-1, 0), 'd': (1, 0),
     'lr': (1, 1), 'ur': (-1, 1), 'ul': (-1, -1), 'll': (1, -1),
-    }
- 
-VALID_NEIGHBOURS = {
-    'ul': {(0, -1, '#'), (-1, -1, 'd'), (-1, -1, 'r'), (-1, 0, 'l'),
-           (-1, 0, '#'), (-1, 0, 'd'), (-1, -1, ' '), (-1, -1, 'lr'),
-           (-1, -1, '#'), (0, -1, 'u'), (-1, 0, ' '), (0, -1, ' '),
-           (-1, 0, 'll'), (0, -1, 'ur'), (0, -1, 'r')},
-    'ur': {(-1, 1, ' '), (-1, 1, '#'), (-1, 1, 'd'), (-1, 1, 'll'),
-           (0, 1, '#'), (-1, 0, '#'), (-1, 0, 'lr'), (-1, 0, 'd'),
-           (0, 1, 'l'), (-1, 1, 'l'), (0, 1, 'ul'), (-1, 0, ' '),
-           (0, 1, ' '), (0, 1, 'u'), (-1, 0, 'r')},
-    'll': {(1, 0, 'ul'), (0, -1, 'lr'), (0, -1, '#'), (1, 0, ' '),
-           (1, 0, 'u'), (1, -1, '#'), (1, -1, ' '), (0, -1, 'd'),
-           (1, -1, 'ur'), (1, -1, 'r'), (0, -1, ' '), (1, 0, '#'),
-           (1, 0, 'l'), (1, -1, 'u'), (0, -1, 'r')},
-    'lr': {(1, 1, ' '), (1, 1, '#'), (1, 0, 'r'), (1, 0, 'ur'), (1, 0, ' '),
-           (0, 1, '#'), (0, 1, 'l'), (1, 0, 'u'), (0, 1, 'll'), (1, 1, 'l'),
-           (1, 1, 'u'), (1, 0, '#'), (0, 1, ' '), (0, 1, 'd'), (1, 1, 'ul')},
-    'u': {(-1, 1, ' '), (0, -1, '#'), (-1, -1, 'd'), (-1, 1, 'll'),
-          (0, 1, '#'), (-1, 0, 'lr'), (-1, 0, 'd'), (-1, -1, ' '),
-          (-1, -1, 'lr'), (0, -1, 'u'), (0, 1, 'ul'), (-1, 0, ' '),
-          (0, 1, ' '), (-1, 1, '#'), (-1, 1, 'd'), (-1, -1, 'r'),
-          (-1, 0, '#'), (-1, -1, '#'), (-1, 1, 'l'), (0, -1, ' '),
-          (0, -1, 'ur'), (-1, 0, 'll'), (0, 1, 'u')},
-    'd': {(1, 1, ' '), (0, -1, '#'), (0, 1, '#'), (1, 0, 'u'), (0, 1, 'll'),
-          (1, -1, ' '), (1, 1, 'l'), (1, -1, 'ur'), (1, 1, 'u'), (1, 0, '#'),
-          (0, 1, ' '), (1, 1, '#'), (1, 0, 'ul'), (1, 0, 'ur'), (0, -1, 'lr'),
-          (1, 0, ' '), (1, -1, '#'), (0, -1, 'd'), (1, -1, 'r'), (0, -1, ' '),
-          (1, -1, 'u'), (0, 1, 'd'), (1, 1, 'ul')},
-    'r': {(-1, 1, ' '), (1, 1, ' '), (1, 0, 'r'), (-1, 1, 'll'), (0, 1, '#'),
-          (-1, 0, 'lr'), (0, 1, 'll'), (1, 1, 'l'), (0, 1, 'ul'), (1, 1, 'u'),
-          (1, 0, '#'), (-1, 0, ' '), (0, 1, ' '), (-1, 1, '#'), (1, 1, '#'),
-          (1, 0, 'ur'), (-1, 1, 'd'), (1, 0, ' '), (-1, 0, '#'), (0, 1, 'l'),
-          (-1, 1, 'l'), (1, 1, 'ul'), (-1, 0, 'r')},
-    'l': {(0, -1, '#'), (-1, -1, 'd'), (-1, 0, 'l'), (1, -1, ' '),
-          (-1, -1, ' '), (-1, -1, 'lr'), (1, -1, 'ur'), (1, 0, '#'),
-          (-1, 0, ' '), (0, -1, 'r'), (1, 0, 'ul'), (0, -1, 'lr'), (1, 0, ' '),
-          (-1, -1, 'r'), (-1, 0, '#'), (1, -1, '#'), (1, -1, 'u'),
-          (-1, -1, '#'), (1, -1, 'r'), (0, -1, ' '), (1, 0, 'l'),
-          (0, -1, 'ur'), (-1, 0, 'll')},
-    ' ': {(0, -1, '#'), (-1, 0, 'lr'), (1, 0, 'u'), (-1, 0, 'd'),
-          (-1, -1, 'lr'), (1, 1, 'l'), (1, 1, 'u'), (0, 1, ' '), (0, -1, 'r'),
-          (-1, 1, '#'), (1, 1, '#'), (1, 0, 'ur'), (0, -1, 'lr'), (1, 0, ' '),
-          (-1, -1, 'r'), (0, 1, 'l'), (1, -1, '#'), (-1, 1, 'l'),
-          (-1, -1, '#'), (1, -1, 'r'), (0, -1, 'ur'), (1, 1, 'ul'),
-          (-1, 1, ' '), (1, 1, ' '), (-1, 1, 'll'), (-1, -1, 'd'), (0, 1, '#'),
-          (0, 1, 'll'), (1, -1, ' '), (-1, -1, ' '), (1, -1, 'ur'),
-          (0, 1, 'ul'), (1, 0, '#'), (-1, 0, ' '), (1, 0, 'ul'), (-1, 1, 'd'),
-          (-1, 0, '#'), (0, -1, ' '), (1, -1, 'u'), (-1, 0, 'll')},
-    '#': set(),
     }
 
 class Shape:
@@ -139,8 +89,7 @@ def break_evil_pieces(shape_txt):
     shape = build_white_piece_map(shape)
     pieces = get_pieces(shape)
     txt_pieces = []
-    for idx in pieces:
-        piece = pieces[idx]
+    for piece in pieces:
         piece = set_to_dict(piece)
         piece = plus_to_lines(piece)
         piece = piece_to_lines(piece, shape)
@@ -250,7 +199,6 @@ def build_white_piece_map(shape):
     return shape
 
 @Profile(stats=PERFORMANCE_STATS)
-# TODO: rename 'pieces' to 'borders'
 def get_pieces(shape):
     main_q = shape.border_cells.copy()
     idx = 0
@@ -271,7 +219,8 @@ def get_pieces(shape):
                                                          idx,
                                                          border_to_spaces_map)
             idx += 1
-    pieces = join_borders(borders, space_to_borders_map, border_to_spaces_map)
+    segments = join_segments(space_to_borders_map, border_to_spaces_map)
+    pieces = join_pieces(borders, segments)
     return pieces
 
 def add_to_white_space_map(attached_white_spaces, border_idx, space_to_borders_map):
@@ -289,20 +238,35 @@ def add_to_border_map(attached_white_spaces, border_idx, border_to_spaces_map):
         border_to_spaces_map[border_idx] = attached_white_spaces
     return border_to_spaces_map
 
-def join_borders(borders, space_to_borders_map, border_to_spaces_map):
-    pieces = []
+def join_segments(space_to_borders_map, border_to_spaces_map):
     segments = []
-    for border in border_to_spaces_map:
+    border_IDs = list(border_to_spaces_map.keys())
+    while border_IDs:
+        border = border_IDs[0]
         segment = set()
         work_q = set()
         work_q.add(border)
         while work_q:
             border = work_q.pop()
+            border_IDs.remove(border)
             segment.add(border)
             for space in border_to_spaces_map[border]:
                 work_q = work_q.union(space_to_borders_map[space])
             work_q = work_q.difference(segment)
         segments.append(segment)
+    return segments
+
+def join_pieces(borders, segments):
+    border_IDs = list(borders.keys())
+    pieces = []
+    for segment in segments:
+        piece = set()
+        for border_ID in segment:
+            piece = piece.union(borders[border_ID])
+            border_IDs.remove(border_ID)
+        pieces.append(piece)
+    for border_ID in border_IDs:
+        pieces.append(borders[border_ID])
     return pieces
 
 def get_one_border(main_q, cell, shape):
@@ -310,7 +274,7 @@ def get_one_border(main_q, cell, shape):
     border = set()
     attached_white_spaces = set()
     while cell not in border:
-        border.add(cell)
+#         border.add(cell)
         row, col, cell_type = cell
         # check if cell is at the outside of shape
         d_row, d_col = BESIDE[cell_type]
@@ -323,16 +287,18 @@ def get_one_border(main_q, cell, shape):
             attached_white_spaces.add(key)
             if shape.white_spaces[key] == '#':
                 is_a_border = False
-        cell, main_q = get_next_cell(cell, main_q, shape)
+        cell, border, main_q = get_next_cell(cell, border, main_q, shape)
     if not is_a_border:
         border = False
     return main_q, border, attached_white_spaces
 
-def get_next_cell(cell, main_q, shape):
+def get_next_cell(cell, border, main_q, shape):
     # get neighbours of current cell
     row, col, cell_type = cell
     neighbours = shape.neighbour_map[(row, col)]
     for n_type, valid_neighbours in NEXT_MAP[cell_type]:
+        # add cell to border
+        border.add((row, col, n_type))
         # remove processed cell from main queue
         main_q = main_q.difference({(row, col, n_type)})
         # check for valid neighbour cells combination
@@ -341,7 +307,7 @@ def get_next_cell(cell, main_q, shape):
             n_row, n_col, n_cell_type = neighbour_cells.pop()
             cell = (row + n_row, col + n_col, n_cell_type)
             break
-    return cell, main_q
+    return cell, border, main_q
 
 @Profile(stats=PERFORMANCE_STATS)
 def build_neighbour_map(shape):
@@ -402,32 +368,42 @@ def should_be_line(row, col, piece):
     Transform all '+' that are no longer corners or intersections into '|' or
     '-'.
     """
-    if piece[row, col] == {'ul', 'ur'} and \
-       piece[row - 1, col].intersection({' ', 'd'}):
-        piece[row, col] = {'u'}
-    elif piece[row, col] == {'ll', 'lr'} and \
-         piece[row + 1, col].intersection({' ', 'u'}):
-        piece[row, col] = {'d'}
-    elif piece[row, col] == {'ul', 'll'} and \
-         piece[row, col - 1].intersection({' ', 'r'}):
-        piece[row, col] = {'l'}
-    elif piece[row, col] == {'ur', 'lr'} and \
-         piece[row, col + 1].intersection({' ', 'l'}):
-        piece[row, col] = {'r'}
+    if (row - 1, col) in piece.keys() and \
+        piece[row - 1, col].intersection({'l', 'r', 'll', 'lr'}) and \
+        (row + 1, col) in piece.keys() and \
+        piece[row + 1, col].intersection({'l', 'r', 'ul', 'ur'}) and \
+        ((row, col - 1) not in piece.keys() or \
+        ((row, col - 1) in piece.keys() and \
+         piece[row, col - 1].intersection({'u', 'd'}))) and \
+        ((row, col + 1) not in piece.keys() or \
+        ((row, col + 1) in piece.keys() and \
+         piece[row, col + 1].intersection({'u', 'd'}))):
+        piece[row, col] = {'l', 'r'}
+    elif (row, col - 1) in piece.keys() and \
+        piece[row, col - 1].intersection({'u', 'd', 'ur', 'lr'}) and \
+        (row, col + 1) in piece.keys() and \
+        piece[row, col + 1].intersection({'u', 'd', 'ul', 'll'}) and \
+        ((row - 1, col) not in piece.keys() or \
+        ((row - 1, col) in piece.keys() and \
+         piece[row - 1, col].intersection({'l', 'r'}))) and \
+        ((row + 1, col) not in piece.keys() or \
+        ((row + 1, col) in piece.keys() and \
+         piece[row + 1, col].intersection({'l', 'r'}))):
+        piece[row, col] = {'u', 'd'}
     return piece
 
 @Profile(stats=PERFORMANCE_STATS)
-def piece_to_lines(piece, blank_shape_lines):
+def piece_to_lines(piece, shape):
     """
     Transform the piece matrix into a list of text lines.
     """
     cell_to_char = {' ': ' ', 'u': '-', 'd': '-', 'l': '|', 'r': '|',
                     'ul': '+', 'ur': '+', 'lr': '+', 'll': '+'}
-    shape = blank_shape_lines[:]
+    shape_txt = shape.blank_lines[:]
     for row, col in piece.keys():
         cell = piece[(row, col)].pop()
-        shape[row] = shape[row][:col] + cell_to_char[cell] + shape[row][col + 1:]
-    return shape
+        shape_txt[row] = shape_txt[row][:col] + cell_to_char[cell] + shape_txt[row][col + 1:]
+    return shape_txt
 
 @Profile(stats=PERFORMANCE_STATS)
 def trim_piece(shape):
@@ -449,6 +425,19 @@ def trim_piece(shape):
     return shape_new
 
 if __name__ == '__main__':
+    INPUT_SHAPE = """
+    +------+
+    |+----+|
+    ||+--+||
+    |||++|||
+    |||++|||
+    |||+-+||
+    ||+---+|
+    |+-++--+
++---+--+|
++-------+
+""".strip('\n')
+
 #     INPUT_SHAPE = """
 # +-+--+-+
 # | |  | |
@@ -478,23 +467,23 @@ if __name__ == '__main__':
 # +-------------+
 # """.strip('\n')
 
-    INPUT_SHAPE = """
-+-------------+
-| ++       ++ |
-| |+-------+| |
-| |+-------+| |
-| ||  ++   || |
-| ||  ||+-+|| |
-| ||  ||+-+|| |
-| ||  ||   || |
-| ||  ||+-+|| |
-| ||  ||+-+|| |
-| ||  ++   || |
-| |+-------+| |
-| |+-------+| |
-| ++       ++ |
-+-------------+
-""".strip('\n')
+#     INPUT_SHAPE = """
+# +-------------+
+# | ++       ++ |
+# | |+-------+| |
+# | |+-------+| |
+# | ||  ++   || |
+# | ||  ||+-+|| |
+# | ||  ||+-+|| |
+# | ||  ||   || |
+# | ||  ||+-+|| |
+# | ||  ||+-+|| |
+# | ||  ++   || |
+# | |+-------+| |
+# | |+-------+| |
+# | ++       ++ |
+# +-------------+
+# """.strip('\n')
 
 #     INPUT_SHAPE = """
 # +---+-+
