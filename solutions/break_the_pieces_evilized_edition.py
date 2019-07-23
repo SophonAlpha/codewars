@@ -78,7 +78,7 @@ class Shape:
         self.borders = {}
         self.cell_space_map = {}
         self.cell_border_map = {}
-        self.border_to_border_map = {}
+        self.border_to_borders_map = {}
         self.space_to_borders_map = {}
         self.border_to_spaces_map = {}
 
@@ -244,19 +244,25 @@ def add_to_border_map(attached_white_spaces, border_idx, shape):
 @Profile(stats=PERFORMANCE_STATS)
 def join_segments(shape):
     segments = []
-    border_IDs = list(shape.border_to_spaces_map.keys())
+#     border_IDs = list(shape.border_to_spaces_map.keys())
+    border_IDs = list(shape.borders.keys())
     while border_IDs:
-        border = border_IDs[0]
+        border_ID = border_IDs[0]
         segment = set()
         work_q = set()
-        work_q.add(border)
+        work_q.add(border_ID)
         while work_q:
-            border = work_q.pop()
-            border_IDs.remove(border)
-            segment.add(border)
-            for space in shape.border_to_spaces_map[border]:
-                work_q = work_q.union(shape.space_to_borders_map[space])
-            work_q = work_q.difference(segment)
+            border_ID = work_q.pop()
+            border_IDs.remove(border_ID)
+            segment.add(border_ID)
+            # join border segments that are connected via spaces
+            if border_ID in shape.border_to_spaces_map.keys():
+                for space in shape.border_to_spaces_map[border_ID]:
+                    work_q = work_q.union(shape.space_to_borders_map[space])
+            # join border segments that are directly connected
+            elif border_ID in shape.border_to_borders_map.keys():
+                work_q = work_q.union(shape.border_to_borders_map[border_ID])
+            work_q = work_q.difference(segment)                    
         segments.append(segment)
     return segments
 
@@ -293,14 +299,20 @@ def get_one_border(main_q, cell, border_idx, shape):
             if shape.white_spaces[key] == '#':
                 is_a_border = False
         # check if beside the cell there is a border element
-        # TODO: test this
-        if b_pos in shape.cell_border_map.keys():
-            key = shape.cell_border_map[b_pos]
-            if border_idx in shape.border_to_border_map.keys():
-                shape.border_to_border_map[border_idx].add(key)
+        if shape.cells[b_pos] in {'ul', 'ur', 'll', 'lr', 'r', 'l', 'u', 'd'}:
+            if b_pos in shape.cell_border_map.keys():
+                key = shape.cell_border_map[b_pos]
             else:
-                shape.border_to_border_map[border_idx] = {key}
-        cell, border, main_q, shape = get_next_cell(cell, border_idx, border, main_q, shape)
+                key = set()
+            if border_idx in shape.border_to_borders_map.keys():
+                shape.border_to_borders_map[border_idx].add(key)
+                shape.border_to_borders_map[key].add(border_idx)
+            else:
+                shape.border_to_borders_map[border_idx] = {key}
+                if key:
+                    shape.border_to_borders_map[key] = {border_idx}
+        cell, border, main_q, shape = get_next_cell(cell, border_idx,
+                                                    border, main_q, shape)
     if not is_a_border:
         border = False
     return main_q, border, attached_white_spaces, shape
