@@ -26,6 +26,10 @@ Performance optimizations:
     2019-07-15
         approach "replace loops with set operations in get_neighbours()",
         runtime: 0.57s
+        
+    2019-07-22:
+        approach "white pieces + border tracing + join together",
+        runtime: 0.38s
 """
 
 import re
@@ -71,8 +75,13 @@ class Shape:
         self.border_cells = set()
         self.neighbour_map = {}
         self.white_spaces = {}
-        self.cell_to_white_space_map = {}
-    
+        self.borders = {}
+        self.cell_space_map = {}
+        self.cell_border_map = {}
+        self.border_to_border_map = {}
+        self.space_to_borders_map = {}
+        self.border_to_spaces_map = {}
+
 @Profile(stats=PERFORMANCE_STATS)
 def break_evil_pieces(shape_txt):
     """
@@ -173,7 +182,7 @@ def build_white_piece_map(shape):
             cell = piece_q.pop()
             white_piece.add(cell)
             row, col, _ = cell
-            shape.cell_to_white_space_map[(row, col)] = idx
+            shape.cell_space_map[(row, col)] = idx
             # get neighbour cells
             neighbours = get_absolut_positions(cell, shape.neighbour_map[(row, col)])
             # remove neighbour cells that are outside the shape
@@ -197,52 +206,45 @@ def build_white_piece_map(shape):
         idx += 1
     return shape
 
-@Profile(stats=PERFORMANCE_STATS)
+# @Profile(stats=PERFORMANCE_STATS)
 def get_pieces(shape):
     main_q = shape.border_cells.copy()
-    idx = 0
-    borders = {}
-    border_to_spaces_map = {}
-    space_to_borders_map = {}
+    border_idx = 0
     while main_q:
         cell = main_q.pop()
         border = set()
-        main_q, border, attached_white_spaces = get_one_border(main_q, cell, shape)
+        main_q, border, attached_spaces, shape = get_one_border(main_q, cell, border_idx, shape)
         if border:
-            borders[idx] = border
-            if attached_white_spaces:
-                space_to_borders_map = add_to_white_space_map(attached_white_spaces,
-                                                              idx,
-                                                              space_to_borders_map)
-                border_to_spaces_map = add_to_border_map(attached_white_spaces,
-                                                         idx,
-                                                         border_to_spaces_map)
-            idx += 1
-    segments = join_segments(space_to_borders_map, border_to_spaces_map)
-    pieces = join_pieces(borders, segments)
+            shape.borders[border_idx] = border
+            if attached_spaces:
+                shape = add_to_white_space_map(attached_spaces, border_idx, shape)
+                shape = add_to_border_map(attached_spaces, border_idx, shape)
+            border_idx += 1
+    segments = join_segments(shape)
+    pieces = join_pieces(shape.borders, segments)
     return pieces
 
 @Profile(stats=PERFORMANCE_STATS)
-def add_to_white_space_map(attached_white_spaces, border_idx, space_to_borders_map):
+def add_to_white_space_map(attached_white_spaces, border_idx, shape):
     for white_space in attached_white_spaces:
-        if white_space in space_to_borders_map.keys():
-            space_to_borders_map[white_space].add(border_idx)                    
+        if white_space in shape.space_to_borders_map.keys():
+            shape.space_to_borders_map[white_space].add(border_idx)                    
         else:
-            space_to_borders_map[white_space] = {border_idx}
-    return space_to_borders_map    
+            shape.space_to_borders_map[white_space] = {border_idx}
+    return shape
 
 @Profile(stats=PERFORMANCE_STATS)
-def add_to_border_map(attached_white_spaces, border_idx, border_to_spaces_map):
-    if border_idx in border_to_spaces_map.keys():
-        border_to_spaces_map[border_idx].add(attached_white_spaces)
+def add_to_border_map(attached_white_spaces, border_idx, shape):
+    if border_idx in shape.border_to_spaces_map.keys():
+        shape.border_to_spaces_map[border_idx].add(attached_white_spaces)
     else:
-        border_to_spaces_map[border_idx] = attached_white_spaces
-    return border_to_spaces_map
+        shape.border_to_spaces_map[border_idx] = attached_white_spaces
+    return shape
 
 @Profile(stats=PERFORMANCE_STATS)
-def join_segments(space_to_borders_map, border_to_spaces_map):
+def join_segments(shape):
     segments = []
-    border_IDs = list(border_to_spaces_map.keys())
+    border_IDs = list(shape.border_to_spaces_map.keys())
     while border_IDs:
         border = border_IDs[0]
         segment = set()
@@ -252,8 +254,8 @@ def join_segments(space_to_borders_map, border_to_spaces_map):
             border = work_q.pop()
             border_IDs.remove(border)
             segment.add(border)
-            for space in border_to_spaces_map[border]:
-                work_q = work_q.union(space_to_borders_map[space])
+            for space in shape.border_to_spaces_map[border]:
+                work_q = work_q.union(shape.space_to_borders_map[space])
             work_q = work_q.difference(segment)
         segments.append(segment)
     return segments
@@ -272,37 +274,47 @@ def join_pieces(borders, segments):
         pieces.append(borders[border_ID])
     return pieces
 
-@Profile(stats=PERFORMANCE_STATS)
-def get_one_border(main_q, cell, shape):
+# @Profile(stats=PERFORMANCE_STATS)
+def get_one_border(main_q, cell, border_idx, shape):
     is_a_border = True
     border = set()
     attached_white_spaces = set()
     while cell not in border:
         row, col, cell_type = cell
-        # check if cell is at the outside of shape
+        # check if cell is outside the shape
         d_row, d_col = BESIDE[cell_type]
         b_pos = (row + d_row, col + d_col)
         if b_pos not in shape.cells.keys():
             is_a_border = False
         # check if beside the cell there is white space
-        if b_pos in shape.cell_to_white_space_map.keys():
-            key = shape.cell_to_white_space_map[b_pos]
+        if b_pos in shape.cell_space_map.keys():
+            key = shape.cell_space_map[b_pos]
             attached_white_spaces.add(key)
             if shape.white_spaces[key] == '#':
                 is_a_border = False
-        cell, border, main_q = get_next_cell(cell, border, main_q, shape)
+        # check if beside the cell there is a border element
+        # TODO: test this
+        if b_pos in shape.cell_border_map.keys():
+            key = shape.cell_border_map[b_pos]
+            if border_idx in shape.border_to_border_map.keys():
+                shape.border_to_border_map[border_idx].add(key)
+            else:
+                shape.border_to_border_map[border_idx] = {key}
+        cell, border, main_q, shape = get_next_cell(cell, border_idx, border, main_q, shape)
     if not is_a_border:
         border = False
-    return main_q, border, attached_white_spaces
+    return main_q, border, attached_white_spaces, shape
 
-@Profile(stats=PERFORMANCE_STATS)
-def get_next_cell(cell, border, main_q, shape):
+# @Profile(stats=PERFORMANCE_STATS)
+def get_next_cell(cell, border_idx, border, main_q, shape):
     # get neighbours of current cell
     row, col, cell_type = cell
     neighbours = shape.neighbour_map[(row, col)]
     for n_type, valid_neighbours in NEXT_MAP[cell_type]:
         # add cell to border
         border.add((row, col, n_type))
+        # add to cell to border map
+        shape.cell_border_map[(row, col)] = border_idx
         # remove processed cell from main queue
         main_q = main_q.difference({(row, col, n_type)})
         # check for valid neighbour cells combination
@@ -311,7 +323,7 @@ def get_next_cell(cell, border, main_q, shape):
             n_row, n_col, n_cell_type = neighbour_cells.pop()
             cell = (row + n_row, col + n_col, n_cell_type)
             break
-    return cell, border, main_q
+    return cell, border, main_q, shape
 
 @Profile(stats=PERFORMANCE_STATS)
 def build_neighbour_map(shape):
@@ -429,88 +441,85 @@ def trim_piece(shape):
     return shape_new
 
 if __name__ == '__main__':
-#     INPUT_SHAPE = """
-#     +------+
-#     |+----+|
-#     ||+--+||
-#     |||++|||
-#     |||++|||
-#     |||+-+||
-#     ||+---+|
-#     |+-++--+
-# +---+--+|
-# +-------+
-# """.strip('\n')
-
     INPUT_SHAPE = """
-+--------+-+----------------+-+----------------+-+--------+
-|        | |                | |                | |        |
-|        ++++               | |                | |        |
-|        ++++               | |                | |        |
-|        ++++             +-+ +-+            +-+ +-+      |
-|        ++++             |     |            |     |      |
-+-----------+      +------+     +------------+     +------+
-| +--------+|      |                                      |
-+-+   +---+||      +--------------------------------------+
-|     |+-+|||                                             |
-|     || ++||                                             |
-|     |+---+|                                             |
-|     +-----+                                             |
-|        +-+                +-+                +-+        |
-|        +-+                | |                | |        |
-|    +------+               | |                | |        |
-|    |+----+|         +-----+ |                | |        |
-|    ||+--+||         |+-+    |              +-+ +-+      |
-|    |||++|||         || |  +-+              |     |      |
-++   |||++|||      +--+| +--+    +-----------+     +------+
-||   |||+-+||      |   |      +--+                        |
-++   ||+---+|      +---+  +---+   +-----------------------+
-|    |+-++--+             |       |                       |
-|+---+--+|                +-+ +---+                       |
-|+-------+                  | |                           |
-|                           | |                           |
-|        +-+                | |                +-+        |
-|        +-+                +-+                +-+        |
-|                       +------+                          |
-|                       |+----+|                          |
-|                       ||+--+||                          |
-|       +----+          |||++|||                          |
-++      |+--+|  ++--+   |||++|||      +-------------------+
-||      ||++||  ||  |   |||+-+||      |                   |
-++      ||++||  ++--+   ||+---+|      +------+     +------+
-|       |+--+|          |+-++--+             |     |      |
-|       +----+      +---+--+|                +-+ +-+      |
-|                   +-------+                  | |        |
-|                                              | |        |
-|        +-+                +-+                | |        |
-|        +-+                +-+                +-+        |
-|  +-----+ |    ++                                        |
-|  +-++----+    ++                                        |
-|    ++                                                   |
-|    ||                                                   |
-++   |+-------------+                 +-------------------+
-||   |              |                 |                   |
-++   +---+ +--------+                 +------+     +------+
-|        | |                                 |     |      |
-|        | |                                 +-+ +-+      |
-|        | |                                   | |        |
-|        | |                                   | |        |
-|        | |                +-+                | |        |
-|        +-+                | |                | |        |
-|  +-----+ |    ++          | |                | |        |
-|  +-++----+    ++    +-----+ |                | +-----+  |
-|    ++               |+-+    |                |    +-+|  |
-|    ||               || |  +-+                +-+  | ||  |
-++   |+---------------+| +--+    +----------+    +--+ |+--+
-||   |                 |      +--+          +--+      |   |
-++   +---+ +-----------+  +---+   +--------+   +---+  +---+
-|        | |              |       |        |       |      |
-|        | |              +-+ +---+        +---+ +-+      |
-|        | |                | |                | |        |
-|        | |                | |                | |        |
-|        | |                | |                | |        |
-+--------+-+----------------+-+----------------+-+--------+
++----------+
+|+--------+|
+||        ||
+||        ||
+||        ||
+|+--------+|
++----------+
 """.strip('\n')
+
+#     INPUT_SHAPE = """
+# +--------+-+----------------+-+----------------+-+--------+
+# |        | |                | |                | |        |
+# |        ++++               | |                | |        |
+# |        ++++               | |                | |        |
+# |        ++++             +-+ +-+            +-+ +-+      |
+# |        ++++             |     |            |     |      |
+# +-----------+      +------+     +------------+     +------+
+# | +--------+|      |                                      |
+# +-+   +---+||      +--------------------------------------+
+# |     |+-+|||                                             |
+# |     || ++||                                             |
+# |     |+---+|                                             |
+# |     +-----+                                             |
+# |        +-+                +-+                +-+        |
+# |        +-+                | |                | |        |
+# |    +------+               | |                | |        |
+# |    |+----+|         +-----+ |                | |        |
+# |    ||+--+||         |+-+    |              +-+ +-+      |
+# |    |||++|||         || |  +-+              |     |      |
+# ++   |||++|||      +--+| +--+    +-----------+     +------+
+# ||   |||+-+||      |   |      +--+                        |
+# ++   ||+---+|      +---+  +---+   +-----------------------+
+# |    |+-++--+             |       |                       |
+# |+---+--+|                +-+ +---+                       |
+# |+-------+                  | |                           |
+# |                           | |                           |
+# |        +-+                | |                +-+        |
+# |        +-+                +-+                +-+        |
+# |                       +------+                          |
+# |                       |+----+|                          |
+# |                       ||+--+||                          |
+# |       +----+          |||++|||                          |
+# ++      |+--+|  ++--+   |||++|||      +-------------------+
+# ||      ||++||  ||  |   |||+-+||      |                   |
+# ++      ||++||  ++--+   ||+---+|      +------+     +------+
+# |       |+--+|          |+-++--+             |     |      |
+# |       +----+      +---+--+|                +-+ +-+      |
+# |                   +-------+                  | |        |
+# |                                              | |        |
+# |        +-+                +-+                | |        |
+# |        +-+                +-+                +-+        |
+# |  +-----+ |    ++                                        |
+# |  +-++----+    ++                                        |
+# |    ++                                                   |
+# |    ||                                                   |
+# ++   |+-------------+                 +-------------------+
+# ||   |              |                 |                   |
+# ++   +---+ +--------+                 +------+     +------+
+# |        | |                                 |     |      |
+# |        | |                                 +-+ +-+      |
+# |        | |                                   | |        |
+# |        | |                                   | |        |
+# |        | |                +-+                | |        |
+# |        +-+                | |                | |        |
+# |  +-----+ |    ++          | |                | |        |
+# |  +-++----+    ++    +-----+ |                | +-----+  |
+# |    ++               |+-+    |                |    +-+|  |
+# |    ||               || |  +-+                +-+  | ||  |
+# ++   |+---------------+| +--+    +----------+    +--+ |+--+
+# ||   |                 |      +--+          +--+      |   |
+# ++   +---+ +-----------+  +---+   +--------+   +---+  +---+
+# |        | |              |       |        |       |      |
+# |        | |              +-+ +---+        +---+ +-+      |
+# |        | |                | |                | |        |
+# |        | |                | |                | |        |
+# |        | |                | |                | |        |
+# +--------+-+----------------+-+----------------+-+--------+
+# """.strip('\n')
 
     ALL_PIECES = break_evil_pieces(INPUT_SHAPE)
     with open('break_the_pieces_evilized_edition.csv', 'w') as outfile:
