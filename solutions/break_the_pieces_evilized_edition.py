@@ -166,7 +166,7 @@ def build_structures(shape):
             else:
                 shape.border_cells = shape.border_cells.union({(row, col, dir_)
                                                                for dir_ in cell_types[cell_type]})
-            shape.cells[(row, col)] = cell_types[cell_type]
+            shape.cells[(row, col)] = set(cell_types[cell_type])
     shape.inside = shape.space_cells.union(shape.border_cells)
     return shape
 
@@ -244,7 +244,6 @@ def add_to_border_map(attached_white_spaces, border_idx, shape):
 @Profile(stats=PERFORMANCE_STATS)
 def join_segments(shape):
     segments = []
-#     border_IDs = list(shape.border_to_spaces_map.keys())
     border_IDs = list(shape.borders.keys())
     while border_IDs:
         border_ID = border_IDs[0]
@@ -253,7 +252,8 @@ def join_segments(shape):
         work_q.add(border_ID)
         while work_q:
             border_ID = work_q.pop()
-            border_IDs.remove(border_ID)
+            if border_ID in border_IDs:
+                border_IDs.remove(border_ID)
             segment.add(border_ID)
             # join border segments that are connected via spaces
             if border_ID in shape.border_to_spaces_map.keys():
@@ -299,18 +299,19 @@ def get_one_border(main_q, cell, border_idx, shape):
             if shape.white_spaces[key] == '#':
                 is_a_border = False
         # check if beside the cell there is a border element
-        if shape.cells[b_pos] in {'ul', 'ur', 'll', 'lr', 'r', 'l', 'u', 'd'}:
+        if b_pos in shape.cells.keys() and \
+            shape.cells[b_pos].intersection({'ul', 'ur', 'll', 'lr', 'r', 'l', 'u', 'd'}):
+            # check if the neighbour cell is already part of a border
             if b_pos in shape.cell_border_map.keys():
                 key = shape.cell_border_map[b_pos]
-            else:
-                key = set()
-            if border_idx in shape.border_to_borders_map.keys():
-                shape.border_to_borders_map[border_idx].add(key)
-                shape.border_to_borders_map[key].add(border_idx)
-            else:
-                shape.border_to_borders_map[border_idx] = {key}
-                if key:
+                if key in shape.border_to_borders_map.keys():
+                    shape.border_to_borders_map[key].add(border_idx)
+                else:
                     shape.border_to_borders_map[key] = {border_idx}
+                if border_idx in shape.border_to_borders_map.keys():
+                    shape.border_to_borders_map[border_idx].add(key)
+                else:
+                    shape.border_to_borders_map[border_idx] = {key}
         cell, border, main_q, shape = get_next_cell(cell, border_idx,
                                                     border, main_q, shape)
     if not is_a_border:
@@ -454,13 +455,13 @@ def trim_piece(shape):
 
 if __name__ == '__main__':
     INPUT_SHAPE = """
-+----------+
-|+--------+|
-||        ||
-||        ||
-||        ||
-|+--------+|
-+----------+
++-------------------++--+
+|                   ||  |
+|                   ||  |
+|  +----------------+|  |
+|  |+----------------+  |
+|  ||                   |
++--++-------------------+
 """.strip('\n')
 
 #     INPUT_SHAPE = """
