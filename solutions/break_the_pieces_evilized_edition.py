@@ -69,18 +69,27 @@ class Shape:
     def __init__(self):
         self.txt_lines = []
         self.blank_lines = []
-        self.cells = {}
+        self.cells = set()
         self.inside = set()
         self.space_cells = set()
         self.border_cells = set()
-        self.neighbour_map = {}
-        self.white_spaces = {}
-        self.borders = {}
-        self.cell_space_map = {}
-        self.cell_border_map = {}
-        self.border_to_borders_map = {}
-        self.space_to_borders_map = {}
-        self.border_to_spaces_map = {}
+
+# class Shape_v1:
+#     def __init__(self):
+#         self.txt_lines = []
+#         self.blank_lines = []
+#         self.cells = {}
+#         self.inside = set()
+#         self.space_cells = set()
+#         self.border_cells = set()
+#         self.neighbour_map = {}
+#         self.white_spaces = {}
+#         self.borders = {}
+#         self.cell_space_map = {}
+#         self.cell_border_map = {}
+#         self.border_to_borders_map = {}
+#         self.space_to_borders_map = {}
+#         self.border_to_spaces_map = {}
 
 @Profile(stats=PERFORMANCE_STATS)
 def break_evil_pieces(shape_txt):
@@ -93,16 +102,26 @@ def break_evil_pieces(shape_txt):
     shape.txt_lines = shape_txt.split('\n')
     shape = build_blank_shape(shape)
     shape = build_structures(shape)
-    shape = build_neighbour_map(shape)
-    shape = build_white_piece_map(shape)
-    pieces = get_pieces(shape)
     txt_pieces = []
-    for piece in pieces:
+    for piece in get_pieces(shape):
         piece = set_to_dict(piece)
         piece = plus_to_lines(piece)
         piece = piece_to_lines(piece, shape)
         piece = trim_piece(piece)
         txt_pieces.append(piece)
+    
+#     shape = build_neighbour_map(shape)
+#     shape = build_neighbour_map(shape)
+#     shape = build_white_piece_map(shape)
+#     pieces = get_pieces(shape)
+#     txt_pieces = []
+#     for piece in pieces:
+#         piece = set_to_dict(piece)
+#         piece = plus_to_lines(piece)
+#         piece = piece_to_lines(piece, shape)
+#         piece = trim_piece(piece)
+#         txt_pieces.append(piece)
+
     return txt_pieces
 
 def DEBUG_display_white_piece_map(shape_white_pieces, shape_cells, blank_shape_lines):
@@ -142,8 +161,25 @@ def build_blank_shape(shape):
     shape.blank_lines = [' ' * len(txt_line) for txt_line in shape.txt_lines]
     return shape
 
-@Profile(stats=PERFORMANCE_STATS)
+# @Profile(stats=PERFORMANCE_STATS)
 def build_structures(shape):
+    type_map = {'+': {'ul', 'ur', 'll', 'lr'},
+                '-': {'u', 'd'},
+                '|': {'r', 'l'},
+                ' ': {' '},}
+    for row, shape_line in enumerate(shape.txt_lines):
+        for col, type_char in enumerate(shape_line):
+            if type_char == ' ':
+                shape.space_cells.add(((row, col, type_char)))
+            else:
+                for cell_type in type_map[type_char]:
+                    shape.border_cells.add((row, col, cell_type))
+            shape.inside.add((row, col))
+    shape.cells = shape.border_cells.union(shape.space_cells)
+    return shape
+
+# @Profile(stats=PERFORMANCE_STATS)
+def build_structures_v1(shape):
     """
     Transform the shape into several data structures that will be used for
     extracting individual pieces.
@@ -206,8 +242,60 @@ def build_white_piece_map(shape):
         idx += 1
     return shape
 
-# @Profile(stats=PERFORMANCE_STATS)
 def get_pieces(shape):
+    cell_q = shape.cells.copy()
+    while cell_q:
+        cell = cell_q.pop()
+        row, col, cell_type = cell
+        if cell_type == ' ':
+            border_cells, space_cells = process_space_cells(cell, shape)
+    return
+
+def process_space_cells(cell, shape):
+    border_cells = set()
+    space_cells = set()
+    piece_q = set(cell)
+    while piece_q:
+        cell = piece_q.pop()
+        space_cells.add(cell)
+        # get neighbour cells
+        neighbours = get_neighbours(cell, shape)
+        neighbours = get_absolut_positions(cell, neighbours)
+        # remove neighbour cells that are outside the shape
+        outside = neighbours.difference(shape.inside)
+        if outside:
+            # mark this white space as an outside element, this will not be a
+            # valid piece
+            space_cells = '#'
+            # remove all neighbour cells that are outside the shape
+            neighbours = neighbours.difference(outside)
+        # remove space cells already processed
+        neighbours = neighbours.difference(space_cells)
+        # save any border cells
+        borders = neighbours.difference(shape.space_cells)
+        border_cells = border_cells.union(borders)       
+        # add neighbour space cells to work queue
+        spaces = neighbours.differnce(borders)
+        piece_q = piece_q.union(spaces)
+    return border_cells, space_cells
+
+def get_neighbours(cell, shape):
+    deltas = [(-1, 0), (-1, 1), (0, 1), (1, 1),
+              (1, 0), (1, -1), (0, -1), (-1, -1),]
+    neighbours = set()
+    row, col, _ = cell
+    for d_row, d_col in deltas:
+        n_row, n_col = row + d_row, col + d_col
+        if (n_row, n_col) in shape.inside:
+            n_cell = (d_row, d_col, shape.cell_pos[(n_row, n_col)])
+            neighbours = neighbours.add(n_cell)
+        else:
+            n_cell = '#'
+        neighbours.add((d_row, d_col, n_cell))
+    return neighbours
+
+# @Profile(stats=PERFORMANCE_STATS)
+def get_pieces_v1(shape):
     main_q = shape.border_cells.copy()
     border_idx = 0
     while main_q:
@@ -344,6 +432,7 @@ def build_neighbour_map(shape):
     Build a dictionary data structure where for each cell (a row, column tuple)
     all neighbouring cells are returned.
     """
+    # TODO: check if we want to keep this separate function
     deltas = [(-1, 0), (-1, 1), (0, 1), (1, 1),
               (1, 0), (1, -1), (0, -1), (-1, -1),]
     for row, col in shape.cells:
@@ -455,13 +544,12 @@ def trim_piece(shape):
 
 if __name__ == '__main__':
     INPUT_SHAPE = """
-+-------------------++--+
-|                   ||  |
-|                   ||  |
-|  +----------------+|  |
-|  |+----------------+  |
-|  ||                   |
-+--++-------------------+
++-----+
+|+---+|
+||   ||
+||   ||
+|+---+|
++-----+
 """.strip('\n')
 
 #     INPUT_SHAPE = """
