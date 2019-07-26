@@ -70,6 +70,7 @@ class Shape:
         self.txt_lines = []
         self.blank_lines = []
         self.cells = set()
+        self.cell_pos = {}
         self.inside = set()
         self.space_cells = set()
         self.border_cells = set()
@@ -174,6 +175,7 @@ def build_structures(shape):
             else:
                 for cell_type in type_map[type_char]:
                     shape.border_cells.add((row, col, cell_type))
+            shape.cell_pos[(row, col)] = type_map[type_char]
             shape.inside.add((row, col))
     shape.cells = shape.border_cells.union(shape.space_cells)
     return shape
@@ -244,17 +246,33 @@ def build_white_piece_map(shape):
 
 def get_pieces(shape):
     cell_q = shape.cells.copy()
+    piece = set()
     while cell_q:
         cell = cell_q.pop()
-        row, col, cell_type = cell
-        if cell_type == ' ':
-            border_cells, space_cells = process_space_cells(cell, shape)
+        piece_q = set()
+        piece_q.add(cell)
+        while piece_q:
+            cell = piece_q.pop()
+            row, col, cell_type = cell
+            # TODO: add outside detection
+            if cell_type == ' ':
+                border_cells, space_cells = process_space_cells(cell, shape)
+                piece.add(space_cells)
+                piece_q.add(border_cells)
+            else:
+                border_cells, space_cells = process_border_cells(cell, shape)
+                piece.add(border_cells)
+                piece_q.add(space_cells)
+            cell_q = cell_q.difference(space_cells)
+            cell_q = cell_q.difference(border_cells)
+        yield piece
     return
 
 def process_space_cells(cell, shape):
     border_cells = set()
     space_cells = set()
-    piece_q = set(cell)
+    piece_q = set()
+    piece_q.add(cell)
     while piece_q:
         cell = piece_q.pop()
         space_cells.add(cell)
@@ -262,7 +280,7 @@ def process_space_cells(cell, shape):
         neighbours = get_neighbours(cell, shape)
         neighbours = get_absolut_positions(cell, neighbours)
         # remove neighbour cells that are outside the shape
-        outside = neighbours.difference(shape.inside)
+        outside = neighbours.difference(shape.cells)
         if outside:
             # mark this white space as an outside element, this will not be a
             # valid piece
@@ -275,9 +293,71 @@ def process_space_cells(cell, shape):
         borders = neighbours.difference(shape.space_cells)
         border_cells = border_cells.union(borders)       
         # add neighbour space cells to work queue
-        spaces = neighbours.differnce(borders)
+        spaces = neighbours.difference(borders)
         piece_q = piece_q.union(spaces)
     return border_cells, space_cells
+
+def process_border_cells(cell, shape):
+    next = {
+        'l': [({(-1, 0, 'l')}, (-1, 0, 'l')),
+              ({(-1, 0, 'lr')}, (-1, 0, 'lr')),
+              ({(1, 0, 'l')}, (1, 0, 'l')),
+              ({(1, 0, 'ur')}, (1, 0, 'ur'))],
+        'r': [(-1, 0), (1, 0)],
+        'u': [(0, -1), (0, 1)],
+        'd': [(0, -1), (0, 1)],
+        'ur': [(-1, 0), (0, 1)],
+        'lr': [(0, 1), (1, 0)],
+        'll': [(1, 0), (0, -1)],
+        'ul': [(-1, 0), (0, -1)],
+        }
+    row, col, cell_type = cell
+    for d_row, d_col in next[cell_type]:
+        n_row, n_col = row + d_row, col + d_col
+        
+        
+    
+    
+    border_cells = set()
+    space_cells = set()
+    piece_q = set()
+    piece_q.add(cell)
+    while piece_q:
+        cell = piece_q.pop()
+        border_cells.add(cell)
+        # get neighbour cells
+        neighbours = get_neighbours(cell, shape)
+        neighbours = get_absolut_positions(cell, neighbours)
+        # remove neighbour cells that are outside the shape
+        outside = neighbours.difference(shape.cells)
+        if outside:
+            # mark this border as an outside element, this will not be a
+            # valid piece
+            border_cells = '#'
+            # remove all neighbour cells that are outside the shape
+            neighbours = neighbours.difference(outside)
+
+
+
+
+    # get neighbours of current cell
+    row, col, cell_type = cell
+    neighbours = shape.neighbour_map[(row, col)]
+    for n_type, valid_neighbours in NEXT_MAP[cell_type]:
+        # add cell to border
+        border.add((row, col, n_type))
+        # add to cell to border map
+        shape.cell_border_map[(row, col)] = border_idx
+        # remove processed cell from main queue
+        main_q = main_q.difference({(row, col, n_type)})
+        # check for valid neighbour cells combination
+        neighbour_cells = neighbours.intersection(valid_neighbours)
+        if len(neighbour_cells) > 0:
+            n_row, n_col, n_cell_type = neighbour_cells.pop()
+            cell = (row + n_row, col + n_col, n_cell_type)
+            break
+    
+    return
 
 def get_neighbours(cell, shape):
     deltas = [(-1, 0), (-1, 1), (0, 1), (1, 1),
@@ -287,11 +367,12 @@ def get_neighbours(cell, shape):
     for d_row, d_col in deltas:
         n_row, n_col = row + d_row, col + d_col
         if (n_row, n_col) in shape.inside:
-            n_cell = (d_row, d_col, shape.cell_pos[(n_row, n_col)])
-            neighbours = neighbours.add(n_cell)
+            new_set = {(d_row, d_col, cell)
+                       for cell in shape.cell_pos[(n_row, n_col)]}
+            neighbours = neighbours.union(new_set)
         else:
             n_cell = '#'
-        neighbours.add((d_row, d_col, n_cell))
+            neighbours.add((d_row, d_col, n_cell))
     return neighbours
 
 # @Profile(stats=PERFORMANCE_STATS)
