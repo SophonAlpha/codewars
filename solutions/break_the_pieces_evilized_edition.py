@@ -76,23 +76,6 @@ class Shape:
         self.space_cells = set()
         self.border_cells = set()
 
-# class Shape_v1:
-#     def __init__(self):
-#         self.txt_lines = []
-#         self.blank_lines = []
-#         self.cells = {}
-#         self.inside = set()
-#         self.space_cells = set()
-#         self.border_cells = set()
-#         self.neighbour_map = {}
-#         self.white_spaces = {}
-#         self.borders = {}
-#         self.cell_space_map = {}
-#         self.cell_border_map = {}
-#         self.border_to_borders_map = {}
-#         self.space_to_borders_map = {}
-#         self.border_to_spaces_map = {}
-
 @Profile(stats=PERFORMANCE_STATS)
 def break_evil_pieces(shape_txt):
     """
@@ -105,7 +88,7 @@ def break_evil_pieces(shape_txt):
     shape = build_blank_shape(shape)
     shape = build_structures(shape)
     txt_pieces = []
-    # TODO: check if spaces can be removed from pieces
+    # TODO: check if spaces can be removed or omitted from pieces
     for piece in get_pieces(shape):
         piece = set_to_dict(piece)
         piece = plus_to_lines(piece, shape)
@@ -295,12 +278,16 @@ def process_space_cells(cell, shape):
         piece_q = piece_q.union(spaces)
     return is_outside, border_cells, space_cells
 
-def process_border_cells(cell, shape):
+def process_border_cells_IN_PROGRESS(cell, shape):
     next_cells = {
-        'l': {(-1, 0, 'l'), (-1, 0, 'll'), (1, 0, 'l'), (1, 0, 'ul'), (0, -1, 'r')},
-        'r': {(-1, 0, 'r'), (-1, 0, 'lr'), (1, 0, 'r'), (1, 0, 'ur'), (0, 1, 'l')},
-        'u': {(0, -1, 'u'), (0, -1, 'ur'), (0, 1, 'u'), (0, 1, 'ul'), (-1, 0, 'd')},
-        'd': {(0, -1, 'd'), (0, -1, 'lr'), (0, 1, 'd'), (0, 1, 'll'), (1, 0, 'u')},
+        'l': {(-1, 0, 'l'), (-1, 0, 'll'), (1, 0, 'l'), (1, 0, 'ul'),
+              (0, -1, 'r'), (0, -1, 'ur'), (0, -1, 'lr')},
+        'r': {(-1, 0, 'r'), (-1, 0, 'lr'), (1, 0, 'r'), (1, 0, 'ur'),
+              (0, 1, 'l'), (0, 1, 'ul'), (0, 1, 'll')},
+        'u': {(0, -1, 'u'), (0, -1, 'ur'), (0, 1, 'u'), (0, 1, 'ul'),
+              (-1, 0, 'd'), (-1, 0, 'lr'), (-1, 0, 'll')},
+        'd': {(0, -1, 'd'), (0, -1, 'lr'), (0, 1, 'd'), (0, 1, 'll'),
+              (1, 0, 'u'), (1, 0, 'ul'), (1, 0, 'ur')},
         'ul': {(0, -1, 'u'), (0, -1, 'ur'), (-1, 0, 'l'), (-1, 0, 'll'),
                (-1, -1, 'r'), (-1, -1, 'd'), (-1, -1, 'lr')},
         'ur': {(0, 1, 'u'), (0, 1, 'ul'), (-1, 0, 'r'), (-1, 0, 'lr'),
@@ -325,20 +312,105 @@ def process_border_cells(cell, shape):
         # test if there are neighbour cells that are outside the shape
         outside = get_cell_coordinates(valid_neighbours).difference(shape.inside)
         if outside:
-            # mark this border as an outside element, this will not be a
-            # valid piece
+            # mark this border as an outside element, this will not be a valid piece
             is_outside = True
         # get actual neighbours
         neighbours = valid_neighbours.intersection(shape.border_cells)
-        # remove cells that have been processed already
-        neighbours = neighbours.difference(border_cells)
-        # add border cells to queue for processing
-        piece_q = piece_q.union(neighbours)
-        # test if space cell is next to the cell
-        d_row, d_col = BESIDE[cell_type]
-        test_cell = (row + d_row, col + d_col, ' ')
-        if test_cell in shape.space_cells:
-            space_cells.add(test_cell)
+
+    return is_outside, border_cells, space_cells
+
+def process_border_cells(cell, shape):
+    # TODO: move this up as a constant
+#     next_cells = {
+#         'l': {(-1, 0, 'l'), (-1, 0, 'll'), (1, 0, 'l'), (1, 0, 'ul'),
+#               (0, -1, 'r'), (0, -1, 'ur'), (0, -1, 'lr')},
+#         'r': {(-1, 0, 'r'), (-1, 0, 'lr'), (1, 0, 'r'), (1, 0, 'ur'),
+#               (0, 1, 'l'), (0, 1, 'ul'), (0, 1, 'll')},
+#         'u': {(0, -1, 'u'), (0, -1, 'ur'), (0, 1, 'u'), (0, 1, 'ul'),
+#               (-1, 0, 'd'), (-1, 0, 'lr'), (-1, 0, 'll')},
+#         'd': {(0, -1, 'd'), (0, -1, 'lr'), (0, 1, 'd'), (0, 1, 'll'),
+#               (1, 0, 'u'), (1, 0, 'ul'), (1, 0, 'ur')},
+#         'ul': {(0, -1, 'u'), (0, -1, 'ur'), (-1, 0, 'l'), (-1, 0, 'll'),
+#                (-1, -1, 'r'), (-1, -1, 'd'), (-1, -1, 'lr')},
+#         'ur': {(0, 1, 'u'), (0, 1, 'ul'), (-1, 0, 'r'), (-1, 0, 'lr'),
+#                (-1, 1, 'l'), (-1, 1, 'd'), (-1, 1, 'll')},
+#         'lr': {(0, 1, 'd'), (0, 1, 'll'), (1, 0, 'r'), (1, 0, 'ur'),
+#                (1, 1, 'l'), (1, 1, 'u'), (1, 1, 'ul')},
+#         'll': {(0, -1, 'd'), (0, -1, 'lr'), (1, 0, 'l'), (1, 0, 'ul'),
+#                (1, -1, 'r'), (1, -1, 'u'), (1, -1, 'ur')},
+#         }
+    next_step_line = {
+        ('u', 'cw'): ((0, -1), {'u', 'ur'}), ('u', 'ccw'): ((0, 1), {'u', 'ul'}),
+        ('d', 'cw'): ((0, 1), {'d', 'll'}), ('d', 'ccw'): ((0, -1), {'d', 'lr'}),
+        ('r', 'cw'): ((-1, 0), {'r', 'lr'}), ('r', 'ccw'): ((1, 0), {'r', 'ur'}),
+        ('l', 'cw'): ((1, 0), {'l', 'ul'}), ('l', 'ccw'): ((-1, 0), {'l', 'll'}),
+        }
+    next_step_plus = {
+        ('ur', 'cw'): ((-1, 0), {'r', 'lr'}), ('ur', 'ccw'): ((0, 1), {'u', 'ul'}),
+        ('lr', 'cw'): ((0, 1), {'d', 'll'}), ('lr', 'ccw'): ((1, 0), {'r', 'ur'}),
+        ('ll', 'cw'): ((1, 0), {'l', 'ul'}), ('ll', 'ccw'): ((0, -1), {'d', 'lr'}),
+        ('ul', 'cw'): ((0, -1), {'u', 'ur'}), ('ul', 'ccw'): ((-1, 0), {'l', 'll'}),
+        }
+    plus_sequence = {
+        ('ur', 'cw'): 'ul', ('ur', 'ccw'): 'lr',
+        ('ul', 'cw'): 'll', ('ul', 'ccw'): 'ur',
+        ('ll', 'cw'): 'lr', ('ll', 'ccw'): 'ul',
+        ('lr', 'cw'): 'ur', ('lr', 'ccw'): 'll',
+        }
+    is_outside = False
+    border_cells = set()
+    space_cells = set()
+    piece_q = set()
+    direction = 'cw'
+    piece_q.add((cell, direction))
+    while piece_q:
+        cell, direction = piece_q.pop()
+        border_cells.add(cell)
+        row, col, cell_type = cell
+        if cell_type in ['l', 'r', 'u', 'd']:
+            (d_row, d_col), possible_types = next_step_line[(cell_type, direction)]
+            n_row, n_col = row + d_row, col + d_col
+            next_cell_type = shape.cell_pos[(n_row, n_col)]
+            next_cell_type = next_cell_type.intersection(possible_types).pop()
+            next_cell = (n_row, n_col, next_cell_type)
+            piece_q.add((next_cell, direction))
+        else:
+            (d_row, d_col), possible_types = next_step_plus[(cell_type, direction)]
+            n_row, n_col = row + d_row, col + d_col
+            next_cell_type = None
+            if (n_row, n_col) in shape.inside:
+                next_cell_type = shape.cell_pos[(n_row, n_col)].intersection(possible_types)
+            if next_cell_type:
+                next_cell_type = next_cell_type.pop()
+                next_cell = (n_row, n_col, next_cell_type)
+                piece_q.add((next_cell, direction))
+            else:
+                next_cell_type = plus_sequence[(cell_type, direction)]
+                next_cell = (row, col, next_cell_type)
+                piece_q.add((next_cell, direction))
+                
+                
+        
+#         # get valid neighbour cells
+#         valid_neighbours = next_cells[cell_type]
+#         valid_neighbours = get_absolut_positions(cell, valid_neighbours)
+#         # test if there are neighbour cells that are outside the shape
+#         outside = get_cell_coordinates(valid_neighbours).difference(shape.inside)
+#         if outside:
+#             # mark this border as an outside element, not a valid piece
+#             is_outside = True
+#         # get actual neighbours
+#         neighbours = valid_neighbours.intersection(shape.border_cells)
+#         # remove cells that have been processed already
+#         neighbours = neighbours.difference(border_cells)
+#         # add border cells to queue for processing
+#         piece_q = piece_q.union(neighbours)
+#         # test if space cell is next to the cell
+#         d_row, d_col = BESIDE[cell_type]
+#         test_cell = (row + d_row, col + d_col, ' ')
+#         if test_cell in shape.space_cells:
+#             space_cells.add(test_cell)
+
     return is_outside, border_cells, space_cells
 
 def get_cell_coordinates(cells):
@@ -560,82 +632,6 @@ def should_be_line(row, col, piece, shape):
         piece[row, col] = '|'
     return piece
 
-# @Profile(stats=PERFORMANCE_STATS)
-def plus_to_lines_v1(piece, shape):
-    """
-    Transform all '+' that are no longer corners or intersections into '|' or
-    '-'.
-    """
-    plus_types = {'ul', 'ur', 'lr', 'll'}
-    for row, col in piece.keys():
-        if plus_types.intersection(piece[(row, col)]):
-            piece = should_be_line(row, col, piece, shape)
-    return piece
-
-# @Profile(stats=PERFORMANCE_STATS)
-def should_be_line_v1(row, col, piece, shape):
-    """
-    Transform all '+' that are no longer corners or intersections into '|' or
-    '-'.
-    """
-    # TODO: move these up as constants
-    next_cells = {
-        'ul': {(0, -1, 'u'), (0, -1, 'ur'), (-1, 0, 'l'), (-1, 0, 'll')},
-        'ur': {(0, 1, 'u'), (0, 1, 'ul'), (-1, 0, 'r'), (-1, 0, 'lr')},
-        'lr': {(0, 1, 'd'), (0, 1, 'll'), (1, 0, 'r'), (1, 0, 'ur')},
-        'll': {(0, -1, 'd'), (0, -1, 'lr'), (1, 0, 'l'), (1, 0, 'ul')},
-        }
-#     horizontal = {
-#         (-1, 0, 'l'), (-1, 0, 'r'), (-1, 0, 'lr'), (-1, 0, 'll'),
-#         (1, 0, 'l'), (1, 0, 'r'), (1, 0, 'ur'), (1, 0, 'ul'),
-#         }
-#     vertical = {
-#         (0, -1, 'u'), (0, -1, 'd'), (0, -1, 'ur'), (0, -1, 'lr'),
-#         (0, 1, 'u'), (0, 1, 'd'), (0, 1, 'ul'), (0, 1, 'll'),
-#         }
-#     horiz_cells = get_absolut_positions((row, col, ' '), horizontal)
-#     horiz_cells = horiz_cells.intersection(shape.border_cells)
-#     verti_cells = get_absolut_positions((row, col, ' '), vertical)
-#     verti_cells = verti_cells.intersection(shape.border_cells)
-
-
-    new_cell_types = set()
-    cell_types = piece[row, col]
-    for cell_type in cell_types:
-        adjacent_cells = get_absolut_positions((row, col, cell_type), next_cells[cell_type])
-        adjacent_cells = adjacent_cells.intersection(shape.border_cells)
-        if len(adjacent_cells) == 1:
-            _, _, new_cell_type = adjacent_cells.pop()
-            new_cell_types.add(new_cell_type)
-    if len(new_cell_types) == 1:
-        piece[row, col] = new_cell_types
-
-
-#     if (row - 1, col) in piece.keys() and \
-#         piece[row - 1, col].intersection({'l', 'r', 'll', 'lr'}) and \
-#         (row + 1, col) in piece.keys() and \
-#         piece[row + 1, col].intersection({'l', 'r', 'ul', 'ur'}) and \
-#         ((row, col - 1) not in piece.keys() or \
-#         ((row, col - 1) in piece.keys() and \
-#          piece[row, col - 1].intersection({'l', 'r'}))) and \
-#         ((row, col + 1) not in piece.keys() or \
-#         ((row, col + 1) in piece.keys() and \
-#          piece[row, col + 1].intersection({'l', 'r'}))):
-#         piece[row, col] = {'l', 'r'}
-#     elif (row, col - 1) in piece.keys() and \
-#         piece[row, col - 1].intersection({'u', 'd', 'ur', 'lr'}) and \
-#         (row, col + 1) in piece.keys() and \
-#         piece[row, col + 1].intersection({'u', 'd', 'ul', 'll'}) and \
-#         ((row - 1, col) not in piece.keys() or \
-#         ((row - 1, col) in piece.keys() and \
-#          piece[row - 1, col].intersection({'u', 'd'}))) and \
-#         ((row + 1, col) not in piece.keys() or \
-#         ((row + 1, col) in piece.keys() and \
-#          piece[row + 1, col].intersection({'u', 'd'}))):
-#         piece[row, col] = {'u', 'd'}
-
-    return piece
-
 @Profile(stats=PERFORMANCE_STATS)
 def piece_to_text_lines(piece, shape):
     """
@@ -645,19 +641,6 @@ def piece_to_text_lines(piece, shape):
     for row, col in piece.keys():
         cell = piece[(row, col)]
         shape_txt[row] = shape_txt[row][:col] + cell + shape_txt[row][col + 1:]
-    return shape_txt
-
-@Profile(stats=PERFORMANCE_STATS)
-def piece_to_text_lines_v1(piece, shape):
-    """
-    Transform the piece matrix into a list of text lines.
-    """
-    cell_to_char = {' ': ' ', 'u': '-', 'd': '-', 'l': '|', 'r': '|',
-                    'ul': '+', 'ur': '+', 'lr': '+', 'll': '+'}
-    shape_txt = shape.blank_lines[:]
-    for row, col in piece.keys():
-        cell = piece[(row, col)].pop()
-        shape_txt[row] = shape_txt[row][:col] + cell_to_char[cell] + shape_txt[row][col + 1:]
     return shape_txt
 
 @Profile(stats=PERFORMANCE_STATS)
