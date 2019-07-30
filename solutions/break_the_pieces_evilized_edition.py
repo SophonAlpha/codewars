@@ -42,48 +42,17 @@ from solutions.performance import Profile
 PERFORMANCE_STATS = []
 
 
-NEXT_DIRECTIONS = {
-    'lr': {( 0,  1): {'-': 'd', '+': 'll'},
-           ( 1,  1): {' ': 'c', '+': 'ul'},
-           ( 1,  0): {'|': 'r', '+': 'ur'}},
-    'll': {( 1,  0): {'|': 'l', '+': 'ul'},
-           ( 1, -1): {' ': 'c', '+': 'ur'},
-           ( 0, -1): {'-': 'd', '+': 'lr'}},
-    'ul': {( 0, -1): {'-': 'u', '+': 'ur'},
-           (-1, -1): {' ': 'c', '+': 'lr'},
-           (-1,  0): {'|': 'l', '+': 'll'}},
-    'ur': {(-1,  0): {'|': 'r', '+': 'lr'},
-           (-1,  1): {' ': 'c', '+': 'll'},
-           ( 0,  1): {'-': 'u', '+': 'ul'}},
-    'u' : {( 0, -1): {'-': 'u', '+': 'ur'},
-           (-1, -1): {' ': 'c', '+': 'lr', '|': 'r', '-': 'd'},
-           (-1,  0): {' ': 'c', '-': 'd'},
-           (-1,  1): {' ': 'c', '+': 'll', '|': 'l', '-': 'd'},
-           ( 0,  1): {'-': 'u', '+': 'ul'}},
-    'd' : {( 0,  1): {'-': 'd', '+': 'll'},
-           ( 1,  1): {' ': 'c', '+': 'ul', '|': 'l', '-': 'u'},
-           ( 1,  0): {' ': 'c', '-': 'u'},
-           ( 1, -1): {' ': 'c', '+': 'ur', '|': 'r', '-': 'u'},
-           ( 0, -1): {'-': 'd', '+': 'lr'}},
-    'r' : {(-1,  0): {'|': 'r', '+': 'lr'},
-           (-1,  1): {' ': 'c', '+': 'll', '|': 'r', '-': 'd'},
-           ( 0,  1): {' ': 'c', '|': 'l'},
-           ( 1,  1): {' ': 'c', '+': 'ul', '|': 'l', '-': 'u'},
-           ( 1,  0): {'|': 'r', '+': 'ur'}},
-    'l' : {( 1,  0): {'|': 'l', '+': 'ul'},
-           ( 1, -1): {' ': 'c', '+': 'ur', '|': 'r', '-': 'u'},
-           ( 0, -1): {' ': 'c', '|': 'r'},
-           (-1, -1): {' ': 'c', '+': 'lr', '|': 'r', '-': 'd'},
-           (-1,  0): {'|': 'l', '+': 'll'}},
-    'c' : {( 0,  1): {' ': 'c', '+': 'll', '|': 'l'},
-           ( 1,  1): {' ': 'c', '+': 'ul', '|': 'l', '-': 'u'},
-           ( 1,  0): {' ': 'c', '+': 'ur', '-': 'u'},
-           ( 1, -1): {' ': 'c', '+': 'ur', '|': 'r', '-': 'u'},
-           ( 0, -1): {' ': 'c', '+': 'ur', '|': 'r'},
-           (-1, -1): {' ': 'c', '+': 'lr', '|': 'r', '-': 'd'},
-           (-1,  0): {' ': 'c', '+': 'll', '-': 'd'}, 
-           (-1,  1): {' ': 'c', '+': 'll', '|': 'l', '-': 'd'}}}
-DELTAS = {(-1, 0, ' '), (-1, 0, 'd'), (-1, 1, ' '), (-1, 1, 'll'),
+VALID_NEIGHBOURS = {
+    (-1, 0): {'ll', 'lr', 'd', ' '},
+    (-1, 1): {'ll', 'l', 'd', ' '},
+    (0, 1): {'ll', 'ul', 'l', ' '},
+    (1, 1): {'ul', 'l', 'u', ' '},
+    (1, 0): {'ul', 'ur', 'u', ' '},
+    (1, -1): {'ur', 'u', 'r', ' '},
+    (0, -1): {'ur', 'lr', 'r', ' '},
+    (-1, -1): {'lr', 'r', 'd', ' '},
+    }
+DELTA = {(-1, 0, ' '), (-1, 0, 'd'), (-1, 1, ' '), (-1, 1, 'll'),
           (0, 1, ' '), (0, 1, 'l'), (1, 1, ' '), (1, 1, 'ul'),
           (1, 0, ' '), (1, 0, 'u'), (1, -1, ' '), (1, -1, 'ur'),
           (0, -1, ' '), (0, -1, 'r'), (-1, -1, ' '), (-1, -1, 'lr'),}
@@ -115,7 +84,7 @@ class Shape:
         self.inside = set()
         self.space_cells = set()
         self.border_cells = set()
-        self.neighbour_map = {}
+        self.space_neighbour_map = {}
 
 @Profile(stats=PERFORMANCE_STATS)
 def break_evil_pieces(shape_txt):
@@ -199,27 +168,20 @@ def build_neighbour_map(shape):
     Build a dictionary data structure where for each cell (a row, column tuple)
     all neighbouring cells are returned.
     """
-    deltas = [(-1, 0), (-1, 1), (0, 1), (1, 1),
-              (1, 0), (1, -1), (0, -1), (-1, -1)]
-    border_cells = set()
-    space_cells = set()
-    for row, col in shape.inside:
-        # TODO: clean up comments
-#         neighbour_cells = set()
-        for d_row, d_col in deltas:
+    NEIGHBOUR_POS = VALID_NEIGHBOURS.keys()
+    for row, col, _ in shape.space_cells:
+        border_cells = set()
+        space_cells = set()
+        for d_row, d_col in NEIGHBOUR_POS:
             n_row, n_col = row + d_row, col + d_col
             if (n_row, n_col) in shape.inside:
-                for cell_type in shape.cell_pos[(n_row, n_col)]:
-                    if cell_type == ' ':
-                        space_cells.add((n_row, n_col, cell_type))
-                    else:
+                cell_types = shape.cell_pos[(n_row, n_col)].intersection(VALID_NEIGHBOURS[(d_row, d_col)])
+                if ' ' in cell_types:
+                    space_cells.add((n_row, n_col, ' '))
+                else:
+                    for cell_type in cell_types:
                         border_cells.add((n_row, n_col, cell_type))
-#                 new_set = {(d_row, d_col, cell)
-#                            for cell in shape.cells[(n_row, n_col)]}
-#                 neighbour_cells = neighbour_cells.union(new_set)
-#             else:
-#                 neighbour_cells.add((d_row, d_col, '#'))
-        shape.neighbour_map[(row, col)] = (border_cells, space_cells)
+        shape.space_neighbour_map[(row, col)] = (border_cells, space_cells)
     return shape
 
 @Profile(stats=PERFORMANCE_STATS)
@@ -267,8 +229,7 @@ def process_space_cells(cell, shape):
         cell = piece_q.pop()
         space_cells.add(cell)
         # get neighbour cells
-        # TODO: bring back pre-calculation of neighbour cells
-        neighbours = DELTAS
+        neighbours = DELTA
         neighbours = get_absolut_positions(cell, neighbours)
         # test if there are neighbour cells that are outside the shape
         outside = get_cell_coordinates(neighbours).difference(shape.inside)
@@ -429,11 +390,12 @@ def trim_piece(shape):
 
 if __name__ == '__main__':
     INPUT_SHAPE = """
-+---+
-|+-+|
-|| ||
-|+-+|
-+---+
++--+--+
+|  |  |
+|+-+-+|
+||   ||
+|+---+|
++-----+
 """.strip('\n')
 
 #     INPUT_SHAPE = """
