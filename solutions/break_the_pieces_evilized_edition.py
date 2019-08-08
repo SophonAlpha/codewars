@@ -37,7 +37,7 @@ Performance optimizations:
     
     2019-07-31:
         approach "trace space neighbours & border tracing combined",
-        runtime: 0.10s
+        runtime: 0.095s
 """
 
 import re
@@ -97,7 +97,6 @@ def break_evil_pieces(shape_txt):
     shape.txt_lines = shape_txt.split('\n')
     shape = build_blank_shape(shape)
     shape = build_structures(shape)
-#     shape = build_neighbour_map(shape)
     txt_pieces = []
     for piece in get_pieces(shape):
         piece = set_to_dict(piece)
@@ -161,31 +160,6 @@ def build_structures(shape):
             shape.inside.add((row, col))
     shape.cells = shape.border_cells.union(shape.space_cells)
     return shape
-
-# @Profile(stats=PERFORMANCE_STATS)
-# def build_neighbour_map(shape):
-#     """
-#     Build a dictionary data structure where for each cell (a row, column tuple)
-#     all neighbouring cells are returned.
-#     """
-#     NEIGHBOUR_POS = VALID_NEIGHBOURS.keys()
-#     for row, col, _ in shape.space_cells:
-#         border_cells = set()
-#         space_cells = set()
-#         no_border_cells = 0
-#         for d_row, d_col in NEIGHBOUR_POS:
-#             n_row, n_col = row + d_row, col + d_col
-#             if (n_row, n_col) in shape.inside:
-#                 cell_types = shape.cell_pos[(n_row, n_col)].intersection(VALID_NEIGHBOURS[(d_row, d_col)])
-#                 if ' ' in cell_types:
-#                     space_cells.add((n_row, n_col, ' '))
-#                 else:
-#                     no_border_cells += 1
-#                     for cell_type in cell_types:
-#                         border_cells.add((n_row, n_col, cell_type))
-#         shape.space_neighbour_map[(row, col)] = (border_cells, space_cells)
-#         shape.no_neighbours[(row, col)] = len(space_cells) + no_border_cells
-#     return shape
 
 @Profile(stats=PERFORMANCE_STATS)
 def get_pieces(shape):
@@ -257,42 +231,10 @@ def process_space_cells(cell, shape):
                             processed_cells.add((n_row, n_col))
     return is_outside, border_cells, space_cells
 
-# @Profile(stats=PERFORMANCE_STATS)
-# def process_space_cells_v1(cell, shape):
-#     is_outside = False
-#     border_cells = set()
-#     space_cells = set()
-#     piece_q = set()
-#     piece_q.add(cell)
-#     while piece_q:
-#         cell = piece_q.pop()
-#         space_cells.add(cell)
-#         row, col, _ = cell
-#         # test if there are neighbour cells that are outside the shape
-#         borders, spaces = shape.space_neighbour_map[(row, col)]
-#         if shape.no_neighbours[(row, col)] < 8:
-#             # mark this piece as an outside element, this will not be a
-#             # valid piece
-#             is_outside = True
-#         # save any border cells
-#         border_cells = border_cells.union(borders)
-#         # remove space cells already processed
-#         spaces = spaces.difference(space_cells)
-#         # add new space cells to work queue
-#         piece_q = piece_q.union(spaces)
-#     return is_outside, border_cells, space_cells
-
 @Profile(stats=PERFORMANCE_STATS)
 def process_border_cells(cell, shape):
-    char_1_to_2 = {'l': 'le', 'r': 'ri', 'u': 'up', 'd': 'do',
-                   'ur': 'ur', 'lr': 'lr', 'll': 'll', 'ul': 'ul'}
     is_outside = False
     border_cells = set()
-    prev_cell_type = None
-    corners = ''
-    corner_cells_old = []
-    corner_cells_new = []
-    corner_cells_replace = []
     space_cells = set()
     piece_q = set()
     piece_q.add(cell)
@@ -301,24 +243,6 @@ def process_border_cells(cell, shape):
         cell = piece_q.pop()
         if cell not in border_cells:
             row, col, cell_type = cell
-            # replace corner pieces with line pieces when applicable
-            if cell_type in {'ur', 'lr', 'll', 'ul'}:
-                corner_cells_old.append(cell)
-                if len(corner_cells_old) > 2:
-                    corner_cells_old = corner_cells_old[1:]
-                if prev_cell_type:
-                    new_cell = (row, col, prev_cell_type)
-                else:
-                    new_cell = cell
-                corner_cells_new.append(new_cell)
-                if len(corner_cells_new) > 2:
-                    corner_cells_new = corner_cells_new[1:]
-            prev_cell_type = cell_type
-            corners = corners + char_1_to_2[cell_type]
-            if len(corners) > 8:
-                corners = corners[2:]
-            if corners in {'dolllrdo', 'upurulup', 'leulllle', 'rilrurri'}:
-                corner_cells_replace.append((set(corner_cells_old), set(corner_cells_new)))
             # add cell to piece
             border_cells.add(cell)
             # test if space cell is next to the cell
@@ -360,11 +284,12 @@ def process_border_cells(cell, shape):
 
 @Profile(stats=PERFORMANCE_STATS)
 def set_to_dict(piece):
-    cell_to_char = {' ': ' ', 'u': '-', 'd': '-', 'l': '|', 'r': '|',
-                    'ul': '+', 'ur': '+', 'lr': '+', 'll': '+'}    
     dict_piece = {}
     for row, col, cell_type in piece:
-        dict_piece[(row, col)] = cell_to_char[cell_type]
+        if (row, col) in dict_piece.keys():
+            dict_piece[(row, col)].add(cell_type)
+        else:
+            dict_piece[(row, col)] = {cell_type}
     return dict_piece
 
 @Profile(stats=PERFORMANCE_STATS)
@@ -373,8 +298,10 @@ def plus_to_lines(piece):
     Transform all '+' that are no longer corners or intersections into '|' or
     '-'.
     """
+    plus_types = {'ul', 'ur', 'lr', 'll'}
     for row, col in piece.keys():
-        if piece[(row, col)] == '+':
+        cell_types = piece[(row, col)]
+        if plus_types.intersection(cell_types):
             piece = should_be_line(row, col, piece)
     return piece
 
@@ -384,23 +311,22 @@ def should_be_line(row, col, piece):
     Transform all '+' that are no longer corners or intersections into '|' or
     '-'.
     """
-    # TODO: check if this can be optimized and simplified
-    vertical = [((-1, 0), '|'), ((-1, 0), '+'), ((1, 0), '|'), ((1, 0), '+'),]
-    horizontal = [((0, -1), '-'), ((0, -1), '+'), ((0, 1), '-'), ((0, 1), '+'),]
-    horiz_chars = []
-    for (d_row, d_col), cell_char in horizontal:
-        n_pos = (row + d_row, col + d_col)
-        if n_pos in piece.keys() and piece[n_pos] == cell_char:
-            horiz_chars.append(cell_char)
-    verti_chars = []
-    for (d_row, d_col), cell_char in vertical:
-        n_pos = (row + d_row, col + d_col)
-        if n_pos in piece.keys() and piece[n_pos] == cell_char:
-            verti_chars.append(cell_char)
-    if len(horiz_chars) == 2 and len(verti_chars) == 0:
-        piece[row, col] = '-'
-    if len(horiz_chars) == 0 and len(verti_chars) == 2:
-        piece[row, col] = '|'
+    if piece[row, col] == {'ul', 'ur'} and \
+       ((row - 1, col) not in piece.keys() or \
+       piece[row - 1, col].intersection({'u', 'd'})):
+        piece[row, col] = {'u'}
+    elif piece[row, col] == {'ll', 'lr'} and \
+         ((row + 1, col) not in piece.keys() or \
+         piece[row + 1, col].intersection({'u', 'd'})):
+        piece[row, col] = {'d'}
+    elif piece[row, col] == {'ul', 'll'} and \
+         ((row, col - 1) not in piece.keys() or \
+         piece[row, col - 1].intersection({'r', 'l'})):
+        piece[row, col] = {'l'}
+    elif piece[row, col] == {'ur', 'lr'} and \
+         ((row, col + 1) not in piece.keys() or \
+         piece[row, col + 1].intersection({'r', 'l'})):
+        piece[row, col] = {'r'}
     return piece
 
 @Profile(stats=PERFORMANCE_STATS)
@@ -408,10 +334,12 @@ def piece_to_text_lines(piece, shape):
     """
     Transform the piece matrix into a list of text lines.
     """
+    cell_to_char = {' ': ' ', 'u': '-', 'd': '-', 'l': '|', 'r': '|',
+                    'ul': '+', 'ur': '+', 'lr': '+', 'll': '+'}    
     shape_txt = shape.blank_lines[:]
     for row, col in piece.keys():
-        cell = piece[(row, col)]
-        shape_txt[row] = shape_txt[row][:col] + cell + shape_txt[row][col + 1:]
+        cell = piece[(row, col)].pop()
+        shape_txt[row] = shape_txt[row][:col] + cell_to_char[cell] + shape_txt[row][col + 1:]
     return shape_txt
 
 @Profile(stats=PERFORMANCE_STATS)
@@ -434,93 +362,88 @@ def trim_piece(shape):
     return shape_new
 
 if __name__ == '__main__':
+#     INPUT_SHAPE = """
+#     +------+
+#     |+----+|
+#     ||+--+||
+#     |||++|||
+#     |||++|||
+#     |||+-+||
+#     ||+---+|
+#     |+-++--+
+# +---+--+|
+# +-------+
+# """.strip('\n')
+
     INPUT_SHAPE = """
-+------+
-|+-++--+
-|| ++
-|+-+|
-+---+
++--------+-+----------------+-+----------------+-+--------+
+|        | |                | |                | |        |
+|        ++++               | |                | |        |
+|        ++++               | |                | |        |
+|        ++++             +-+ +-+            +-+ +-+      |
+|        ++++             |     |            |     |      |
++-----------+      +------+     +------------+     +------+
+| +--------+|      |                                      |
++-+   +---+||      +--------------------------------------+
+|     |+-+|||                                             |
+|     || ++||                                             |
+|     |+---+|                                             |
+|     +-----+                                             |
+|        +-+                +-+                +-+        |
+|        +-+                | |                | |        |
+|    +------+               | |                | |        |
+|    |+----+|         +-----+ |                | |        |
+|    ||+--+||         |+-+    |              +-+ +-+      |
+|    |||++|||         || |  +-+              |     |      |
+++   |||++|||      +--+| +--+    +-----------+     +------+
+||   |||+-+||      |   |      +--+                        |
+++   ||+---+|      +---+  +---+   +-----------------------+
+|    |+-++--+             |       |                       |
+|+---+--+|                +-+ +---+                       |
+|+-------+                  | |                           |
+|                           | |                           |
+|        +-+                | |                +-+        |
+|        +-+                +-+                +-+        |
+|                       +------+                          |
+|                       |+----+|                          |
+|                       ||+--+||                          |
+|       +----+          |||++|||                          |
+++      |+--+|  ++--+   |||++|||      +-------------------+
+||      ||++||  ||  |   |||+-+||      |                   |
+++      ||++||  ++--+   ||+---+|      +------+     +------+
+|       |+--+|          |+-++--+             |     |      |
+|       +----+      +---+--+|                +-+ +-+      |
+|                   +-------+                  | |        |
+|                                              | |        |
+|        +-+                +-+                | |        |
+|        +-+                +-+                +-+        |
+|  +-----+ |    ++                                        |
+|  +-++----+    ++                                        |
+|    ++                                                   |
+|    ||                                                   |
+++   |+-------------+                 +-------------------+
+||   |              |                 |                   |
+++   +---+ +--------+                 +------+     +------+
+|        | |                                 |     |      |
+|        | |                                 +-+ +-+      |
+|        | |                                   | |        |
+|        | |                                   | |        |
+|        | |                +-+                | |        |
+|        +-+                | |                | |        |
+|  +-----+ |    ++          | |                | |        |
+|  +-++----+    ++    +-----+ |                | +-----+  |
+|    ++               |+-+    |                |    +-+|  |
+|    ||               || |  +-+                +-+  | ||  |
+++   |+---------------+| +--+    +----------+    +--+ |+--+
+||   |                 |      +--+          +--+      |   |
+++   +---+ +-----------+  +---+   +--------+   +---+  +---+
+|        | |              |       |        |       |      |
+|        | |              +-+ +---+        +---+ +-+      |
+|        | |                | |                | |        |
+|        | |                | |                | |        |
+|        | |                | |                | |        |
++--------+-+----------------+-+----------------+-+--------+
 """.strip('\n')
-
-#     INPUT_SHAPE = """
-# +-+
-# | |
-# | +--+
-# |  +-+
-# |  |
-# |  +-+
-# +----+
-# """.strip('\n')
-
-#     INPUT_SHAPE = """
-# +--------+-+----------------+-+----------------+-+--------+
-# |        | |                | |                | |        |
-# |        ++++               | |                | |        |
-# |        ++++               | |                | |        |
-# |        ++++             +-+ +-+            +-+ +-+      |
-# |        ++++             |     |            |     |      |
-# +-----------+      +------+     +------------+     +------+
-# | +--------+|      |                                      |
-# +-+   +---+||      +--------------------------------------+
-# |     |+-+|||                                             |
-# |     || ++||                                             |
-# |     |+---+|                                             |
-# |     +-----+                                             |
-# |        +-+                +-+                +-+        |
-# |        +-+                | |                | |        |
-# |    +------+               | |                | |        |
-# |    |+----+|         +-----+ |                | |        |
-# |    ||+--+||         |+-+    |              +-+ +-+      |
-# |    |||++|||         || |  +-+              |     |      |
-# ++   |||++|||      +--+| +--+    +-----------+     +------+
-# ||   |||+-+||      |   |      +--+                        |
-# ++   ||+---+|      +---+  +---+   +-----------------------+
-# |    |+-++--+             |       |                       |
-# |+---+--+|                +-+ +---+                       |
-# |+-------+                  | |                           |
-# |                           | |                           |
-# |        +-+                | |                +-+        |
-# |        +-+                +-+                +-+        |
-# |                       +------+                          |
-# |                       |+----+|                          |
-# |                       ||+--+||                          |
-# |       +----+          |||++|||                          |
-# ++      |+--+|  ++--+   |||++|||      +-------------------+
-# ||      ||++||  ||  |   |||+-+||      |                   |
-# ++      ||++||  ++--+   ||+---+|      +------+     +------+
-# |       |+--+|          |+-++--+             |     |      |
-# |       +----+      +---+--+|                +-+ +-+      |
-# |                   +-------+                  | |        |
-# |                                              | |        |
-# |        +-+                +-+                | |        |
-# |        +-+                +-+                +-+        |
-# |  +-----+ |    ++                                        |
-# |  +-++----+    ++                                        |
-# |    ++                                                   |
-# |    ||                                                   |
-# ++   |+-------------+                 +-------------------+
-# ||   |              |                 |                   |
-# ++   +---+ +--------+                 +------+     +------+
-# |        | |                                 |     |      |
-# |        | |                                 +-+ +-+      |
-# |        | |                                   | |        |
-# |        | |                                   | |        |
-# |        | |                +-+                | |        |
-# |        +-+                | |                | |        |
-# |  +-----+ |    ++          | |                | |        |
-# |  +-++----+    ++    +-----+ |                | +-----+  |
-# |    ++               |+-+    |                |    +-+|  |
-# |    ||               || |  +-+                +-+  | ||  |
-# ++   |+---------------+| +--+    +----------+    +--+ |+--+
-# ||   |                 |      +--+          +--+      |   |
-# ++   +---+ +-----------+  +---+   +--------+   +---+  +---+
-# |        | |              |       |        |       |      |
-# |        | |              +-+ +---+        +---+ +-+      |
-# |        | |                | |                | |        |
-# |        | |                | |                | |        |
-# |        | |                | |                | |        |
-# +--------+-+----------------+-+----------------+-+--------+
-# """.strip('\n')
 
     ALL_PIECES = break_evil_pieces(INPUT_SHAPE)
     with open('break_the_pieces_evilized_edition.csv', 'w') as outfile:
