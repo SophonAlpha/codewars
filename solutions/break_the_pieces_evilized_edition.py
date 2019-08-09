@@ -26,18 +26,23 @@ Performance optimizations:
     2019-07-15
         approach "replace loops with set operations in get_neighbours()",
         runtime: 0.57s
-        
+
     2019-07-22:
         approach "white pieces + border tracing + join together",
         runtime: 0.38s
-    
+
     2019-07-28:
         approach "white pieces & border tracing combined",
         runtime: 0.40s
-    
+
     2019-07-31:
         approach "trace space neighbours & border tracing combined",
         runtime: 0.095s
+
+    2019-08-10:
+        approach "reduced redundancy in space cells tests & border
+        tracing combined",
+        runtime: 0.058s
 """
 
 import re
@@ -45,6 +50,9 @@ from solutions.performance import Profile
 
 PERFORMANCE_STATS = []
 
+DELTA = [
+    (-1, 0), (0, 1), (1, 0), (0, -1)
+]
 VALID_NEIGHBOURS = {
     (-1, 0): {'ll', 'lr', 'd', ' '},
     (-1, 1): {'ll', 'l', 'd', ' '},
@@ -75,6 +83,10 @@ BESIDE = {
     }
 
 class Shape:
+    """
+    Data structure to hold various pre-calculated information to accelerate
+    the piece search.
+    """
     def __init__(self):
         self.txt_lines = []
         self.blank_lines = []
@@ -106,7 +118,7 @@ def break_evil_pieces(shape_txt):
         txt_pieces.append(piece)
     return txt_pieces
 
-def DEBUG_display_white_piece_map(shape_white_pieces, shape_cells, blank_shape_lines):
+def debug_display_white_piece_map(shape_white_pieces, shape_cells, blank_shape_lines):
     cell_to_char = {' ': ' ', 'u': '-', 'd': '-', 'l': '|', 'r': '|',
                     'ul': '+', 'ur': '+', 'lr': '+', 'll': '+',
                     '0': '0', '1': '1', '2': '2', '3': '3', '4': '4', '5': '5',
@@ -120,9 +132,8 @@ def DEBUG_display_white_piece_map(shape_white_pieces, shape_cells, blank_shape_l
         shape[row] = shape[row][:col] + cell_to_char[cell] + shape[row][col + 1:]
     for row in shape:
         print(row)
-    return
 
-def DEBUG_display_piece(shape, piece):
+def debug_display_piece(shape, piece):
     cell_to_char = {' ': ' ', 'u': '-', 'd': '-', 'l': '|', 'r': '|',
                     'ul': '+', 'ur': '+', 'lr': '+', 'll': '+',
                     '0': '0', '1': '1', '2': '2', '3': '3', '4': '4', '5': '5',
@@ -132,7 +143,6 @@ def DEBUG_display_piece(shape, piece):
         txt_shape[row] = txt_shape[row][:col] + cell_to_char[cell_type] + txt_shape[row][col + 1:]
     for row in txt_shape:
         print(row)
-    return
 
 @Profile(stats=PERFORMANCE_STATS)
 def build_blank_shape(shape):
@@ -145,6 +155,10 @@ def build_blank_shape(shape):
 
 @Profile(stats=PERFORMANCE_STATS)
 def build_structures(shape):
+    """
+    Build a number of data structures that accelerate the search for border
+    and space elements.
+    """
     type_map = {'+': {'ul', 'ur', 'll', 'lr'},
                 '-': {'u', 'd'},
                 '|': {'r', 'l'},
@@ -197,23 +211,24 @@ def get_pieces(shape):
 
 @Profile(stats=PERFORMANCE_STATS)
 def process_space_cells(cell, shape):
-    DELTA = [
-        (-1, 0), (-1, 1), (0, 1), (1, 1), (1, 0), (1, -1), (0, -1), (-1, -1)
-    ]
+    """
+    Find all space cells starting from one cell.
+    """
     is_outside = False
     border_cells = set()
     space_cells = set()
     processed_cells = set()
     piece_q = set()
-    piece_q.add(cell)
+    row, col, _ = cell
+    piece_q.add((row, col))
     while piece_q:
-        cell = piece_q.pop()
-        space_cells.add(cell)
-        row, col, _ = cell
+        row, col = piece_q.pop()
+        space_cells.add((row, col, ' '))
         processed_cells.add((row, col))
         for d_row, d_col in DELTA:
             n_row, n_col = row + d_row, col + d_col
-            if (n_row, n_col) not in processed_cells:
+            if (n_row, n_col) not in processed_cells and \
+               (n_row, n_col) not in piece_q:
                 # test if we are outside the shape
                 if (n_row, n_col) not in shape.inside:
                     # mark this piece as an outside element, this will not be a
@@ -221,9 +236,8 @@ def process_space_cells(cell, shape):
                     is_outside = True
                 else:
                     if ' ' in shape.cell_pos[(n_row, n_col)]:
-                        next_space = (n_row, n_col, ' ')
-                        if next_space not in space_cells:
-                            piece_q.add(next_space)
+                        if (n_row, n_col, ' ') not in space_cells:
+                            piece_q.add((n_row, n_col))
                     else:
                         cell_types = shape.cell_pos[(n_row, n_col)].intersection(VALID_NEIGHBOURS[(d_row, d_col)])
                         for cell_type in cell_types:
@@ -233,6 +247,9 @@ def process_space_cells(cell, shape):
 
 @Profile(stats=PERFORMANCE_STATS)
 def process_border_cells(cell, shape):
+    """
+    Find all border cells starting from one cell.
+    """
     is_outside = False
     border_cells = set()
     space_cells = set()
@@ -284,6 +301,9 @@ def process_border_cells(cell, shape):
 
 @Profile(stats=PERFORMANCE_STATS)
 def set_to_dict(piece):
+    """
+    Transform a set into a dictionary with the row, column pair as the key.
+    """
     dict_piece = {}
     for row, col, cell_type in piece:
         if (row, col) in dict_piece.keys():
@@ -335,7 +355,7 @@ def piece_to_text_lines(piece, shape):
     Transform the piece matrix into a list of text lines.
     """
     cell_to_char = {' ': ' ', 'u': '-', 'd': '-', 'l': '|', 'r': '|',
-                    'ul': '+', 'ur': '+', 'lr': '+', 'll': '+'}    
+                    'ul': '+', 'ur': '+', 'lr': '+', 'll': '+'}
     shape_txt = shape.blank_lines[:]
     for row, col in piece.keys():
         cell = piece[(row, col)].pop()
