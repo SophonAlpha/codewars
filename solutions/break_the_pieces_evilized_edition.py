@@ -43,6 +43,11 @@ Performance optimizations:
         approach "reduced redundancy in space cells tests & border
         tracing combined",
         runtime: 0.058s
+
+    2019-08-12:
+        approach "removed more redundancy in space cells tests & border
+        tracing combined",
+        runtime: 0.038s
 """
 
 import re
@@ -140,7 +145,9 @@ def debug_display_piece(shape, piece):
                     '6': '6', '7': '7', '8': '8', '9': '9',}
     txt_shape = shape.blank_lines[:]
     for row, col, cell_type in piece:
-        txt_shape[row] = txt_shape[row][:col] + cell_to_char[cell_type] + txt_shape[row][col + 1:]
+        txt_shape[row] = txt_shape[row][:col] + \
+                         cell_to_char[cell_type] + \
+                         txt_shape[row][col + 1:]
     for row in txt_shape:
         print(row)
 
@@ -191,15 +198,19 @@ def get_pieces(shape):
             cell = piece_q.pop()
             _, _, cell_type = cell
             if cell_type == ' ':
-                is_outside, border_cells, space_cells = process_space_cells(cell, shape)
+                is_outside, \
+                border_cells, \
+                space_cells = process_space_cells(cell, shape)
                 piece_q = piece_q.difference(space_cells)
                 border_cells = border_cells.difference(piece)
                 piece_q = piece_q.union(border_cells)
             else:
-                is_outside, border_cells, space_cells = process_border_cells(cell, shape)
+                is_outside, \
+                border_cells, \
+                space_cells = process_border_cells(cell, shape)
                 piece = piece.union(border_cells)
                 piece_q = piece_q.difference(border_cells)
-                space_cells = space_cells.difference(piece)
+                space_cells = space_cells.intersection(cell_q)
                 piece_q = piece_q.union(space_cells)
             if is_outside:
                 is_a_piece = False
@@ -207,7 +218,6 @@ def get_pieces(shape):
             cell_q = cell_q.difference(border_cells)
         if is_a_piece:
             yield piece
-    return
 
 @Profile(stats=PERFORMANCE_STATS)
 def process_space_cells(cell, shape):
@@ -227,22 +237,23 @@ def process_space_cells(cell, shape):
         processed_cells.add((row, col))
         for d_row, d_col in DELTA:
             n_row, n_col = row + d_row, col + d_col
-            if (n_row, n_col) not in processed_cells and \
-               (n_row, n_col) not in piece_q:
+            if ((n_row, n_col) not in processed_cells and
+                    (n_row, n_col) not in piece_q):
                 # test if we are outside the shape
                 if (n_row, n_col) not in shape.inside:
                     # mark this piece as an outside element, this will not be a
                     # valid piece
                     is_outside = True
+                elif (' ' in shape.cell_pos[(n_row, n_col)] and
+                      (n_row, n_col, ' ') not in space_cells):
+                    piece_q.add((n_row, n_col))
                 else:
-                    if ' ' in shape.cell_pos[(n_row, n_col)]:
-                        if (n_row, n_col, ' ') not in space_cells:
-                            piece_q.add((n_row, n_col))
-                    else:
-                        cell_types = shape.cell_pos[(n_row, n_col)].intersection(VALID_NEIGHBOURS[(d_row, d_col)])
-                        for cell_type in cell_types:
-                            border_cells.add((n_row, n_col, cell_type))
-                            processed_cells.add((n_row, n_col))
+                    neighbours = VALID_NEIGHBOURS[(d_row, d_col)]
+                    cell_types = shape.cell_pos[(n_row, n_col)]
+                    cell_types = cell_types.intersection(neighbours)
+                    for cell_type in cell_types:
+                        border_cells.add((n_row, n_col, cell_type))
+                        processed_cells.add((n_row, n_col))
     return is_outside, border_cells, space_cells
 
 @Profile(stats=PERFORMANCE_STATS)
@@ -270,14 +281,15 @@ def process_border_cells(cell, shape):
                 space_cells.add(test_cell)
             # test if there is a border element next to the cell
             if (t_row, t_col) in shape.inside:
-                next_cell_type = shape.cell_pos[(t_row, t_col)].intersection(OPPOSITES[cell_type])
+                next_cell_type = shape.cell_pos[(t_row, t_col)]
+                next_cell_type = next_cell_type.intersection(OPPOSITES[cell_type])
                 if next_cell_type:
                     next_cell = (t_row, t_col, next_cell_type.pop())
                     if next_cell not in border_cells:
                         piece_q.add(next_cell)
             # test if this border faces towards the outside the shape
-            if cell_type in ['r', 'l', 'u', 'd'] and \
-               not (t_row, t_col) in shape.inside:
+            if (cell_type in ['r', 'l', 'u', 'd'] and
+                not (t_row, t_col) in shape.inside):
                 # mark this border as an outside element, not a valid piece
                 is_outside = True
             # get the next cell along the border
@@ -285,7 +297,8 @@ def process_border_cells(cell, shape):
             n_row, n_col = row + d_row, col + d_col
             next_cell_type = None
             if (n_row, n_col) in shape.inside:
-                next_cell_type = shape.cell_pos[(n_row, n_col)].intersection(possible_types)
+                next_cell_type = shape.cell_pos[(n_row, n_col)]
+                next_cell_type = next_cell_type.intersection(possible_types)
             else:
                 # mark this border as an outside element, not a valid piece
                 is_outside = True
@@ -359,7 +372,9 @@ def piece_to_text_lines(piece, shape):
     shape_txt = shape.blank_lines[:]
     for row, col in piece.keys():
         cell = piece[(row, col)].pop()
-        shape_txt[row] = shape_txt[row][:col] + cell_to_char[cell] + shape_txt[row][col + 1:]
+        shape_txt[row] = (shape_txt[row][:col] +
+                          cell_to_char[cell] +
+                          shape_txt[row][col + 1:])
     return shape_txt
 
 @Profile(stats=PERFORMANCE_STATS)
@@ -373,7 +388,8 @@ def trim_piece(shape):
         match = pattern.fullmatch(row)
         if match.group('shape'):
             start = match.start('shape')
-            min_start = start if min_start is None or min_start > start else min_start
+            min_start = (start if min_start is None or
+                         min_start > start else min_start)
     shape_new = []
     for row in shape:
         if row.strip():
@@ -383,16 +399,12 @@ def trim_piece(shape):
 
 if __name__ == '__main__':
 #     INPUT_SHAPE = """
-#     +------+
-#     |+----+|
-#     ||+--+||
-#     |||++|||
-#     |||++|||
-#     |||+-+||
-#     ||+---+|
-#     |+-++--+
-# +---+--+|
-# +-------+
+# +----+
+# |    |
+# |    |
+# |    |
+# |    |
+# +----+
 # """.strip('\n')
 
     INPUT_SHAPE = """
