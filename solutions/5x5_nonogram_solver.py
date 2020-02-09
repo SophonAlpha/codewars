@@ -7,6 +7,7 @@ Level: 4 kyu
 try nonograms here: https://www.puzzle-nonograms.com/
 """
 
+
 done = False
 squares = [1, 2]
 runs = [0, 0, 0, 0, 0]
