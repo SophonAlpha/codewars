@@ -67,31 +67,33 @@ VALID_NEIGHBOURS = {
     (1, -1): {'ur', 'u', 'r', ' '},
     (0, -1): {'ur', 'lr', 'r', ' '},
     (-1, -1): {'lr', 'r', 'd', ' '},
-    }
+}
 NEXT_STEP = {
     'u': ((0, -1), {'u', 'ur'}), 'd': ((0, 1), {'d', 'll'}),
     'r': ((-1, 0), {'r', 'lr'}), 'l': ((1, 0), {'l', 'ul'}),
     'ur': ((-1, 0), {'r', 'lr'}), 'lr': ((0, 1), {'d', 'll'}),
     'll': ((1, 0), {'l', 'ul'}), 'ul': ((0, -1), {'u', 'ur'}),
-    }
+}
 PLUS_SEQUENCE = {
     'ur': 'ul', 'ul': 'll', 'll': 'lr', 'lr': 'ur',
-    }
+}
 OPPOSITES = {
     'r': {'l', 'ul', 'll'}, 'l': {'r', 'ur', 'lr'}, 'u': {'d', 'lr', 'll'},
     'd': {'u', 'ul', 'ur'}, 'ur': {'ll', 'l', 'd'}, 'lr': {'ul', 'l', 'u'},
     'll': {'ur', 'r', 'u'}, 'ul': {'lr', 'r', 'd'}
-    }
+}
 BESIDE = {
     'r': (0, 1), 'l': (0, -1), 'u': (-1, 0), 'd': (1, 0),
     'lr': (1, 1), 'ur': (-1, 1), 'ul': (-1, -1), 'll': (1, -1),
-    }
+}
+
 
 class Shape:
     """
     Data structure to hold various pre-calculated information to accelerate
     the piece search.
     """
+
     def __init__(self):
         self.txt_lines = []
         self.blank_lines = []
@@ -102,6 +104,7 @@ class Shape:
         self.border_cells = set()
         self.space_neighbour_map = {}
         self.no_neighbours = {}
+
 
 @Profile(stats=PERFORMANCE_STATS)
 def break_evil_pieces(shape_txt):
@@ -123,11 +126,12 @@ def break_evil_pieces(shape_txt):
         txt_pieces.append(piece)
     return txt_pieces
 
+
 def debug_display_white_piece_map(shape_white_pieces, shape_cells, blank_shape_lines):
     cell_to_char = {' ': ' ', 'u': '-', 'd': '-', 'l': '|', 'r': '|',
                     'ul': '+', 'ur': '+', 'lr': '+', 'll': '+',
                     '0': '0', '1': '1', '2': '2', '3': '3', '4': '4', '5': '5',
-                    '6': '6', '7': '7', '8': '8', '9': '9',}
+                    '6': '6', '7': '7', '8': '8', '9': '9', }
     shape = blank_shape_lines[:]
     for idx in shape_white_pieces:
         for row, col, _ in shape_white_pieces[idx]:
@@ -138,11 +142,12 @@ def debug_display_white_piece_map(shape_white_pieces, shape_cells, blank_shape_l
     for row in shape:
         print(row)
 
+
 def debug_display_piece(shape, piece):
     cell_to_char = {' ': ' ', 'u': '-', 'd': '-', 'l': '|', 'r': '|',
                     'ul': '+', 'ur': '+', 'lr': '+', 'll': '+',
                     '0': '0', '1': '1', '2': '2', '3': '3', '4': '4', '5': '5',
-                    '6': '6', '7': '7', '8': '8', '9': '9',}
+                    '6': '6', '7': '7', '8': '8', '9': '9', }
     txt_shape = shape.blank_lines[:]
     for row, col, cell_type in piece:
         txt_shape[row] = txt_shape[row][:col] + \
@@ -150,6 +155,7 @@ def debug_display_piece(shape, piece):
                          txt_shape[row][col + 1:]
     for row in txt_shape:
         print(row)
+
 
 @Profile(stats=PERFORMANCE_STATS)
 def build_blank_shape(shape):
@@ -160,6 +166,7 @@ def build_blank_shape(shape):
     shape.blank_lines = [' ' * len(txt_line) for txt_line in shape.txt_lines]
     return shape
 
+
 @Profile(stats=PERFORMANCE_STATS)
 def build_structures(shape):
     """
@@ -169,7 +176,7 @@ def build_structures(shape):
     type_map = {'+': {'ul', 'ur', 'll', 'lr'},
                 '-': {'u', 'd'},
                 '|': {'r', 'l'},
-                ' ': {' '},}
+                ' ': {' '}, }
     for row, shape_line in enumerate(shape.txt_lines):
         for col, type_char in enumerate(shape_line):
             if type_char == ' ':
@@ -181,6 +188,7 @@ def build_structures(shape):
             shape.inside.add((row, col))
     shape.cells = shape.border_cells.union(shape.space_cells)
     return shape
+
 
 @Profile(stats=PERFORMANCE_STATS)
 def get_pieces(shape):
@@ -219,6 +227,7 @@ def get_pieces(shape):
         if is_a_piece:
             yield piece
 
+
 @Profile(stats=PERFORMANCE_STATS)
 def process_space_cells(cell, shape):
     """
@@ -256,6 +265,7 @@ def process_space_cells(cell, shape):
                         processed_cells.add((n_row, n_col))
     return is_outside, border_cells, space_cells
 
+
 @Profile(stats=PERFORMANCE_STATS)
 def process_border_cells(cell, shape):
     """
@@ -289,7 +299,7 @@ def process_border_cells(cell, shape):
                         piece_q.add(next_cell)
             # test if this border faces towards the outside the shape
             if (cell_type in ['r', 'l', 'u', 'd'] and
-                not (t_row, t_col) in shape.inside):
+                    not (t_row, t_col) in shape.inside):
                 # mark this border as an outside element, not a valid piece
                 is_outside = True
             # get the next cell along the border
@@ -312,6 +322,7 @@ def process_border_cells(cell, shape):
             piece_q.add(next_cell)
     return is_outside, border_cells, space_cells
 
+
 @Profile(stats=PERFORMANCE_STATS)
 def set_to_dict(piece):
     """
@@ -324,6 +335,7 @@ def set_to_dict(piece):
         else:
             dict_piece[(row, col)] = {cell_type}
     return dict_piece
+
 
 @Profile(stats=PERFORMANCE_STATS)
 def plus_to_lines(piece):
@@ -338,6 +350,7 @@ def plus_to_lines(piece):
             piece = should_be_line(row, col, piece)
     return piece
 
+
 @Profile(stats=PERFORMANCE_STATS)
 def should_be_line(row, col, piece):
     """
@@ -345,22 +358,23 @@ def should_be_line(row, col, piece):
     '-'.
     """
     if piece[row, col] == {'ul', 'ur'} and \
-       ((row - 1, col) not in piece.keys() or \
-       piece[row - 1, col].intersection({'u', 'd'})):
+            ((row - 1, col) not in piece.keys() or \
+             piece[row - 1, col].intersection({'u', 'd'})):
         piece[row, col] = {'u'}
     elif piece[row, col] == {'ll', 'lr'} and \
-         ((row + 1, col) not in piece.keys() or \
-         piece[row + 1, col].intersection({'u', 'd'})):
+            ((row + 1, col) not in piece.keys() or \
+             piece[row + 1, col].intersection({'u', 'd'})):
         piece[row, col] = {'d'}
     elif piece[row, col] == {'ul', 'll'} and \
-         ((row, col - 1) not in piece.keys() or \
-         piece[row, col - 1].intersection({'r', 'l'})):
+            ((row, col - 1) not in piece.keys() or \
+             piece[row, col - 1].intersection({'r', 'l'})):
         piece[row, col] = {'l'}
     elif piece[row, col] == {'ur', 'lr'} and \
-         ((row, col + 1) not in piece.keys() or \
-         piece[row, col + 1].intersection({'r', 'l'})):
+            ((row, col + 1) not in piece.keys() or \
+             piece[row, col + 1].intersection({'r', 'l'})):
         piece[row, col] = {'r'}
     return piece
+
 
 @Profile(stats=PERFORMANCE_STATS)
 def piece_to_text_lines(piece, shape):
@@ -377,6 +391,7 @@ def piece_to_text_lines(piece, shape):
                           shape_txt[row][col + 1:])
     return shape_txt
 
+
 @Profile(stats=PERFORMANCE_STATS)
 def trim_piece(shape):
     """
@@ -389,7 +404,7 @@ def trim_piece(shape):
         if match.group('shape'):
             start = match.start('shape')
             min_start = (start if min_start is None or
-                         min_start > start else min_start)
+                                  min_start > start else min_start)
     shape_new = []
     for row in shape:
         if row.strip():
@@ -397,15 +412,16 @@ def trim_piece(shape):
     shape_new = '\n'.join(shape_new)
     return shape_new
 
+
 if __name__ == '__main__':
-#     INPUT_SHAPE = """
-# +----+
-# |    |
-# |    |
-# |    |
-# |    |
-# +----+
-# """.strip('\n')
+    #     INPUT_SHAPE = """
+    # +----+
+    # |    |
+    # |    |
+    # |    |
+    # |    |
+    # +----+
+    # """.strip('\n')
 
     INPUT_SHAPE = """
 +--------+-+----------------+-+----------------+-+--------+
