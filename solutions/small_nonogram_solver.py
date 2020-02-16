@@ -38,6 +38,7 @@ class Nonogram:
             common_squares = and_merge(positions)
             cols.append(common_squares)
         print('cols:')
+        transpose_bitwise(cols, max_len)
         visualize(cols, max_len)
 
 
@@ -57,6 +58,25 @@ def or_merge(items):
 
 def and_merge(items):
     return functools.reduce(lambda x, y: x & y, items)
+
+
+def transpose(items, max_len):
+    items_transposed = []
+    fmt = '{0:0' + str(max_len) + 'b}'
+    for idx in range(max_len):
+        transposed = [fmt.format(item)[idx] for item in items]
+        transposed = int('0b' + ''.join(transposed), base=2)
+        items_transposed.append(transposed)
+    return items_transposed
+
+def transpose_bitwise(items, max_len):
+    items_transposed = []
+    no_items = len(items)
+    mask = 2**(no_items - 1)
+    for idx in range(max_len):
+        transposed = sum([item & (mask >> idx) for item in items])
+        items_transposed.append(transposed)
+    return items_transposed
 
 
 def visualize(items, max_len):
