@@ -17,29 +17,25 @@ class Nonogram:
         self.nonogram = []
 
     def solve(self):
-        clues_horz = self.clues[0]
-        clues_vert = self.clues[1]
-
-        max_len = len(clues_vert)
-        rows = []
-        for clues in clues_vert:
-            max_r_shift = max_len - (sum(clues) + len(clues) - 1)
-            clues_shftd = init_shift(clues, max_len)
-            positions = get_positions(clues_shftd, 0, 0, max_r_shift)
-            common_squares = and_merge(positions)
-            rows.append(common_squares)
-        print('rows:')
-        visualize(rows, max_len)
-        cols = []
-        for clues in clues_horz:
-            max_r_shift = max_len - (sum(clues) + len(clues) - 1)
-            clues_shftd = init_shift(clues, max_len)
-            positions = get_positions(clues_shftd, 0, 0, max_r_shift)
-            common_squares = and_merge(positions)
-            cols.append(common_squares)
+        cols = common_positions(self.clues[0])
+        cols = transpose_bitwise(cols)
         print('cols:')
-        cols = transpose_bitwise(cols, max_len)
-        visualize(cols, max_len)
+        visualize(cols)
+        rows = common_positions(self.clues[1])
+        print('rows:')
+        visualize(rows)
+
+
+def common_positions(clues):
+    max_len = len(clues)
+    items = []
+    for clue in clues:
+        max_r_shift = max_len - (sum(clue) + len(clue) - 1)
+        clue_shftd = init_shift(clue, max_len)
+        positions = get_combinations(clue_shftd, 0, 0, max_r_shift)
+        common_squares = and_merge(positions)
+        items.append(common_squares)
+    return items
 
 
 def init_shift(squares, max_len):
@@ -70,10 +66,10 @@ def transpose(items, max_len):
     return items_transposed
 
 
-def transpose_bitwise(items, max_len):
+def transpose_bitwise(items):
+    max_len = len(items)
     items_transposed = []
     no_items = len(items)
-    mask = 2**(no_items - 1)
     for idx in reversed(range(max_len)):
         transposed = sum([((item & (1 << idx)) >> idx) << (no_items - pos - 1)
                           for pos, item in enumerate(items)])
@@ -81,7 +77,8 @@ def transpose_bitwise(items, max_len):
     return items_transposed
 
 
-def visualize(items, max_len):
+def visualize(items):
+    max_len = len(items)
     fmt = '{0:0' + str(max_len) + 'b}'
     for item in items:
         print(f'{fmt.format(item)}')
@@ -97,13 +94,13 @@ def int_to_tuple(integer, max_len):
     return tuple(int(item) for item in f'{fmt.format(integer)}')
 
 
-def get_positions(squares, idx, start_r_shift, max_r_shift):
+def get_combinations(squares, idx, start_r_shift, max_r_shift):
     positions = []
     squares_shftd = squares[:]
     for r_shift in range(start_r_shift, max_r_shift + 1):
         squares_shftd[idx] = squares[idx] >> r_shift
         if idx < (len(squares) - 1):
-            positions += get_positions(squares_shftd, idx + 1, r_shift, max_r_shift)
+            positions += get_combinations(squares_shftd, idx + 1, r_shift, max_r_shift)
         else:
             positions.append(or_merge(squares_shftd))
     return positions
