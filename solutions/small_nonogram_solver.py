@@ -14,30 +14,49 @@ class Nonogram:
 
     def __init__(self, clues):
         self.clues = clues
-        self.nonogram = [['?',] * len(self.clues[0]),][:] * len(self.clues[1])
+        self.nonogram = [['?',] * len(self.clues[0]) for _ in self.clues[1]]
         self.num_cols = len(self.clues[0])
 
     def solve(self):
         cols = common_positions(self.clues[0])
         cols = transpose_bitwise(cols)
-        print('\ncols:')
-        visualize(cols)
         rows = common_positions(self.clues[1])
-        print('\nrows:')
-        visualize(rows)
-        self.ints_to_arr(combine(rows, cols))
-        print('\nnonogram:')
+        self.set_ones(combine(rows, cols))
+        print('\nnonogram:\n')
+        print(f'cols: {self.clues[0]}')
+        print(f'rows: {self.clues[1]}')
+        print()
         for line in self.nonogram:
             print(line)
-        visualize(combine(rows, cols))
+        self.set_zeros()
+        print()
+        for line in self.nonogram:
+            print(line)
         return self.nonogram
 
-
-    def ints_to_arr(self, int_nonogram):
+    def set_ones(self, int_nonogram):
         fmt = '{0:0' + str(self.num_cols) + 'b}'
         for row, item in enumerate(int_nonogram):
             for col, cell in enumerate(fmt.format(item)):
-                self.nonogram[row][col] = cell if cell == '1' else self.nonogram[row][col]
+                self.nonogram[row][col] = cell if cell == '1' \
+                    else self.nonogram[row][col]
+
+    def set_zeros(self):
+        for col, col_clues in enumerate(self.clues[0]):
+            nono_col_sum = sum([1 if row[col] == '1' else 0
+                                for row in self.nonogram])
+            if nono_col_sum == sum(col_clues):
+                for row, _ in enumerate(self.nonogram):
+                    if self.nonogram[row][col] == '?':
+                        self.nonogram[row][col] = '0'
+
+        for row, row_clues in enumerate(self.clues[1]):
+            nono_row_sum = sum([1 if col == '1' else 0
+                                for col in self.nonogram[row]])
+            if nono_row_sum == sum(row_clues):
+                for col, _ in enumerate(self.nonogram[row]):
+                    if self.nonogram[row][col] == '?':
+                        self.nonogram[row][col] = '0'
 
 
 def common_positions(clues):
