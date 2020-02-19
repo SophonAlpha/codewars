@@ -14,16 +14,30 @@ class Nonogram:
 
     def __init__(self, clues):
         self.clues = clues
-        self.nonogram = []
+        self.nonogram = [['?',] * len(self.clues[0]),][:] * len(self.clues[1])
+        self.num_cols = len(self.clues[0])
 
     def solve(self):
         cols = common_positions(self.clues[0])
         cols = transpose_bitwise(cols)
-        print('cols:')
+        print('\ncols:')
         visualize(cols)
         rows = common_positions(self.clues[1])
-        print('rows:')
+        print('\nrows:')
         visualize(rows)
+        self.ints_to_arr(combine(rows, cols))
+        print('\nnonogram:')
+        for line in self.nonogram:
+            print(line)
+        visualize(combine(rows, cols))
+        return self.nonogram
+
+
+    def ints_to_arr(self, int_nonogram):
+        fmt = '{0:0' + str(self.num_cols) + 'b}'
+        for row, item in enumerate(int_nonogram):
+            for col, cell in enumerate(fmt.format(item)):
+                self.nonogram[row][col] = cell if cell == '1' else self.nonogram[row][col]
 
 
 def common_positions(clues):
@@ -77,21 +91,15 @@ def transpose_bitwise(items):
     return items_transposed
 
 
+def combine(rows, cols):
+    return [row | cols[idx] for idx, row in enumerate(rows)]
+
+
 def visualize(items):
     max_len = len(items)
     fmt = '{0:0' + str(max_len) + 'b}'
     for item in items:
         print(f'{fmt.format(item)}')
-
-
-def show_squares(squares, max_len):
-    fmt = '{0:0' + str(max_len) + 'b}'
-    print(f'{fmt.format(squares)}')
-
-
-def int_to_tuple(integer, max_len):
-    fmt = '{0:0' + str(max_len) + 'b}'
-    return tuple(int(item) for item in f'{fmt.format(integer)}')
 
 
 def get_combinations(squares, idx, start_r_shift, max_r_shift):
@@ -100,10 +108,15 @@ def get_combinations(squares, idx, start_r_shift, max_r_shift):
     for r_shift in range(start_r_shift, max_r_shift + 1):
         squares_shftd[idx] = squares[idx] >> r_shift
         if idx < (len(squares) - 1):
-            positions += get_combinations(squares_shftd, idx + 1, r_shift, max_r_shift)
+            positions += get_combinations(squares_shftd, idx + 1, r_shift,
+                                          max_r_shift)
         else:
             positions.append(or_merge(squares_shftd))
     return positions
+
+
+def set_zeros(nonogram_ones):
+    return
 
 
 if __name__ == '__main__':
@@ -116,4 +129,3 @@ if __name__ == '__main__':
            (0, 1, 1, 1, 1))
     sol = Nonogram(clues).solve()
     print()
-
