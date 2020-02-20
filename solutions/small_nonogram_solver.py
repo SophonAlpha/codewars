@@ -70,6 +70,20 @@ def common_positions(clues):
         items.append(common_squares)
     return items
 
+"""
+fmt.format(b)
+Out[13]: '01001'
+fmt.format(b ^ (2**5 - 1))
+Out[14]: '10110'
+fmt.format(b ^ (2**5 - 1) | 18)
+Out[15]: '10110'
+fmt.format((b ^ (2**5 - 1)) | 18)
+Out[16]: '10110'
+fmt.format((b ^ (2**5 - 1)) & 18)
+Out[17]: '10010'
+"""
+
+
 
 def init_shift(squares, max_len):
     start_pos = 0
