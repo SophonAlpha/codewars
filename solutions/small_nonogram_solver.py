@@ -60,15 +60,21 @@ class Nonogram:
 
 
 def common_positions(clues):
-    max_len = len(clues)
     items = []
+    for common_positions in combinations(clues):
+        items.append(common_positions)
+    return items
+
+
+def combinations(clues):
+    max_len = len(clues)
     for clue in clues:
         max_r_shift = max_len - (sum(clue) + len(clue) - 1)
         clue_shftd = init_shift(clue, max_len)
         positions = get_combinations(clue_shftd, 0, 0, max_r_shift)
-        common_squares = and_merge(positions)
-        items.append(common_squares)
-    return items
+        common_positions = and_merge(positions)
+        yield common_positions
+
 
 """
 fmt.format(b)
