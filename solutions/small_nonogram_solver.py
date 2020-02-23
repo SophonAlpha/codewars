@@ -68,10 +68,14 @@ def common_positions(clues):
 
 def combinations(clues):
     max_len = len(clues)
+    fmt = '{0:0' + str(max_len) + 'b}'
     for clue in clues:
         max_r_shift = max_len - (sum(clue) + len(clue) - 1)
         clue_shftd = init_shift(clue, max_len)
-        positions = get_combinations(clue_shftd, 0, 0, max_r_shift)
+        for combination in combinator(clue_shftd, 0, 0, max_r_shift):
+            print(fmt.format(combination))
+
+        # positions = get_combinations(clue_shftd, 0, 0, max_r_shift)
         common_positions = and_merge(positions)
         yield common_positions
 
@@ -152,6 +156,19 @@ def get_combinations(squares, idx, start_r_shift, max_r_shift):
         else:
             positions.append(or_merge(squares_shftd))
     return positions
+
+
+def combinator(clue, idx, start_r_shift, max_r_shift):
+    workq = [(clue, idx, start_r_shift, max_r_shift)]
+    while workq:
+        clue, idx, start_r_shift, max_r_shift = workq.pop()
+        clue_shftd = clue[:]
+        for r_shift in range(start_r_shift, max_r_shift + 1):
+            clue_shftd[idx] = clue[idx] >> r_shift
+            if idx < (len(clue) - 1):
+                workq.append((clue_shftd, idx + 1, r_shift, max_r_shift))
+            else:
+                yield or_merge(clue_shftd)
 
 
 def set_zeros(nonogram_ones):
