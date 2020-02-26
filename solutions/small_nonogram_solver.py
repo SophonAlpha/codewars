@@ -72,8 +72,8 @@ def combinations(clues):
     for clue in clues:
         max_r_shift = max_len - (sum(clue) + len(clue) - 1)
         clue_shftd = init_shift(clue, max_len)
-        for combination in combinator(clue_shftd, 0, 0, max_r_shift):
-            print(fmt.format(combination))
+        for combination in combinator(clue_shftd, max_r_shift):
+            print(fmt.format(or_merge(combination)))
 
         # positions = get_combinations(clue_shftd, 0, 0, max_r_shift)
         common_positions = and_merge(positions)
@@ -145,49 +145,46 @@ def visualize(items):
         print(f'{fmt.format(item)}')
 
 
-def get_combinations(squares, idx, start_r_shift, max_r_shift):
-    positions = []
-    squares_shftd = squares[:]
-    for r_shift in range(start_r_shift, max_r_shift + 1):
-        squares_shftd[idx] = squares[idx] >> r_shift
-        if idx < (len(squares) - 1):
-            positions += get_combinations(squares_shftd, idx + 1, r_shift,
-                                          max_r_shift)
-        else:
-            positions.append(or_merge(squares_shftd))
-    return positions
+# def get_combinations(squares, idx, start_r_shift, max_r_shift):
+#     positions = []
+#     squares_shftd = squares[:]
+#     for r_shift in range(start_r_shift, max_r_shift + 1):
+#         squares_shftd[idx] = squares[idx] >> r_shift
+#         if idx < (len(squares) - 1):
+#             positions += get_combinations(squares_shftd, idx + 1, r_shift,
+#                                           max_r_shift)
+#         else:
+#             positions.append(or_merge(squares_shftd))
+#     return positions
 
 
 def combinator(clue, max_r_shift):
     clue_shftd = clue[:]
     r_shift = [0] * len(clue)
-    idx = len(clue) - 1
+    idx = 0
 
-    clue_shftd[idx] = clue_shftd[idx] >> r_shift[idx]
-    yield clue_shftd
-    if r_shift[idx] + 1 > max_r_shift:
-        r_shift[idx - 1] += 1
-        r_shift[idx] = r_shift[idx - 1]
-        clue_shftd[idx] = clue[idx] >> r_shift[idx]
-        idx -= 1
-    else:
-        r_shift[idx] += 1
+
+    if idx < len(cue):
 
 
 
+    if r_shift[idx] <= max_r_shift:
 
 
 
-    workq = [(clue, idx, start_r_shift, max_r_shift)]
-    r_shift = start_r_shift
-    while workq:
-        clue, idx, start_r_shift, max_r_shift = workq.pop()
-        clue_shftd = clue[:]
-        clue_shftd[idx] = clue[idx] >> r_shift
-        if idx < (len(clue) - 1):
-            workq.append((clue_shftd, idx + 1, r_shift, max_r_shift))
+    while idx >= 0:
+        yield clue_shftd
+        if r_shift[idx] + 1 > max_r_shift:
+            r_shift[idx - 1] += 1
+            r_shift[idx] = r_shift[idx - 1]
+            clue_shftd[idx] = clue[idx] >> r_shift[idx]
+            idx -= 1
         else:
-            yield or_merge(clue_shftd)
+            r_shift[idx] += 1
+            clue_shftd[idx] = clue[idx] >> r_shift[idx]
+        if idx < len(clue) - 1 and r_shift[idx] <= max_r_shift:
+            clue_shftd[idx] = clue[idx] >> r_shift[idx]
+            idx += 1
 
 
 def set_zeros(nonogram_ones):
