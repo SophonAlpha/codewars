@@ -161,30 +161,35 @@ def visualize(items):
 def combinator(clue, max_r_shift):
     clue_shftd = clue[:]
     r_shift = [0] * len(clue)
-    idx = 0
-
-
-    if idx < len(cue):
-
-
-
-    if r_shift[idx] <= max_r_shift:
-
-
+    idx = len(clue) - 1
 
     while idx >= 0:
+        clue_shftd[idx] = clue[idx] >> r_shift[idx]
         yield clue_shftd
-        if r_shift[idx] + 1 > max_r_shift:
+        r_shift[idx] += 1
+        if r_shift[idx] > max_r_shift:
             r_shift[idx - 1] += 1
+            clue_shftd[idx] = clue[idx] >> r_shift[idx - 1]
             r_shift[idx] = r_shift[idx - 1]
-            clue_shftd[idx] = clue[idx] >> r_shift[idx]
             idx -= 1
-        else:
-            r_shift[idx] += 1
-            clue_shftd[idx] = clue[idx] >> r_shift[idx]
-        if idx < len(clue) - 1 and r_shift[idx] <= max_r_shift:
-            clue_shftd[idx] = clue[idx] >> r_shift[idx]
+        elif idx < len(clue) - 1:
             idx += 1
+
+
+
+    # while idx >= 0:
+    #     yield clue_shftd
+    #     if r_shift[idx] + 1 > max_r_shift:
+    #         r_shift[idx - 1] += 1
+    #         r_shift[idx] = r_shift[idx - 1]
+    #         clue_shftd[idx] = clue[idx] >> r_shift[idx]
+    #         idx -= 1
+    #     else:
+    #         r_shift[idx] += 1
+    #         clue_shftd[idx] = clue[idx] >> r_shift[idx]
+    #     if idx < len(clue) - 1 and r_shift[idx] <= max_r_shift:
+    #         clue_shftd[idx] = clue[idx] >> r_shift[idx]
+    #         idx += 1
 
 
 def set_zeros(nonogram_ones):
