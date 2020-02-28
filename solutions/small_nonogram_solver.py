@@ -67,16 +67,23 @@ def common_positions(clues):
 
 
 def combinations(clues):
+    common_positions = None
     max_len = len(clues)
-    fmt = '{0:0' + str(max_len) + 'b}'
     for clue in clues:
         max_r_shift = max_len - (sum(clue) + len(clue) - 1)
         clue_shftd = init_shift(clue, max_len)
         for combination in combinator(clue_shftd, 0, 0, max_r_shift):
-            print(fmt.format(or_merge(combination)))
-
-        # positions = get_combinations(clue_shftd, 0, 0, max_r_shift)
-        common_positions = and_merge(positions)
+            if not common_positions:
+                # store very first value
+                common_positions = or_merge(combination)
+            else:
+                # bitwise 'and' wioth any subsequent value
+                common_positions = and_merge([common_positions,
+                                              or_merge(combination)])
+                # TODO: here is a point for performance optimization.
+                # If common_positions is zero after the and_merge then break
+                # out of the loop. There is no benefit in continuing as there
+                # is no common position.
         yield common_positions
 
 
@@ -92,7 +99,6 @@ Out[16]: '10110'
 fmt.format((b ^ (2**5 - 1)) & 18)
 Out[17]: '10010'
 """
-
 
 
 def init_shift(squares, max_len):
@@ -111,16 +117,6 @@ def or_merge(items):
 
 def and_merge(items):
     return functools.reduce(lambda x, y: x & y, items)
-
-
-def transpose(items, max_len):
-    items_transposed = []
-    fmt = '{0:0' + str(max_len) + 'b}'
-    for idx in range(max_len):
-        transposed = [fmt.format(item)[idx] for item in items]
-        transposed = int('0b' + ''.join(transposed), base=2)
-        items_transposed.append(transposed)
-    return items_transposed
 
 
 def transpose_bitwise(items):
@@ -155,32 +151,12 @@ def combinator(clue, idx, start_r_shift, max_r_shift):
             yield clue_shftd
 
 
-def combinator_v1(clue, max_r_shift):
-    clue_shftd = clue[:]
-    r_shift = [1] * (len(clue) - 1)
-    r_shift.append(0)
-    idx = len(clue) - 1
-    while idx >= 0:
-        if r_shift[idx] <= max_r_shift:
-            clue_shftd[idx] = clue[idx] >> r_shift[idx]
-            yield clue_shftd
-            r_shift[idx] += 1
-        if r_shift[idx] > max_r_shift:
-            # r_shift[idx - 1] += 1
-            clue_shftd[idx] = clue[idx] >> r_shift[idx - 1]
-            r_shift[idx] = r_shift[idx - 1]
-            idx -= 1
-        elif idx < len(clue) - 1:
-            idx += 1
-            r_shift[idx] += 1
-
-
 def set_zeros(nonogram_ones):
     return
 
 
 if __name__ == '__main__':
-    clues = (((1, 2, 1), (4,), (1, 1, 1), (3,), (1,), (1,), (1,), (1,), (1,)),
+    clues = (((1, 1), (4,), (1, 1, 1), (3,), (1,)),
              ((1,), (2,), (3,), (2, 1), (4,)))
     ans = ((0, 0, 1, 0, 0),
            (1, 1, 0, 0, 0),
