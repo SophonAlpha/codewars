@@ -72,7 +72,7 @@ def combinations(clues):
     for clue in clues:
         max_r_shift = max_len - (sum(clue) + len(clue) - 1)
         clue_shftd = init_shift(clue, max_len)
-        for combination in combinator(clue_shftd, max_r_shift):
+        for combination in combinator(clue_shftd, 0, 0, max_r_shift):
             print(fmt.format(or_merge(combination)))
 
         # positions = get_combinations(clue_shftd, 0, 0, max_r_shift)
@@ -145,51 +145,34 @@ def visualize(items):
         print(f'{fmt.format(item)}')
 
 
-# def get_combinations(squares, idx, start_r_shift, max_r_shift):
-#     positions = []
-#     squares_shftd = squares[:]
-#     for r_shift in range(start_r_shift, max_r_shift + 1):
-#         squares_shftd[idx] = squares[idx] >> r_shift
-#         if idx < (len(squares) - 1):
-#             positions += get_combinations(squares_shftd, idx + 1, r_shift,
-#                                           max_r_shift)
-#         else:
-#             positions.append(or_merge(squares_shftd))
-#     return positions
-
-
-def combinator(clue, max_r_shift):
+def combinator(clue, idx, start_r_shift, max_r_shift):
     clue_shftd = clue[:]
-    r_shift = [0] * len(clue)
-    idx = len(clue) - 1
+    for r_shift in range(start_r_shift, max_r_shift + 1):
+        clue_shftd[idx] = clue[idx] >> r_shift
+        if idx < (len(clue) - 1):
+            yield from combinator(clue_shftd, idx + 1, r_shift, max_r_shift)
+        else:
+            yield clue_shftd
 
+
+def combinator_v1(clue, max_r_shift):
+    clue_shftd = clue[:]
+    r_shift = [1] * (len(clue) - 1)
+    r_shift.append(0)
+    idx = len(clue) - 1
     while idx >= 0:
-        clue_shftd[idx] = clue[idx] >> r_shift[idx]
-        yield clue_shftd
-        r_shift[idx] += 1
+        if r_shift[idx] <= max_r_shift:
+            clue_shftd[idx] = clue[idx] >> r_shift[idx]
+            yield clue_shftd
+            r_shift[idx] += 1
         if r_shift[idx] > max_r_shift:
-            r_shift[idx - 1] += 1
+            # r_shift[idx - 1] += 1
             clue_shftd[idx] = clue[idx] >> r_shift[idx - 1]
             r_shift[idx] = r_shift[idx - 1]
             idx -= 1
         elif idx < len(clue) - 1:
             idx += 1
-
-
-
-    # while idx >= 0:
-    #     yield clue_shftd
-    #     if r_shift[idx] + 1 > max_r_shift:
-    #         r_shift[idx - 1] += 1
-    #         r_shift[idx] = r_shift[idx - 1]
-    #         clue_shftd[idx] = clue[idx] >> r_shift[idx]
-    #         idx -= 1
-    #     else:
-    #         r_shift[idx] += 1
-    #         clue_shftd[idx] = clue[idx] >> r_shift[idx]
-    #     if idx < len(clue) - 1 and r_shift[idx] <= max_r_shift:
-    #         clue_shftd[idx] = clue[idx] >> r_shift[idx]
-    #         idx += 1
+            r_shift[idx] += 1
 
 
 def set_zeros(nonogram_ones):
@@ -197,7 +180,7 @@ def set_zeros(nonogram_ones):
 
 
 if __name__ == '__main__':
-    clues = (((1, 1), (4,), (1, 1, 1), (3,), (1,)),
+    clues = (((1, 2, 1), (4,), (1, 1, 1), (3,), (1,), (1,), (1,), (1,), (1,)),
              ((1,), (2,), (3,), (2, 1), (4,)))
     ans = ((0, 0, 1, 0, 0),
            (1, 1, 0, 0, 0),
