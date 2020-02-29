@@ -13,26 +13,21 @@ import functools
 class Nonogram:
 
     def __init__(self, clues):
-        self.clues = clues
-        self.nonogram = [['?',] * len(self.clues[0]) for _ in self.clues[1]]
-        self.num_cols = len(self.clues[0])
+        self.col_clues, self.row_clues = clues[0], clues[1]
+        self.nonogram = [['?',] * len(self.col_clues) for _ in self.row_clues]
+        self.nonogram_ones = 0
+        self.nonogram_zeros = 0
+        self.num_cols = len(self.col_clues)
 
     def solve(self):
-        cols = common_positions(self.clues[0])
+        cols = common_positions(self.col_clues)
         cols = transpose_bitwise(cols)
-        rows = common_positions(self.clues[1])
+        rows = common_positions(self.row_clues)
         self.set_ones(combine(rows, cols))
-        print('\nnonogram:\n')
-        print(f'cols: {self.clues[0]}')
-        print(f'rows: {self.clues[1]}')
+        self.show()
         print()
-        for line in self.nonogram:
-            print(line)
         self.set_zeros()
-        print()
-        for line in self.nonogram:
-            print(line)
-        return self.nonogram
+        self.show()
 
     def set_ones(self, int_nonogram):
         fmt = '{0:0' + str(self.num_cols) + 'b}'
@@ -42,7 +37,7 @@ class Nonogram:
                     else self.nonogram[row][col]
 
     def set_zeros(self):
-        for col, col_clues in enumerate(self.clues[0]):
+        for col, col_clues in enumerate(self.col_clues):
             nono_col_sum = sum([1 if row[col] == '1' else 0
                                 for row in self.nonogram])
             if nono_col_sum == sum(col_clues):
@@ -50,13 +45,51 @@ class Nonogram:
                     if self.nonogram[row][col] == '?':
                         self.nonogram[row][col] = '0'
 
-        for row, row_clues in enumerate(self.clues[1]):
+        for row, row_clues in enumerate(self.row_clues):
             nono_row_sum = sum([1 if col == '1' else 0
                                 for col in self.nonogram[row]])
             if nono_row_sum == sum(row_clues):
                 for col, _ in enumerate(self.nonogram[row]):
                     if self.nonogram[row][col] == '?':
                         self.nonogram[row][col] = '0'
+
+    def show(self):
+        # transform column clues
+        col_clues = transform_col_clues(self.col_clues)
+        # transform row clues
+        row_clues_strs = transform_row_clues(self.row_clues)
+        nonogram_view = [' ' * (len(row_clues_strs[0]) + 1) + line
+                         for line in col_clues]
+        for idx, row in enumerate(self.nonogram):
+            nonogram_view.append(
+                row_clues_strs[idx] + '|' + '|'.join([' ' + item + ' '
+                                                      for item in row]) + '|'
+            )
+        # print nonogram
+        for line in nonogram_view:
+            print(line)
+
+
+def transform_col_clues(clues):
+    col_clues_rows = max([len(clue) for clue in clues])
+    col_clues = clues[:]
+    col_clues = [(0,) * (col_clues_rows - len(item)) + item
+                 for item in col_clues]
+    col_clues = zip(*[item for item in col_clues])
+    col_clues = [[str(item) if item != 0 else ' '
+                  for item in line] for line in col_clues]
+    col_clues = [' '.join([str(item).rjust(2, ' ') + ' ' for item in line])
+                 for line in col_clues]
+    return col_clues
+
+
+def transform_row_clues(clues):
+    row_clues = [', '.join([str(item) for item in clue])
+                 for clue in clues]
+    row_clue_max = max([len(item) for item in row_clues])
+    row_clues = [' ' * (row_clue_max - len(item)) + item + ' '
+                 for item in row_clues]
+    return row_clues
 
 
 def common_positions(clues):
@@ -77,13 +110,13 @@ def combinations(clues):
                 # store very first value
                 common_positions = or_merge(combination)
             else:
-                # bitwise 'and' wioth any subsequent value
+                # bitwise 'and' with any subsequent value
                 common_positions = and_merge([common_positions,
                                               or_merge(combination)])
                 # TODO: here is a point for performance optimization.
-                # If common_positions is zero after the and_merge then break
-                # out of the loop. There is no benefit in continuing as there
-                # is no common position.
+                # If common_positions is zero after the and_merge then stop
+                # the loop. There is no benefit in continuing as there
+                # is no common position across all combinations.
         yield common_positions
 
 
