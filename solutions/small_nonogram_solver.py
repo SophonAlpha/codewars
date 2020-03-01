@@ -29,12 +29,8 @@ class Nonogram:
         self.set_zeros()
         self.show()
 
-    def set_ones(self, int_nonogram):
-        fmt = '{0:0' + str(self.num_cols) + 'b}'
-        for row, item in enumerate(int_nonogram):
-            for col, cell in enumerate(fmt.format(item)):
-                self.nonogram[row][col] = cell if cell == '1' \
-                    else self.nonogram[row][col]
+    def set_ones(self, nonogram_int):
+        self.nonogram_ones = nonogram_int[:]
 
     def set_zeros(self):
         for col, col_clues in enumerate(self.col_clues):
@@ -44,7 +40,6 @@ class Nonogram:
                 for row, _ in enumerate(self.nonogram):
                     if self.nonogram[row][col] == '?':
                         self.nonogram[row][col] = '0'
-
         for row, row_clues in enumerate(self.row_clues):
             nono_row_sum = sum([1 if col == '1' else 0
                                 for col in self.nonogram[row]])
@@ -54,6 +49,10 @@ class Nonogram:
                         self.nonogram[row][col] = '0'
 
     def show(self):
+        # transform binary representation to list of string representation
+        self.nonogram = transform_bin2str(self.nonogram,
+                                          self.nonogram_ones,
+                                          self.nonogram_zeros)
         # transform column clues
         col_clues = transform_col_clues(self.col_clues)
         # transform row clues
@@ -68,6 +67,20 @@ class Nonogram:
         # print nonogram
         for line in nonogram_view:
             print(line)
+
+
+def transform_bin2str(nonogram, nonogram_ones, nonogram_zeros):
+    num_cols = len(nonogram[0])
+    fmt = '{0:0' + str(num_cols) + 'b}'
+    for row, item in enumerate(nonogram_ones):
+        for col, cell in enumerate(fmt.format(item)):
+            nonogram[row][col] = cell if cell == '1' \
+                else nonogram[row][col]
+    for row, item in enumerate(nonogram_zeros):
+        for col, cell in enumerate(fmt.format(item)):
+            nonogram[row][col] = '0' if cell == '1' \
+                else nonogram[row][col]
+    return nonogram
 
 
 def transform_col_clues(clues):
@@ -113,10 +126,8 @@ def combinations(clues):
                 # bitwise 'and' with any subsequent value
                 common_positions = and_merge([common_positions,
                                               or_merge(combination)])
-                # TODO: here is a point for performance optimization.
-                # If common_positions is zero after the and_merge then stop
-                # the loop. There is no benefit in continuing as there
-                # is no common position across all combinations.
+                if common_positions == 0:
+                    break
         yield common_positions
 
 
@@ -167,8 +178,7 @@ def combine(rows, cols):
     return [row | cols[idx] for idx, row in enumerate(rows)]
 
 
-def visualize(items):
-    max_len = len(items)
+def visualize(items, max_len):
     fmt = '{0:0' + str(max_len) + 'b}'
     for item in items:
         print(f'{fmt.format(item)}')
