@@ -15,38 +15,47 @@ class Nonogram:
     def __init__(self, clues):
         self.col_clues, self.row_clues = clues[0], clues[1]
         self.nonogram = [['?',] * len(self.col_clues) for _ in self.row_clues]
-        self.nonogram_ones = 0
-        self.nonogram_zeros = 0
+        self.nonogram_ones = [0,] * len(self.row_clues)
+        self.nonogram_zeros = [0,] * len(self.row_clues)
         self.num_cols = len(self.col_clues)
 
     def solve(self):
-        cols = common_positions(self.col_clues)
-        cols = transpose_bitwise(cols)
-        rows = common_positions(self.row_clues)
-        self.set_ones(combine(rows, cols))
-        self.show()
-        print()
-        self.set_zeros()
-        self.show()
+        while not self.is_solved():
+            self.show()
+            print()
+            cols = common_positions(self.col_clues)
+            cols = transpose_bitwise(cols)
+            rows = common_positions(self.row_clues)
+            self.set_ones(rows, cols)
+            self.show()
+            print()
+            self.set_zeros()
+            self.show()
 
-    def set_ones(self, nonogram_int):
-        self.nonogram_ones = nonogram_int[:]
+    def is_solved(self):
+        mask = 2**len(self.col_clues) - 1
+        for idx in range(len(self.row_clues)):
+            if mask & (self.nonogram_ones[idx] | self.nonogram_zeros[idx]) != mask:
+                return False
+        return True
+
+    def set_ones(self, rows, cols):
+        self.nonogram_ones = combine(rows, cols)
 
     def set_zeros(self):
+        num_cols = len(self.col_clues)
         for col, col_clues in enumerate(self.col_clues):
-            nono_col_sum = sum([1 if row[col] == '1' else 0
-                                for row in self.nonogram])
+            mask = 1 << col
+            nono_col_sum = sum([(item & mask) >> num_cols - 2
+                                for item in self.nonogram_ones])
             if nono_col_sum == sum(col_clues):
-                for row, _ in enumerate(self.nonogram):
-                    if self.nonogram[row][col] == '?':
-                        self.nonogram[row][col] = '0'
+                for row in self.nonogram_ones:
+                    if self.nonogram_ones[row] & mask != mask:
+                        self.nonogram_zeros[row] |= mask
         for row, row_clues in enumerate(self.row_clues):
-            nono_row_sum = sum([1 if col == '1' else 0
-                                for col in self.nonogram[row]])
+            nono_row_sum = bin(self.nonogram_ones[row])[2:].count('1')
             if nono_row_sum == sum(row_clues):
-                for col, _ in enumerate(self.nonogram[row]):
-                    if self.nonogram[row][col] == '?':
-                        self.nonogram[row][col] = '0'
+                self.nonogram_zeros[row] = self.nonogram_ones[row] ^ (2 ** num_cols - 1)
 
     def show(self):
         # transform binary representation to list of string representation
@@ -113,9 +122,9 @@ def common_positions(clues):
 
 
 def combinations(clues):
-    common_positions = None
     max_len = len(clues)
     for clue in clues:
+        common_positions = None
         max_r_shift = max_len - (sum(clue) + len(clue) - 1)
         clue_shftd = init_shift(clue, max_len)
         for combination in combinator(clue_shftd, 0, 0, max_r_shift):
@@ -131,18 +140,14 @@ def combinations(clues):
         yield common_positions
 
 
-"""
-fmt.format(b)
-Out[13]: '01001'
-fmt.format(b ^ (2**5 - 1))
-Out[14]: '10110'
-fmt.format(b ^ (2**5 - 1) | 18)
-Out[15]: '10110'
-fmt.format((b ^ (2**5 - 1)) | 18)
-Out[16]: '10110'
-fmt.format((b ^ (2**5 - 1)) & 18)
-Out[17]: '10010'
-"""
+def combinator(clue, idx, start_r_shift, max_r_shift):
+    clue_shftd = clue[:]
+    for r_shift in range(start_r_shift, max_r_shift + 1):
+        clue_shftd[idx] = clue[idx] >> r_shift
+        if idx < (len(clue) - 1):
+            yield from combinator(clue_shftd, idx + 1, r_shift, max_r_shift)
+        else:
+            yield clue_shftd
 
 
 def init_shift(squares, max_len):
@@ -176,26 +181,6 @@ def transpose_bitwise(items):
 
 def combine(rows, cols):
     return [row | cols[idx] for idx, row in enumerate(rows)]
-
-
-def visualize(items, max_len):
-    fmt = '{0:0' + str(max_len) + 'b}'
-    for item in items:
-        print(f'{fmt.format(item)}')
-
-
-def combinator(clue, idx, start_r_shift, max_r_shift):
-    clue_shftd = clue[:]
-    for r_shift in range(start_r_shift, max_r_shift + 1):
-        clue_shftd[idx] = clue[idx] >> r_shift
-        if idx < (len(clue) - 1):
-            yield from combinator(clue_shftd, idx + 1, r_shift, max_r_shift)
-        else:
-            yield clue_shftd
-
-
-def set_zeros(nonogram_ones):
-    return
 
 
 if __name__ == '__main__':
