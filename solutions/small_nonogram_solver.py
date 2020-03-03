@@ -23,9 +23,14 @@ class Nonogram:
         while not self.is_solved():
             self.show()
             print()
-            cols = common_positions(self.col_clues)
+            t_ones = transpose_bitwise(self.nonogram_ones)
+            t_zeros = transpose_bitwise(self.nonogram_zeros)
+            col_pos_masks = [~(t_ones[idx] | t_zeros[idx])
+                             for idx, _ in enumerate(t_ones)]
+            cols = common_positions(self.col_clues, col_pos_masks)
             cols = transpose_bitwise(cols)
-            rows = common_positions(self.row_clues)
+            row_pos_marks = col_pos_masks[:]
+            rows = common_positions(self.row_clues, row_pos_marks)
             self.set_ones(rows, cols)
             self.show()
             print()
@@ -114,14 +119,14 @@ def transform_row_clues(clues):
     return row_clues
 
 
-def common_positions(clues):
+def common_positions(clues, pos_masks):
     items = []
-    for common_positions in combinations(clues):
+    for common_positions in combinations(clues, pos_masks):
         items.append(common_positions)
     return items
 
 
-def combinations(clues):
+def combinations(clues, pos_masks):
     max_len = len(clues)
     for clue in clues:
         common_positions = None
