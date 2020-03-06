@@ -18,14 +18,17 @@ class Nonogram:
         self.nonogram_ones = [0,] * len(self.row_clues)
         self.nonogram_zeros = [0,] * len(self.row_clues)
         self.num_cols = len(self.col_clues)
+        self.col_mask = 2**self.num_cols -1
 
     def solve(self):
         while not self.is_solved():
             self.show()
             print()
-            t_ones = transpose_bitwise(self.nonogram_ones)
-            t_zeros = transpose_bitwise(self.nonogram_zeros)
-            col_pos_masks = [~(t_ones[idx] | t_zeros[idx])
+            # t_ones = transpose_bitwise(self.nonogram_ones)
+            t_ones = cols2rows(self.nonogram_ones, self.num_cols)
+            # t_zeros = transpose_bitwise(self.nonogram_zeros)
+            t_zeros = cols2rows(self.nonogram_zeros, self.num_cols)
+            col_pos_masks = [~(t_ones[idx] | t_zeros[idx]) & self.col_mask
                              for idx, _ in enumerate(t_ones)]
             cols = common_positions(self.col_clues, col_pos_masks)
             cols = transpose_bitwise(cols)
@@ -128,20 +131,21 @@ def common_positions(clues, pos_masks):
 
 def combinations(clues, pos_masks):
     max_len = len(clues)
-    for clue in clues:
+    for pos, clue in enumerate(clues):
         common_positions = None
         max_r_shift = max_len - (sum(clue) + len(clue) - 1)
         clue_shftd = init_shift(clue, max_len)
         for combination in combinator(clue_shftd, 0, 0, max_r_shift):
-            if not common_positions:
-                # store very first value
-                common_positions = or_merge(combination)
-            else:
-                # bitwise 'and' with any subsequent value
-                common_positions = and_merge([common_positions,
-                                              or_merge(combination)])
-                if common_positions == 0:
-                    break
+            combination = or_merge(combination)
+            if combination & pos_masks[pos] == combination:
+                if not common_positions:
+                    # store very first value
+                    common_positions = combination
+                else:
+                    # bitwise 'and' with any subsequent value
+                    common_positions = and_merge([common_positions, combination])
+                    if common_positions == 0:
+                        break
         yield common_positions
 
 
@@ -171,6 +175,14 @@ def or_merge(items):
 
 def and_merge(items):
     return functools.reduce(lambda x, y: x & y, items)
+
+
+def cols2rows(items, max_len):
+    new_rows = []
+    for idx in reversed(range(max_len)):
+        new_rows.append(sum([((item & (1 << idx)) >> idx) << pos
+                             for pos, item in enumerate(items)]))
+    return new_rows
 
 
 def transpose_bitwise(items):
