@@ -14,56 +14,93 @@ class Nonogram:
 
     def __init__(self, clues):
         self.col_clues, self.row_clues = clues[0], clues[1]
-        self.nonogram = [['?',] * len(self.col_clues) for _ in self.row_clues]
-        self.nonogram_ones = [0,] * len(self.row_clues)
-        self.nonogram_zeros = [0,] * len(self.row_clues)
+        self.nonogram = [['?', ] * len(self.col_clues) for _ in self.row_clues]
+        self.nonogram_ones = [0, ] * len(self.row_clues)
+        self.nonogram_zeros = [0, ] * len(self.row_clues)
         self.num_cols = len(self.col_clues)
-        self.col_mask = 2**self.num_cols -1
+        self.col_mask = 2 ** self.num_cols - 1
+        self.nonogram_mask = [self.col_mask, ] * len(self.row_clues)
 
     def solve(self):
         while not self.is_solved():
             self.show()
             print()
-            # t_ones = transpose_bitwise(self.nonogram_ones)
-            t_ones = cols2rows(self.nonogram_ones, self.num_cols)
-            # t_zeros = transpose_bitwise(self.nonogram_zeros)
-            t_zeros = cols2rows(self.nonogram_zeros, self.num_cols)
-            col_pos_masks = [~(t_ones[idx] | t_zeros[idx]) & self.col_mask
-                             for idx, _ in enumerate(t_ones)]
+            # set positions in columns
+            self.update_nonogram_mask()
+            col_pos_masks = self.get_col_masks()
             cols = common_positions(self.col_clues, col_pos_masks)
-            cols = transpose_bitwise(cols)
-            row_pos_marks = col_pos_masks[:]
-            rows = common_positions(self.row_clues, row_pos_marks)
-            self.set_ones(rows, cols)
+            cols = rows2cols(cols, len(cols))
+            self.set_ones(cols)
             self.show()
             print()
             self.set_zeros()
             self.show()
+            print()
+            # set positions in rows
+            self.update_nonogram_mask()
+            row_pos_masks = self.get_row_masks()
+            rows = common_positions(self.row_clues, row_pos_masks)
+            self.set_ones(rows)
+            self.show()
+            print()
+            self.set_zeros()
+            self.show()
+            print()
 
     def is_solved(self):
-        mask = 2**len(self.col_clues) - 1
+        mask = 2 ** len(self.col_clues) - 1
         for idx in range(len(self.row_clues)):
-            if mask & (self.nonogram_ones[idx] | self.nonogram_zeros[idx]) != mask:
+            if mask & (
+                    self.nonogram_ones[idx] | self.nonogram_zeros[idx]) != mask:
                 return False
         return True
 
-    def set_ones(self, rows, cols):
-        self.nonogram_ones = combine(rows, cols)
+    def update_nonogram_mask(self):
+        self.nonogram_mask = [
+            ~(self.nonogram_ones[idx] | self.nonogram_zeros[idx])
+            & self.col_mask for idx, _ in enumerate(self.nonogram_ones)
+        ]
+        # TODO: split mask into column and row mask
+        self.nonogram_mask = [
+            mask | self.nonogram_ones[idx] if mask != 0 else mask
+            for idx, mask in enumerate(self.nonogram_mask)
+        ]
+        col_masks = self.get_col_masks()
+        col_ones = cols2rows(self.nonogram_ones, self.num_cols)
+        col_masks = [
+            mask | col_ones[idx] if mask != 0 else mask
+            for idx, mask in enumerate(col_masks)
+        ]
+        self.nonogram_mask = rows2cols(col_masks, len(col_masks))
+
+    def get_col_masks(self):
+        return cols2rows(self.nonogram_mask, self.num_cols)
+
+    def get_row_masks(self):
+        return self.nonogram_mask[:]
+
+    def set_ones(self, items):
+        self.nonogram_ones = [self.nonogram_ones[idx] | item
+                              for idx, item in enumerate(items)]
 
     def set_zeros(self):
-        num_cols = len(self.col_clues)
+        # TODO: Find a better way to keep row and column oriented versions of
+        #       nonogram. This might make it easier to count the set squares
+        #       column and row wise.
         for col, col_clues in enumerate(self.col_clues):
-            mask = 1 << col
-            nono_col_sum = sum([(item & mask) >> num_cols - 2
+            bit_pos = self.num_cols - col - 1
+            mask = 1 << bit_pos
+            nono_col_sum = sum([(item & mask) >> bit_pos
                                 for item in self.nonogram_ones])
             if nono_col_sum == sum(col_clues):
-                for row in self.nonogram_ones:
-                    if self.nonogram_ones[row] & mask != mask:
-                        self.nonogram_zeros[row] |= mask
+                for idx, row in enumerate(self.nonogram_ones):
+                    if row & mask != mask:
+                        self.nonogram_zeros[idx] |= mask
         for row, row_clues in enumerate(self.row_clues):
             nono_row_sum = bin(self.nonogram_ones[row])[2:].count('1')
             if nono_row_sum == sum(row_clues):
-                self.nonogram_zeros[row] = self.nonogram_ones[row] ^ (2 ** num_cols - 1)
+                self.nonogram_zeros[row] = self.nonogram_ones[row] ^ (
+                        2 ** self.num_cols - 1)
 
     def show(self):
         # transform binary representation to list of string representation
@@ -126,6 +163,7 @@ def common_positions(clues, pos_masks):
     items = []
     for common_positions in combinations(clues, pos_masks):
         items.append(common_positions)
+    items = [0 if item is None else item for item in items]
     return items
 
 
@@ -143,7 +181,8 @@ def combinations(clues, pos_masks):
                     common_positions = combination
                 else:
                     # bitwise 'and' with any subsequent value
-                    common_positions = and_merge([common_positions, combination])
+                    common_positions = and_merge(
+                        [common_positions, combination])
                     if common_positions == 0:
                         break
         yield common_positions
@@ -185,6 +224,14 @@ def cols2rows(items, max_len):
     return new_rows
 
 
+def rows2cols(items, max_len):
+    new_cols = []
+    for idx, _ in enumerate(items):
+        new_cols.append(sum([((item & (1 << idx)) >> idx) << (max_len - pos - 1)
+                             for pos, item in enumerate(items)]))
+    return new_cols
+
+
 def transpose_bitwise(items):
     max_len = len(items)
     items_transposed = []
@@ -194,10 +241,6 @@ def transpose_bitwise(items):
                           for pos, item in enumerate(items)])
         items_transposed.append(transposed)
     return items_transposed
-
-
-def combine(rows, cols):
-    return [row | cols[idx] for idx, row in enumerate(rows)]
 
 
 if __name__ == '__main__':
