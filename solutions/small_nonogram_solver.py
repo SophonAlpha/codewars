@@ -18,15 +18,17 @@ class Nonogram:
         self.nonogram_ones = [0, ] * len(self.row_clues)
         self.nonogram_zeros = [0, ] * len(self.row_clues)
         self.num_cols = len(self.col_clues)
-        self.col_mask = 2 ** self.num_cols - 1
-        self.nonogram_mask = [self.col_mask, ] * len(self.row_clues)
+        self.num_rows = len(self.row_clues)
+        self.col_bit_mask = 2 ** self.num_cols - 1
+        self.row_bit_mask = 2 ** self.num_rows - 1
+        self.nonogram_col_masks = [self.col_bit_mask, ] * self.num_cols
+        self.nonogram_row_masks = [self.row_bit_mask, ] * self.num_rows
 
     def solve(self):
         while not self.is_solved():
             self.show()
             print()
             # set positions in columns
-            self.update_nonogram_mask()
             col_pos_masks = self.get_col_masks()
             cols = common_positions(self.col_clues, col_pos_masks)
             cols = rows2cols(cols, len(cols))
@@ -36,8 +38,8 @@ class Nonogram:
             self.set_zeros()
             self.show()
             print()
-            # set positions in rows
             self.update_nonogram_mask()
+            # set positions in rows
             row_pos_masks = self.get_row_masks()
             rows = common_positions(self.row_clues, row_pos_masks)
             self.set_ones(rows)
@@ -46,38 +48,37 @@ class Nonogram:
             self.set_zeros()
             self.show()
             print()
+            self.update_nonogram_mask()
+
 
     def is_solved(self):
-        mask = 2 ** len(self.col_clues) - 1
-        for idx in range(len(self.row_clues)):
-            if mask & (
-                    self.nonogram_ones[idx] | self.nonogram_zeros[idx]) != mask:
-                return False
-        return True
+        return sum(self.nonogram_row_masks) + sum(self.nonogram_col_masks) == 0
 
     def update_nonogram_mask(self):
-        self.nonogram_mask = [
+        # combine ones & zeros
+        ones_zeros = [
             ~(self.nonogram_ones[idx] | self.nonogram_zeros[idx])
-            & self.col_mask for idx, _ in enumerate(self.nonogram_ones)
+            & self.col_bit_mask for idx, _ in enumerate(self.nonogram_ones)
         ]
-        # TODO: split mask into column and row mask
-        self.nonogram_mask = [
+        # update row masks
+        self.nonogram_row_masks = ones_zeros[:]
+        self.nonogram_row_masks = [
             mask | self.nonogram_ones[idx] if mask != 0 else mask
-            for idx, mask in enumerate(self.nonogram_mask)
+            for idx, mask in enumerate(self.nonogram_row_masks)
         ]
-        col_masks = self.get_col_masks()
+        # update col masks
+        self.nonogram_col_masks = cols2rows(ones_zeros[:], self.num_cols)
         col_ones = cols2rows(self.nonogram_ones, self.num_cols)
-        col_masks = [
+        self.nonogram_col_masks = [
             mask | col_ones[idx] if mask != 0 else mask
-            for idx, mask in enumerate(col_masks)
+            for idx, mask in enumerate(self.nonogram_col_masks)
         ]
-        self.nonogram_mask = rows2cols(col_masks, len(col_masks))
 
     def get_col_masks(self):
-        return cols2rows(self.nonogram_mask, self.num_cols)
+        return self.nonogram_col_masks[:]
 
     def get_row_masks(self):
-        return self.nonogram_mask[:]
+        return self.nonogram_row_masks[:]
 
     def set_ones(self, items):
         self.nonogram_ones = [self.nonogram_ones[idx] | item
@@ -87,6 +88,7 @@ class Nonogram:
         # TODO: Find a better way to keep row and column oriented versions of
         #       nonogram. This might make it easier to count the set squares
         #       column and row wise.
+        # TODO: Refactor code to reduce nesting depth.
         for col, col_clues in enumerate(self.col_clues):
             bit_pos = self.num_cols - col - 1
             mask = 1 << bit_pos
@@ -103,6 +105,8 @@ class Nonogram:
                         2 ** self.num_cols - 1)
 
     def show(self):
+        # TODO: Move this code and all sub functions into separate Python
+        #       module.
         # transform binary representation to list of string representation
         self.nonogram = transform_bin2str(self.nonogram,
                                           self.nonogram_ones,
@@ -169,6 +173,8 @@ def common_positions(clues, pos_masks):
 
 def combinations(clues, pos_masks):
     max_len = len(clues)
+    # TODO: Add optimization: calculate combinations only if pos_mask != 0.
+    # TODO: Refactor code to reduce deep nesting.
     for pos, clue in enumerate(clues):
         common_positions = None
         max_r_shift = max_len - (sum(clue) + len(clue) - 1)
