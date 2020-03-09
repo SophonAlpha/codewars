@@ -8,6 +8,7 @@ try nonograms here: https://www.puzzle-nonograms.com/
 """
 
 import functools
+import solutions.small_nonogram_solver_show as nshow
 
 
 class Nonogram:
@@ -26,47 +27,50 @@ class Nonogram:
 
     def solve(self):
         while not self.is_solved():
-            self.show()
-            print()
+            # self.show()
+            # print()
             # set positions in columns
             col_pos_masks = self.get_col_masks()
             cols = common_positions(self.col_clues, col_pos_masks)
             cols = rows2cols(cols, len(cols))
             self.set_ones(cols)
-            self.show()
-            print()
+            # self.show()
+            # print()
             self.set_zeros()
-            self.show()
-            print()
+            # self.show()
+            # print()
             self.update_nonogram_mask()
             # set positions in rows
             row_pos_masks = self.get_row_masks()
             rows = common_positions(self.row_clues, row_pos_masks)
             self.set_ones(rows)
-            self.show()
-            print()
+            # self.show()
+            # print()
             self.set_zeros()
-            self.show()
-            print()
+            # self.show()
+            # print()
             self.update_nonogram_mask()
-
+        self.nonogram = transform_bin2str(self.nonogram,
+                                          self.nonogram_ones,
+                                          self.nonogram_zeros)
+        return self.nonogram
 
     def is_solved(self):
         return sum(self.nonogram_row_masks) + sum(self.nonogram_col_masks) == 0
 
     def update_nonogram_mask(self):
-        # combine ones & zeros
+        # combine ones & zeros with bitwise or the invert the mask
         ones_zeros = [
             ~(self.nonogram_ones[idx] | self.nonogram_zeros[idx])
             & self.col_bit_mask for idx, _ in enumerate(self.nonogram_ones)
         ]
-        # update row masks
+        # row wise add all set positions ("1s")
         self.nonogram_row_masks = ones_zeros[:]
         self.nonogram_row_masks = [
             mask | self.nonogram_ones[idx] if mask != 0 else mask
             for idx, mask in enumerate(self.nonogram_row_masks)
         ]
-        # update col masks
+        # column wise add all set positions ("1s")
         self.nonogram_col_masks = cols2rows(ones_zeros[:], self.num_cols)
         col_ones = cols2rows(self.nonogram_ones, self.num_cols)
         self.nonogram_col_masks = [
@@ -105,40 +109,11 @@ class Nonogram:
                         2 ** self.num_cols - 1)
 
     def show(self):
-        # TODO: Move this code and all sub functions into separate Python
-        #       module.
-        # transform binary representation to list of string representation
         self.nonogram = transform_bin2str(self.nonogram,
                                           self.nonogram_ones,
                                           self.nonogram_zeros)
-        # transform column clues
-        col_clues = transform_col_clues(self.col_clues)
-        # transform row clues
-        row_clues_strs = transform_row_clues(self.row_clues)
-        nonogram_view = [' ' * (len(row_clues_strs[0]) + 1) + line
-                         for line in col_clues]
-        for idx, row in enumerate(self.nonogram):
-            nonogram_view.append(
-                row_clues_strs[idx] + '|' + '|'.join([' ' + item + ' '
-                                                      for item in row]) + '|'
-            )
-        # print nonogram
-        for line in nonogram_view:
-            print(line)
-
-
-def transform_bin2str(nonogram, nonogram_ones, nonogram_zeros):
-    num_cols = len(nonogram[0])
-    fmt = '{0:0' + str(num_cols) + 'b}'
-    for row, item in enumerate(nonogram_ones):
-        for col, cell in enumerate(fmt.format(item)):
-            nonogram[row][col] = cell if cell == '1' \
-                else nonogram[row][col]
-    for row, item in enumerate(nonogram_zeros):
-        for col, cell in enumerate(fmt.format(item)):
-            nonogram[row][col] = '0' if cell == '1' \
-                else nonogram[row][col]
-    return nonogram
+        nshow.show(self.nonogram, self.nonogram_ones, self.nonogram_zeros,
+                   self.col_clues, self.row_clues)
 
 
 def transform_col_clues(clues):
@@ -173,24 +148,24 @@ def common_positions(clues, pos_masks):
 
 def combinations(clues, pos_masks):
     max_len = len(clues)
-    # TODO: Add optimization: calculate combinations only if pos_mask != 0.
     # TODO: Refactor code to reduce deep nesting.
     for pos, clue in enumerate(clues):
         common_positions = None
-        max_r_shift = max_len - (sum(clue) + len(clue) - 1)
-        clue_shftd = init_shift(clue, max_len)
-        for combination in combinator(clue_shftd, 0, 0, max_r_shift):
-            combination = or_merge(combination)
-            if combination & pos_masks[pos] == combination:
-                if not common_positions:
-                    # store very first value
-                    common_positions = combination
-                else:
-                    # bitwise 'and' with any subsequent value
-                    common_positions = and_merge(
-                        [common_positions, combination])
-                    if common_positions == 0:
-                        break
+        if pos_masks[pos] != 0:
+            max_r_shift = max_len - (sum(clue) + len(clue) - 1)
+            clue_shftd = init_shift(clue, max_len)
+            for combination in combinator(clue_shftd, 0, 0, max_r_shift):
+                combination = or_merge(combination)
+                if combination & pos_masks[pos] == combination:
+                    if not common_positions:
+                        # store very first value
+                        common_positions = combination
+                    else:
+                        # bitwise 'and' with any subsequent value
+                        common_positions = and_merge(
+                            [common_positions, combination])
+                        if common_positions == 0:
+                            break
         yield common_positions
 
 
@@ -238,15 +213,20 @@ def rows2cols(items, max_len):
     return new_cols
 
 
-def transpose_bitwise(items):
-    max_len = len(items)
-    items_transposed = []
-    no_items = len(items)
-    for idx in reversed(range(max_len)):
-        transposed = sum([((item & (1 << idx)) >> idx) << (no_items - pos - 1)
-                          for pos, item in enumerate(items)])
-        items_transposed.append(transposed)
-    return items_transposed
+def transform_bin2str(nonogram, nonogram_ones, nonogram_zeros):
+    # TODO: Build an integer representation of the nonogram array to pass
+    #       the test cases.
+    num_cols = len(nonogram[0])
+    fmt = '{0:0' + str(num_cols) + 'b}'
+    for row, item in enumerate(nonogram_ones):
+        for col, cell in enumerate(fmt.format(item)):
+            nonogram[row][col] = cell if cell == '1' \
+                else nonogram[row][col]
+    for row, item in enumerate(nonogram_zeros):
+        for col, cell in enumerate(fmt.format(item)):
+            nonogram[row][col] = '0' if cell == '1' \
+                else nonogram[row][col]
+    return nonogram
 
 
 if __name__ == '__main__':
@@ -258,4 +238,4 @@ if __name__ == '__main__':
            (1, 1, 0, 1, 0),
            (0, 1, 1, 1, 1))
     sol = Nonogram(clues).solve()
-    print()
+    print(sol)
