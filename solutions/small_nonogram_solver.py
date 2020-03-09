@@ -15,6 +15,7 @@ class Nonogram:
 
     def __init__(self, clues):
         self.col_clues, self.row_clues = clues[0], clues[1]
+        self.col_clues = reorder(self.col_clues)
         self.nonogram = [['?', ] * len(self.col_clues) for _ in self.row_clues]
         self.nonogram_ones = [0, ] * len(self.row_clues)
         self.nonogram_zeros = [0, ] * len(self.row_clues)
@@ -111,8 +112,13 @@ class Nonogram:
         self.nonogram = transform_bin2str(self.nonogram,
                                           self.nonogram_ones,
                                           self.nonogram_zeros)
+        reordered_col_clues = reorder(self.col_clues)
         nshow.show(self.nonogram, self.nonogram_ones, self.nonogram_zeros,
-                   self.col_clues, self.row_clues)
+                   reordered_col_clues, self.row_clues)
+
+
+def reorder(items):
+    return tuple(tuple(item[::-1]) for item in items)
 
 
 def transform_col_clues(clues):
