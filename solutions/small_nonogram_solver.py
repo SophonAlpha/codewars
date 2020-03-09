@@ -27,33 +27,35 @@ class Nonogram:
 
     def solve(self):
         while not self.is_solved():
-            # self.show()
-            # print()
+            self.show()
+            print('\nset positions in columns')
             # set positions in columns
             col_pos_masks = self.get_col_masks()
             cols = common_positions(self.col_clues, col_pos_masks)
             cols = rows2cols(cols, len(cols))
             self.set_ones(cols)
-            # self.show()
-            # print()
+            self.show()
+            print('\nset the zeros')
             self.set_zeros()
-            # self.show()
-            # print()
+            self.show()
+            print('\nset positions in rows')
             self.update_nonogram_mask()
             # set positions in rows
             row_pos_masks = self.get_row_masks()
             rows = common_positions(self.row_clues, row_pos_masks)
             self.set_ones(rows)
-            # self.show()
-            # print()
+            self.show()
+            print('\nset the zeros')
             self.set_zeros()
-            # self.show()
-            # print()
+            self.show()
+            print()
             self.update_nonogram_mask()
         self.nonogram = transform_bin2str(self.nonogram,
                                           self.nonogram_ones,
                                           self.nonogram_zeros)
-        return self.nonogram
+        nonogram_tuple = tuple(
+            tuple(int(cell) for cell in row) for row in self.nonogram)
+        return nonogram_tuple
 
     def is_solved(self):
         return sum(self.nonogram_row_masks) + sum(self.nonogram_col_masks) == 0
@@ -89,9 +91,6 @@ class Nonogram:
                               for idx, item in enumerate(items)]
 
     def set_zeros(self):
-        # TODO: Find a better way to keep row and column oriented versions of
-        #       nonogram. This might make it easier to count the set squares
-        #       column and row wise.
         # TODO: Refactor code to reduce nesting depth.
         for col, col_clues in enumerate(self.col_clues):
             bit_pos = self.num_cols - col - 1
@@ -230,12 +229,12 @@ def transform_bin2str(nonogram, nonogram_ones, nonogram_zeros):
 
 
 if __name__ == '__main__':
-    clues = (((1, 1), (4,), (1, 1, 1), (3,), (1,)),
-             ((1,), (2,), (3,), (2, 1), (4,)))
-    ans = ((0, 0, 1, 0, 0),
-           (1, 1, 0, 0, 0),
-           (0, 1, 1, 1, 0),
-           (1, 1, 0, 1, 0),
-           (0, 1, 1, 1, 1))
+    clues = (((1,), (3,), (1,), (3, 1), (3, 1)),
+             ((3,), (2,), (2, 2), (1,), (1, 2)),)
+    ans = ((0, 0, 1, 1, 1),
+           (0, 0, 0, 1, 1),
+           (1, 1, 0, 1, 1),
+           (0, 1, 0, 0, 0),
+           (0, 1, 0, 1, 1))
     sol = Nonogram(clues).solve()
     print(sol)
