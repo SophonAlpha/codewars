@@ -14,8 +14,7 @@ import solutions.small_nonogram_solver_show as nshow
 class Nonogram:
 
     def __init__(self, clues):
-        self.col_clues, self.row_clues = clues[0], clues[1]
-        self.col_clues = reorder(self.col_clues)
+        self.col_clues, self.row_clues = reorder(clues[0]), clues[1]
         self.nonogram = [['?', ] * len(self.col_clues) for _ in self.row_clues]
         self.nonogram_ones = [0, ] * len(self.row_clues)
         self.nonogram_zeros = [0, ] * len(self.row_clues)
@@ -144,34 +143,30 @@ def transform_row_clues(clues):
 
 
 def common_positions(clues, pos_masks):
-    items = []
-    for common_positions in combinations(clues, pos_masks):
-        items.append(common_positions)
-    items = [0 if item is None else item for item in items]
+    max_len = len(clues)
+    items = [0, ] * max_len
+    for idx, clue, mask in [(idx, clue, pos_masks[idx])
+                            for idx, clue in enumerate(clues)]:
+        if mask != 0:
+            items[idx] = combinations(clue, mask, max_len)
     return items
 
 
-def combinations(clues, pos_masks):
-    max_len = len(clues)
-    # TODO: Refactor code to reduce deep nesting.
-    for pos, clue in enumerate(clues):
-        common_positions = None
-        if pos_masks[pos] != 0:
-            max_r_shift = max_len - (sum(clue) + len(clue) - 1)
-            clue_shftd = init_shift(clue, max_len)
-            for combination in combinator(clue_shftd, 0, 0, max_r_shift):
-                combination = or_merge(combination)
-                if combination & pos_masks[pos] == combination:
-                    if not common_positions:
-                        # store very first value
-                        common_positions = combination
-                    else:
-                        # bitwise 'and' with any subsequent value
-                        common_positions = and_merge(
-                            [common_positions, combination])
-                        if common_positions == 0:
-                            break
-        yield common_positions
+def combinations(clue, mask, max_len):
+    positions = None
+    max_r_shift = max_len - (sum(clue) + len(clue) - 1)
+    clue_shftd = init_shift(clue, max_len)
+    for combination in combinator(clue_shftd, 0, 0, max_r_shift):
+        combination = or_merge(combination)
+        if (combination & mask == combination) and (positions is None):
+            # store very first value
+            positions = combination
+        elif (combination & mask == combination) and positions:
+            # bitwise 'and' with any subsequent value
+            positions = and_merge([positions, combination])
+        if positions == 0:
+            break
+    return positions
 
 
 def combinator(clue, idx, start_r_shift, max_r_shift):
