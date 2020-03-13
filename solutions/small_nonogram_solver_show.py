@@ -3,7 +3,11 @@ Visualisation Module for nonogram solver.
 """
 
 
-def show(nonogram, nonogram_ones, nonogram_zeros, col_clues, row_clues):
+def show(nonogram_ones, nonogram_zeros, col_clues, row_clues):
+    nonogram = [['?', ] * len(col_clues) for _ in row_clues]
+    nonogram = transform_bin2str(nonogram,
+                                 nonogram_ones,
+                                 nonogram_zeros)
     # transform column clues
     col_clues = transform_col_clues(col_clues)
     # transform row clues
@@ -40,3 +44,17 @@ def transform_row_clues(clues):
     row_clues = [' ' * (row_clue_max - len(item)) + item + ' '
                  for item in row_clues]
     return row_clues
+
+
+def transform_bin2str(nonogram, nonogram_ones, nonogram_zeros):
+    num_cols = len(nonogram[0])
+    fmt = '{0:0' + str(num_cols) + 'b}'
+    for row, item in enumerate(nonogram_ones):
+        for col, cell in enumerate(fmt.format(item)):
+            nonogram[row][col] = cell if cell == '1' \
+                else nonogram[row][col]
+    for row, item in enumerate(nonogram_zeros):
+        for col, cell in enumerate(fmt.format(item)):
+            nonogram[row][col] = '0' if cell == '1' \
+                else nonogram[row][col]
+    return nonogram

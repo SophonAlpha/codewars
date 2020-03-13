@@ -15,7 +15,6 @@ class Nonogram:
 
     def __init__(self, clues):
         self.col_clues, self.row_clues = reorder(clues[0]), clues[1]
-        self.nonogram = [['?', ] * len(self.col_clues) for _ in self.row_clues]
         self.nonogram_ones = [0, ] * len(self.row_clues)
         self.nonogram_zeros = [0, ] * len(self.row_clues)
         self.num_cols = len(self.col_clues)
@@ -27,35 +26,20 @@ class Nonogram:
 
     def solve(self):
         while not self.is_solved():
-            self.show()
-            print('\nset positions in columns')
             # set positions in columns
             col_pos_masks = self.get_col_masks()
             cols = common_positions(self.col_clues, col_pos_masks)
             cols = rows2cols(cols, len(cols))
             self.set_ones(cols)
-            self.show()
-            print('\nset the zeros')
             self.set_zeros()
-            self.show()
-            print('\nset positions in rows')
             self.update_nonogram_mask()
             # set positions in rows
             row_pos_masks = self.get_row_masks()
             rows = common_positions(self.row_clues, row_pos_masks)
             self.set_ones(rows)
-            self.show()
-            print('\nset the zeros')
             self.set_zeros()
-            self.show()
-            print()
             self.update_nonogram_mask()
-        self.nonogram = transform_bin2str(self.nonogram,
-                                          self.nonogram_ones,
-                                          self.nonogram_zeros)
-        nonogram_tuple = tuple(
-            tuple(int(cell) for cell in row) for row in self.nonogram)
-        return nonogram_tuple
+        return bin2list(self.nonogram_ones, self.num_cols)
 
     def is_solved(self):
         return sum(self.nonogram_row_masks) + sum(self.nonogram_col_masks) == 0
@@ -108,11 +92,8 @@ class Nonogram:
                         2 ** self.num_cols - 1)
 
     def show(self):
-        self.nonogram = transform_bin2str(self.nonogram,
-                                          self.nonogram_ones,
-                                          self.nonogram_zeros)
         reordered_col_clues = reorder(self.col_clues)
-        nshow.show(self.nonogram, self.nonogram_ones, self.nonogram_zeros,
+        nshow.show(self.nonogram_ones, self.nonogram_zeros,
                    reordered_col_clues, self.row_clues)
 
 
@@ -213,19 +194,11 @@ def rows2cols(items, max_len):
     return new_cols
 
 
-def transform_bin2str(nonogram, nonogram_ones, nonogram_zeros):
-    # TODO: Build an integer representation of the nonogram array to pass
-    #       the test cases.
-    num_cols = len(nonogram[0])
+def bin2list(nonogram_ones, num_cols):
     fmt = '{0:0' + str(num_cols) + 'b}'
-    for row, item in enumerate(nonogram_ones):
-        for col, cell in enumerate(fmt.format(item)):
-            nonogram[row][col] = cell if cell == '1' \
-                else nonogram[row][col]
-    for row, item in enumerate(nonogram_zeros):
-        for col, cell in enumerate(fmt.format(item)):
-            nonogram[row][col] = '0' if cell == '1' \
-                else nonogram[row][col]
+    nonogram = tuple(
+        tuple(int(cell) for cell in fmt.format(item)) for item in nonogram_ones
+    )
     return nonogram
 
 
