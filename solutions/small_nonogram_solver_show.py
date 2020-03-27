@@ -9,6 +9,7 @@ def show(nonogram_ones, nonogram_zeros, col_clues, row_clues):
                                  nonogram_ones,
                                  nonogram_zeros)
     # transform column clues
+
     col_clues = transform_col_clues(col_clues)
     # transform row clues
     row_clues_strs = transform_row_clues(row_clues)
