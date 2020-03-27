@@ -39,7 +39,7 @@ class Nonogram:
             self.set_ones(rows)
             self.set_zeros()
             self.update_nonogram_mask()
-        return bin2list(self.nonogram_ones, self.num_cols)
+        return bin2tuple(self.nonogram_ones, self.num_cols)
 
     def is_solved(self):
         return sum(self.nonogram_row_masks) + sum(self.nonogram_col_masks) == 0
@@ -194,7 +194,7 @@ def rows2cols(items, max_len):
     return new_cols
 
 
-def bin2list(nonogram_ones, num_cols):
+def bin2tuple(nonogram_ones, num_cols):
     fmt = '{0:0' + str(num_cols) + 'b}'
     nonogram = tuple(
         tuple(int(cell) for cell in fmt.format(item)) for item in nonogram_ones
@@ -203,12 +203,12 @@ def bin2list(nonogram_ones, num_cols):
 
 
 if __name__ == '__main__':
-    clues = (((1,), (3,), (1,), (3, 1), (3, 1)),
-             ((3,), (2,), (2, 2), (1,), (1, 2)),)
-    ans = ((0, 0, 1, 1, 1),
-           (0, 0, 0, 1, 1),
-           (1, 1, 0, 1, 1),
-           (0, 1, 0, 0, 0),
-           (0, 1, 0, 1, 1))
-    sol = Nonogram(clues).solve()
+    start_clues = (((2,), (1,), (1, 2), (1,), (1, 2)),
+                   ((1,), (1, 1, 1), (0,), (1, 1), (4,)))
+    ans = ((1, 0, 0, 0, 0),
+           (1, 0, 1, 0, 1),
+           (0, 0, 0, 0, 0),
+           (0, 0, 1, 0, 1),
+           (0, 1, 1, 1, 1))
+    sol = Nonogram(start_clues).solve()
     print(sol)

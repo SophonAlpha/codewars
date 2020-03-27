@@ -373,7 +373,7 @@ class SemanticAnalyser(NodeVisitor):
     def visit_BinOp(self, node):
         self.visit(node.left)
         self.visit(node.right)
-
+/
     def visit_Num(self, node):
         pass
 
