@@ -9,6 +9,7 @@ try nonograms here: https://www.puzzle-nonograms.com/
 
 import functools
 import solutions.small_nonogram_solver_show as nshow
+from math import log
 
 
 class Nonogram:
@@ -26,6 +27,8 @@ class Nonogram:
 
     def solve(self):
         while not self.is_solved():
+            prev_ones = self.nonogram_ones[:]
+            prev_zeros = self.nonogram_zeros[:]
             # set positions in columns
             col_pos_masks = self.get_col_masks()
             cols = common_positions(self.col_clues, col_pos_masks)
@@ -39,13 +42,20 @@ class Nonogram:
             self.set_ones(rows)
             self.set_zeros()
             self.update_nonogram_mask()
+            # check if reach a state of no progress
+            if not self.is_solved() and \
+                    not progress(prev_ones, self.nonogram_ones,
+                                 prev_zeros, self.nonogram_zeros):
+                self.set_one_position()
+                self.set_zeros()
+                self.update_nonogram_mask()
         return bin2tuple(self.nonogram_ones, self.num_cols)
 
     def is_solved(self):
         return sum(self.nonogram_row_masks) + sum(self.nonogram_col_masks) == 0
 
     def update_nonogram_mask(self):
-        # combine ones & zeros with bitwise or the invert the mask
+        # combine ones & zeros with bitwise or with the invert of the mask
         ones_zeros = [
             ~(self.nonogram_ones[idx] | self.nonogram_zeros[idx])
             & self.col_bit_mask for idx, _ in enumerate(self.nonogram_ones)
@@ -63,6 +73,15 @@ class Nonogram:
             mask | col_ones[idx] if mask != 0 else mask
             for idx, mask in enumerate(self.nonogram_col_masks)
         ]
+
+    def set_one_position(self):
+        # Find a row with a non-zero mask value. A mask value of zero for a row
+        # means the row has been solved already. Any mask value > 0 indicates
+        # a row with unsolved positions.
+        idx = self.nonogram_row_masks.index(max(self.nonogram_row_masks))
+        possible_bits = (self.nonogram_ones[idx] ^ self.nonogram_row_masks[idx])
+        bit_to_set = 2**high_bit_order(possible_bits)
+        self.nonogram_ones[idx] = self.nonogram_ones[idx] | bit_to_set
 
     def get_col_masks(self):
         return self.nonogram_col_masks[:]
@@ -200,6 +219,40 @@ def bin2tuple(nonogram_ones, num_cols):
         tuple(int(cell) for cell in fmt.format(item)) for item in nonogram_ones
     )
     return nonogram
+
+
+def progress(prev_ones, nonogram_ones, prev_zeros, nonogram_zeros):
+    return prev_ones != nonogram_ones and prev_zeros != nonogram_zeros
+
+
+def high_bit_order(n):
+    """
+    Source: https://www.daniweb.com/programming/software-development/code/406590/lowest-highest-bit-set-in-integer
+
+    Return the integer k >= 0 such that 2**k <= n < 2**(k+1).
+    This is also the order of the last bit set in the bitwise representation of n.
+    Raise value error if n <= 0
+        * for n == 0, no bit is set.
+        * for n < 0, an infinite number of bits are set.
+    For example
+        high_bit_order(2368) --> 11
+        n = 2368  bits: 000000101001000000000000000...
+        n = -2368 bits: 000000110110111111111111111...
+        n = 2**11 bits: 000000000001000000000000000...
+    This function checks its return value and raise ValueError if an error
+    is detected.
+    """
+    k = int(log(n, 2))
+    if k:
+        x = n >> (k-1)
+        if x == 1: # correct log() imprecision for very large integers
+            return k - 1
+        elif 2 <= x < 4:
+            return k
+        else: # very unlikely, but handled
+            raise ValueError("high_bit_order() failed on unusual value.")
+    else:
+        return k
 
 
 if __name__ == '__main__':

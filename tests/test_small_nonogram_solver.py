@@ -35,7 +35,7 @@ TESTS = [
 
 
 @pytest.mark.parametrize('test', TESTS)
-def test_nonograms(test):
+def __test_nonograms(test):
     """ tests """
     clues = test['clues']
     ans = test['ans']
@@ -46,11 +46,12 @@ def test_random_nonograms():
     num_cols = 5
     num_rows = 5
     num_test = 10
-    for _ in range(num_test):
+    for idx in range(num_test):
         clues, ans = generate_nonogram(num_cols, num_rows)
+        print(f'\ntest no. = {idx}')
         print(f'clues = {clues}')
         print(f'ans = {ans}')
-        assert ans == Nonogram(clues).solve()
+        assert Nonogram(clues).solve() == ans
 
 
 def generate_nonogram(num_cols, num_rows):
