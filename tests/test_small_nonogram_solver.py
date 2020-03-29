@@ -34,6 +34,15 @@ TESTS = [
 ]
 
 
+def random_nonograms():
+    num_cols = 5
+    num_rows = 5
+    num_test = 10
+    for idx in range(num_test):
+        clues, ans = generate_nonogram(num_cols, num_rows)
+        yield clues, ans
+
+
 @pytest.mark.parametrize('test', TESTS)
 def __test_nonograms(test):
     """ tests """
@@ -42,16 +51,12 @@ def __test_nonograms(test):
     assert ans == Nonogram(clues).solve()
 
 
-def test_random_nonograms():
-    num_cols = 5
-    num_rows = 5
-    num_test = 10
-    for idx in range(num_test):
-        clues, ans = generate_nonogram(num_cols, num_rows)
-        print(f'\ntest no. = {idx}')
-        print(f'clues = {clues}')
-        print(f'ans = {ans}')
-        assert Nonogram(clues).solve() == ans
+@pytest.mark.parametrize('test', random_nonograms())
+def test_random_nonograms(test):
+    """ tests """
+    clues = test[0]
+    ans = test[1]
+    assert ans == Nonogram(clues).solve()
 
 
 def generate_nonogram(num_cols, num_rows):
@@ -97,6 +102,6 @@ def cols2rows(items, max_len):
 def bin2tuple(nonogram_ones, num_cols):
     fmt = '{0:0' + str(num_cols) + 'b}'
     nonogram = tuple(
-        tuple(int(cell) for cell in fmt.format(item)) for item in nonogram_ones
-    )
+        tuple(int(cell) for cell in fmt.format(item))
+        for item in nonogram_ones)
     return nonogram

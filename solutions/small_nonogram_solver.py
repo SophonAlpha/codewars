@@ -222,7 +222,7 @@ def bin2tuple(nonogram_ones, num_cols):
 
 
 def progress(prev_ones, nonogram_ones, prev_zeros, nonogram_zeros):
-    return prev_ones != nonogram_ones and prev_zeros != nonogram_zeros
+    return prev_ones != nonogram_ones or prev_zeros != nonogram_zeros
 
 
 def high_bit_order(n):
@@ -256,19 +256,12 @@ def high_bit_order(n):
 
 
 if __name__ == '__main__':
-    start_clues = (((0,), (1,), (5,), (2, 1), (2,)),
-                   ((1,), (2,), (3,), (1, 1), (3,)))
-    ans = ((0, 0, 1, 0, 0),
-           (0, 0, 1, 1, 0),
-           (0, 0, 1, 1, 1),
-           (0, 0, 1, 0, 1),
-           (0, 1, 1, 1, 0))
-    # start_clues = (((1,), (3,), (1,), (3, 1), (3, 1)),
-    #                ((3,), (2,), (2, 2), (1,), (1, 2)))
-    # ans = ((0, 0, 1, 1, 1),
-    #        (0, 0, 0, 1, 1),
-    #        (1, 1, 0, 1, 1),
-    #        (0, 1, 0, 0, 0),
-    #        (0, 1, 0, 1, 1))
+    start_clues = (((1,), (1, 1), (2,), (1, 2), (1, 1)),
+                   ((1,), (1, 1), (1,), (4,), (2,)))
+    ans = ((0, 0, 0, 0, 1),
+           (0, 1, 0, 1, 0),
+           (0, 0, 0, 0, 1),
+           (1, 1, 1, 1, 0),
+           (0, 0, 1, 1, 0))
     sol = Nonogram(start_clues).solve()
     print(sol)
