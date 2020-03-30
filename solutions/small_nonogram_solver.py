@@ -157,6 +157,7 @@ def combinations(clue, mask, max_len):
     max_r_shift = max_len - (sum(clue) + len(clue) - 1)
     clue_shftd = init_shift(clue, max_len)
     for combination in combinator(clue_shftd, 0, 0, max_r_shift):
+        print(combination)
         combination = or_merge(combination)
         if (combination & mask == combination) and (positions is None):
             # store very first value
@@ -175,8 +176,10 @@ def combinator(clue, idx, start_r_shift, max_r_shift):
         clue_shftd[idx] = clue[idx] >> r_shift
         if idx < (len(clue) - 1):
             yield from combinator(clue_shftd, idx + 1, r_shift, max_r_shift)
+            print()
         else:
             yield clue_shftd
+            print()
 
 
 def init_shift(squares, max_len):
