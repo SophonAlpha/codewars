@@ -29,19 +29,28 @@ class Nonogram:
         while not self.is_solved():
             prev_ones = self.nonogram_ones[:]
             prev_zeros = self.nonogram_zeros[:]
-            # set positions in columns
+            # set common positions in columns
             col_pos_masks = self.get_col_masks()
             cols = common_positions(self.col_clues, col_pos_masks)
             cols = rows2cols(cols, len(cols))
             self.set_ones(cols)
             self.set_zeros()
             self.update_nonogram_mask()
-            # set positions in rows
+            # set common positions in rows
             row_pos_masks = self.get_row_masks()
             rows = common_positions(self.row_clues, row_pos_masks)
             self.set_ones(rows)
             self.set_zeros()
             self.update_nonogram_mask()
+            # set fixed positions in columns
+            cols = find_fixed_positions(self.col_clues, col_pos_masks,
+                                        cols2rows(self.nonogram_ones, self.num_rows))
+            cols = rows2cols(cols, len(cols))
+            self.set_ones(cols)
+            self.set_zeros()
+            self.update_nonogram_mask()
+            # set fixed positions in rows
+
             # check if reach a state of no progress
             if not self.is_solved() and \
                     not progress(prev_ones, self.nonogram_ones,
@@ -153,21 +162,46 @@ def common_positions(clues, pos_masks):
 
 
 def combinations(clue, mask, max_len):
-    positions = None
+    cmn_positions = None
     max_r_shift = max_len - (sum(clue) + len(clue) - 1)
     clue_shftd = init_shift(clue, max_len)
     for combination in combinator(clue_shftd, 0, 0, max_r_shift):
-        print(combination)
         combination = or_merge(combination)
-        if (combination & mask == combination) and (positions is None):
+        if (combination & mask == combination) and (cmn_positions is None):
             # store very first value
-            positions = combination
-        elif (combination & mask == combination) and positions:
+            cmn_positions = combination
+        elif (combination & mask == combination) and cmn_positions:
             # bitwise 'and' with any subsequent value
-            positions = and_merge([positions, combination])
-        if positions == 0:
+            cmn_positions = and_merge([cmn_positions, combination])
+        if cmn_positions == 0:
             break
-    return positions
+    return cmn_positions
+
+
+def find_fixed_positions(clues, pos_masks, nonogram_ones):
+    max_len = len(clues)
+    items = [0, ] * max_len
+    for idx, clue, mask in [(idx, clue, pos_masks[idx])
+                            for idx, clue in enumerate(clues)]:
+        if mask != 0 and nonogram_ones[idx] != 0:
+            items[idx] = fixed_positions(clue, mask, max_len, nonogram_ones[idx])
+    return items
+
+
+def fixed_positions(clue, mask, max_len, nonogram_ones_line):
+    option = None
+    max_r_shift = max_len - (sum(clue) + len(clue) - 1)
+    clue_shftd = init_shift(clue, max_len)
+    for combination in combinator(clue_shftd, 0, 0, max_r_shift):
+        combination = or_merge(combination)
+        if (combination & mask == combination) and \
+                (combination & nonogram_ones_line == nonogram_ones_line):
+            if not option:
+                option = combination
+            else:
+                option = 0
+                break
+    return option
 
 
 def combinator(clue, idx, start_r_shift, max_r_shift):
@@ -176,10 +210,8 @@ def combinator(clue, idx, start_r_shift, max_r_shift):
         clue_shftd[idx] = clue[idx] >> r_shift
         if idx < (len(clue) - 1):
             yield from combinator(clue_shftd, idx + 1, r_shift, max_r_shift)
-            print()
         else:
             yield clue_shftd
-            print()
 
 
 def init_shift(squares, max_len):
