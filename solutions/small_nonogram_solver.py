@@ -50,14 +50,19 @@ class Nonogram:
             self.set_zeros()
             self.update_nonogram_mask()
             # set fixed positions in rows
-
+            rows = find_fixed_positions(self.row_clues, row_pos_masks,
+                                        self.nonogram_ones)
+            self.set_ones(rows)
+            self.set_zeros()
+            self.update_nonogram_mask()
             # check if reach a state of no progress
             if not self.is_solved() and \
                     not progress(prev_ones, self.nonogram_ones,
                                  prev_zeros, self.nonogram_zeros):
-                self.set_one_position()
-                self.set_zeros()
-                self.update_nonogram_mask()
+                print('no progress! Now what?')
+                # self.set_one_position()
+                # self.set_zeros()
+                # self.update_nonogram_mask()
         return bin2tuple(self.nonogram_ones, self.num_cols)
 
     def is_solved(self):
