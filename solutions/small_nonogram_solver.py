@@ -10,6 +10,14 @@ try nonograms here: https://www.puzzle-nonograms.com/
 import functools
 import solutions.small_nonogram_solver_show as nshow
 from math import log
+import operator
+
+
+class NonogramCheckError(Exception):
+    """
+    Custom error class: thrown when the '1s' set in the nonogram don't macth the
+    row clues or column clues.
+    """
 
 
 class Nonogram:
@@ -18,10 +26,13 @@ class Nonogram:
         self.col_clues, self.row_clues = reorder(clues[0]), clues[1]
         self.nonogram_ones = [0, ] * len(self.row_clues)
         self.nonogram_zeros = [0, ] * len(self.row_clues)
+        self.nonogram_ones_save = None
+        self.nonogram_zeros_save = None
+        self.rows_save = None
         self.num_cols = len(self.col_clues)
         self.num_rows = len(self.row_clues)
-        self.col_bit_mask = 2 ** self.num_cols - 1
-        self.row_bit_mask = 2 ** self.num_rows - 1
+        self.col_bit_mask = 2 ** self.num_cols - 1  # TODO: do we need this?
+        self.row_bit_mask = 2 ** self.num_rows - 1  # TODO: do we need this?
         self.nonogram_col_masks = [self.col_bit_mask, ] * self.num_cols
         self.nonogram_row_masks = [self.row_bit_mask, ] * self.num_rows
 
@@ -30,27 +41,28 @@ class Nonogram:
             prev_ones = self.nonogram_ones[:]
             prev_zeros = self.nonogram_zeros[:]
             # set common positions in columns
-            col_pos_masks = self.get_col_masks()
-            cols = common_positions(self.col_clues, col_pos_masks)
+            #     col_pos_masks = self.get_col_masks()
+            cols = common_positions(self.col_clues, self.nonogram_col_masks)
             cols = rows2cols(cols, len(cols))
             self.set_ones(cols)
             self.set_zeros()
             self.update_nonogram_mask()
             # set common positions in rows
-            row_pos_masks = self.get_row_masks()
-            rows = common_positions(self.row_clues, row_pos_masks)
+            #          row_pos_masks = self.get_row_masks()
+            rows = common_positions(self.row_clues, self.nonogram_row_masks)
             self.set_ones(rows)
             self.set_zeros()
             self.update_nonogram_mask()
             # set fixed positions in columns
-            cols = find_fixed_positions(self.col_clues, col_pos_masks,
-                                        cols2rows(self.nonogram_ones, self.num_rows))
-            cols = rows2cols(cols, len(cols))
-            self.set_ones(cols)
+            cols = find_fixed_positions(self.col_clues, self.nonogram_col_masks,
+                                        cols2rows(self.nonogram_ones,
+                                                  self.num_rows))
+            rows = rows2cols(cols, len(cols))
+            self.set_ones(rows)
             self.set_zeros()
             self.update_nonogram_mask()
             # set fixed positions in rows
-            rows = find_fixed_positions(self.row_clues, row_pos_masks,
+            rows = find_fixed_positions(self.row_clues, self.nonogram_row_masks,
                                         self.nonogram_ones)
             self.set_ones(rows)
             self.set_zeros()
@@ -59,10 +71,18 @@ class Nonogram:
             if not self.is_solved() and \
                     not progress(prev_ones, self.nonogram_ones,
                                  prev_zeros, self.nonogram_zeros):
-                print('no progress! Now what?')
-                # self.set_one_position()
-                # self.set_zeros()
-                # self.update_nonogram_mask()
+                rows = self.set_one_position()
+                self.save(rows)
+                self.set_ones(rows)
+                self.set_zeros()
+                self.update_nonogram_mask()
+            # check that the nonogram is consistent ('1s' match the clues)
+            try:
+                self.check()
+            except NonogramCheckError:
+                self.restore()
+                self.set_failed_to_zero()
+                self.update_nonogram_mask()
         return bin2tuple(self.nonogram_ones, self.num_cols)
 
     def is_solved(self):
@@ -89,13 +109,30 @@ class Nonogram:
         ]
 
     def set_one_position(self):
-        # Find a row with a non-zero mask value. A mask value of zero for a row
-        # means the row has been solved already. Any mask value > 0 indicates
-        # a row with unsolved positions.
-        idx = self.nonogram_row_masks.index(max(self.nonogram_row_masks))
-        possible_bits = (self.nonogram_ones[idx] ^ self.nonogram_row_masks[idx])
-        bit_to_set = 2**high_bit_order(possible_bits)
-        self.nonogram_ones[idx] = self.nonogram_ones[idx] | bit_to_set
+        rows = [0] * self.num_rows
+        row_open_positions = [ones | self.nonogram_zeros[idx]
+                              for idx, ones in enumerate(self.nonogram_ones)]
+        col_open_positions = cols2rows(row_open_positions, self.num_cols)
+        row_counts = [(idx, f'{item:0{self.num_cols}b}'.count('0'))
+                      for idx, item in enumerate(row_open_positions)
+                      if self.nonogram_row_masks[idx] != 0]
+        col_counts = [(idx, f'{item:0{self.num_cols}b}'.count('0'))
+                      for idx, item in enumerate(col_open_positions)
+                      if self.nonogram_col_masks[idx] != 0]
+        row_index, row_num_zeros = min(row_counts,
+                                       key=operator.itemgetter(1))
+        col_index, col_num_zeros = min(col_counts,
+                                       key=operator.itemgetter(1))
+        if row_num_zeros <= col_num_zeros:
+            bit_pos = get_first_zero_bit(self.nonogram_ones[row_index],
+                                         self.num_cols)
+            rows[row_index] = 1 << bit_pos
+        else:
+            bit_pos = get_first_zero_bit(cols2rows(self.nonogram_ones,
+                                                   self.num_cols)[col_index],
+                                         self.num_cols)
+            rows[bit_pos] = 1 << (self.num_cols - 1 - col_index)
+        return rows
 
     def get_col_masks(self):
         return self.nonogram_col_masks[:]
@@ -128,6 +165,50 @@ class Nonogram:
         reordered_col_clues = reorder(self.col_clues)
         nshow.show(self.nonogram_ones, self.nonogram_zeros,
                    reordered_col_clues, self.row_clues)
+
+    def save(self, rows):
+        if self.nonogram_ones_save is None and self.nonogram_zeros_save is None:
+            self.nonogram_ones_save = self.nonogram_ones[:]
+            self.nonogram_zeros_save = self.nonogram_zeros[:]
+            self.rows_save = rows[:]
+
+    def restore(self):
+        self.nonogram_ones = self.nonogram_ones_save[:]
+        self.nonogram_zeros = self.nonogram_zeros_save[:]
+        self.nonogram_ones_save = None
+        self.nonogram_zeros_save = None
+        self.update_nonogram_mask()
+
+    def set_failed_to_zero(self):
+        idx, value = max(enumerate(self.rows_save), key=operator.itemgetter(1))
+        self.nonogram_zeros[idx] = self.nonogram_zeros[idx] | value
+
+    def check(self):
+        # check row '1s' match row clues
+        length = self.num_cols
+        row_clues = tuple((tuple(clue.count('1')
+                                 for clue in f'{row:0{length}b}'.split('0')
+                                 if clue)
+                           for row in self.nonogram_ones))
+        rows_ok = [False if self.nonogram_row_masks[idx] == 0 and
+                            item != self.row_clues[idx] else True
+                   for idx, item in enumerate(row_clues)]
+        if not all(rows_ok):
+            raise NonogramCheckError('Set "1s" in the nonogram rows '
+                                     'don\'t match the row clues.')
+        # check if column '1s' match column clues
+        length = self.num_rows
+        col_clues = tuple((tuple(clue.count('1')
+                                 for clue in f'{col:0{length}b}'.split('0')
+                                 if clue)
+                           for col in cols2rows(self.nonogram_ones,
+                                                self.num_cols)))
+        cols_ok = [False if self.nonogram_col_masks[idx] == 0 and
+                            item != self.col_clues[idx] else True
+                   for idx, item in enumerate(col_clues)]
+        if not all(cols_ok):
+            raise NonogramCheckError('Set "1s" in the nonogram columns '
+                                     'don\'t match the column clues.')
 
 
 def reorder(items):
@@ -189,12 +270,13 @@ def find_fixed_positions(clues, pos_masks, nonogram_ones):
     for idx, clue, mask in [(idx, clue, pos_masks[idx])
                             for idx, clue in enumerate(clues)]:
         if mask != 0 and nonogram_ones[idx] != 0:
-            items[idx] = fixed_positions(clue, mask, max_len, nonogram_ones[idx])
+            items[idx] = fixed_positions(clue, mask, max_len,
+                                         nonogram_ones[idx])
     return items
 
 
 def fixed_positions(clue, mask, max_len, nonogram_ones_line):
-    option = None
+    option = 0
     max_r_shift = max_len - (sum(clue) + len(clue) - 1)
     clue_shftd = init_shift(clue, max_len)
     for combination in combinator(clue_shftd, 0, 0, max_r_shift):
@@ -263,6 +345,16 @@ def bin2tuple(nonogram_ones, num_cols):
 
 def progress(prev_ones, nonogram_ones, prev_zeros, nonogram_zeros):
     return prev_ones != nonogram_ones or prev_zeros != nonogram_zeros
+
+
+def get_first_zero_bit(value, max_len):
+    bit_pos = None
+    for pos in range(max_len):
+        mask = 1 << pos
+        if value & mask == 0:
+            bit_pos = pos
+            break
+    return bit_pos
 
 
 def high_bit_order(n):
