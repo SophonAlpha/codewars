@@ -9,8 +9,8 @@ try nonograms here: https://www.puzzle-nonograms.com/
 
 import functools
 import solutions.small_nonogram_solver_show as nshow
-from math import log
 import operator
+import re
 
 
 class NonogramCheckError(Exception):
@@ -41,14 +41,12 @@ class Nonogram:
             prev_ones = self.nonogram_ones[:]
             prev_zeros = self.nonogram_zeros[:]
             # set common positions in columns
-            #     col_pos_masks = self.get_col_masks()
             cols = common_positions(self.col_clues, self.nonogram_col_masks)
             cols = rows2cols(cols, len(cols))
             self.set_ones(cols)
             self.set_zeros()
             self.update_nonogram_mask()
             # set common positions in rows
-            #          row_pos_masks = self.get_row_masks()
             rows = common_positions(self.row_clues, self.nonogram_row_masks)
             self.set_ones(rows)
             self.set_zeros()
@@ -145,21 +143,21 @@ class Nonogram:
                               for idx, item in enumerate(items)]
 
     def set_zeros(self):
-        # TODO: Refactor code to reduce nesting depth.
-        for col, col_clues in enumerate(self.col_clues):
-            bit_pos = self.num_cols - col - 1
-            mask = 1 << bit_pos
-            nono_col_sum = sum([(item & mask) >> bit_pos
-                                for item in self.nonogram_ones])
-            if nono_col_sum == sum(col_clues):
-                for idx, row in enumerate(self.nonogram_ones):
-                    if row & mask != mask:
-                        self.nonogram_zeros[idx] |= mask
-        for row, row_clues in enumerate(self.row_clues):
-            nono_row_sum = bin(self.nonogram_ones[row])[2:].count('1')
-            if nono_row_sum == sum(row_clues):
-                self.nonogram_zeros[row] = self.nonogram_ones[row] ^ (
-                        2 ** self.num_cols - 1)
+        # set zeros in columns
+        ones = cols2rows(self.nonogram_ones, self.num_cols)
+        width = self.num_rows
+        new_col_zeros = set_new_zeros(ones, width, self.col_clues)
+        new_col_zeros = rows2cols(new_col_zeros, self.num_rows)
+        # set zeros in rows
+        new_row_zeros = set_new_zeros(self.nonogram_ones, self.num_cols,
+                                      self.row_clues)
+        # combine new columns and rows zeros
+        new_zeros = [row | new_col_zeros[idx]
+                     for idx, row in enumerate(new_row_zeros)]
+        # set zeros in nonogram
+        self.nonogram_zeros = [row | new_zeros[idx]
+                               for idx, row in enumerate(self.nonogram_zeros)]
+
 
     def show(self):
         reordered_col_clues = reorder(self.col_clues)
@@ -335,6 +333,39 @@ def rows2cols(items, max_len):
     return new_cols
 
 
+def set_new_zeros(ones, width, clues):
+    """
+    Set the zeros for a nonogram array. The algorithm looks for teh segments of
+    '1s' and compares against the given clues. Where the number of '1s' matches
+    the clue set the positions left and right to the '1s' to '0'.
+    """
+    lines = [0] * len(ones)
+    for idx, line in enumerate(ones):
+        # Check if reminder of line can be set to zero.
+
+        # TODO: to be completed
+
+        # Check if positions next to '1s' can be set to '0'.
+        segments_counts = tuple(item.count('1')
+                                for item in f'{line:05b}'.split('0') if item)
+        line_clues = clues[idx]
+        if len(segments_counts) == len(line_clues):
+            segments_start_end = [(m.start(), m.end())
+                                  for m in re.finditer('1+', f'{line:05b}')]
+            bits_to_set = 0
+            for count_idx, count in enumerate(segments_counts):
+                if count == line_clues[count_idx]:
+                    start, end = segments_start_end[count_idx]
+                    if start > 0:
+                        bits_to_set = bits_to_set | 1 << (width - 1) - \
+                                      (start - 1)
+                    if end <= (width - 1):
+                        bits_to_set = bits_to_set | 1 << (width - 1) - \
+                                      end
+            lines[idx] = bits_to_set
+
+    return lines
+
 def bin2tuple(nonogram_ones, num_cols):
     fmt = '{0:0' + str(num_cols) + 'b}'
     nonogram = tuple(
@@ -355,36 +386,6 @@ def get_first_zero_bit(value, max_len):
             bit_pos = pos
             break
     return bit_pos
-
-
-def high_bit_order(n):
-    """
-    Source: https://www.daniweb.com/programming/software-development/code/406590/lowest-highest-bit-set-in-integer
-
-    Return the integer k >= 0 such that 2**k <= n < 2**(k+1).
-    This is also the order of the last bit set in the bitwise representation of n.
-    Raise value error if n <= 0
-        * for n == 0, no bit is set.
-        * for n < 0, an infinite number of bits are set.
-    For example
-        high_bit_order(2368) --> 11
-        n = 2368  bits: 000000101001000000000000000...
-        n = -2368 bits: 000000110110111111111111111...
-        n = 2**11 bits: 000000000001000000000000000...
-    This function checks its return value and raise ValueError if an error
-    is detected.
-    """
-    k = int(log(n, 2))
-    if k:
-        x = n >> (k-1)
-        if x == 1: # correct log() imprecision for very large integers
-            return k - 1
-        elif 2 <= x < 4:
-            return k
-        else: # very unlikely, but handled
-            raise ValueError("high_bit_order() failed on unusual value.")
-    else:
-        return k
 
 
 if __name__ == '__main__':
