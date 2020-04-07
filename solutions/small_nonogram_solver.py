@@ -26,8 +26,7 @@ class Nonogram:
         self.col_clues, self.row_clues = reorder(clues[0]), clues[1]
         self.nonogram_ones = [0, ] * len(self.row_clues)
         self.nonogram_zeros = [0, ] * len(self.row_clues)
-        self.nonogram_ones_save = None
-        self.nonogram_zeros_save = None
+        self.store = []
         self.rows_save = None
         self.num_cols = len(self.col_clues)
         self.num_rows = len(self.row_clues)
@@ -45,6 +44,8 @@ class Nonogram:
                                          self.nonogram_col_masks)
             cols = rows2cols(cols, len(cols))
             self.set_ones(cols)
+            # TODO: Check why set_zero() doesn't set the 0 in line 3, column 2
+            #       once '11' is set in line 4 positions 3 & 4.
             self.set_zeros()
             self.update_nonogram_mask()
             # set common positions in rows
@@ -80,8 +81,8 @@ class Nonogram:
             try:
                 self.check()
             except NonogramCheckError:
-                self.restore()
-                self.set_failed_to_zero()
+                rows = self.restore()
+                self.set_failed_to_zero(rows)
                 self.update_nonogram_mask()
         return bin2tuple(self.nonogram_ones, self.num_cols)
 
@@ -124,12 +125,11 @@ class Nonogram:
         col_index, col_num_zeros = min(col_counts,
                                        key=operator.itemgetter(1))
         if row_num_zeros <= col_num_zeros:
-            bit_pos = get_first_zero_bit(self.nonogram_ones[row_index],
+            bit_pos = get_first_zero_bit(row_open_positions[row_index],
                                          self.num_cols)
             rows[row_index] = 1 << bit_pos
         else:
-            bit_pos = get_first_zero_bit(cols2rows(self.nonogram_ones,
-                                                   self.num_cols)[col_index],
+            bit_pos = get_first_zero_bit(col_open_positions[col_index],
                                          self.num_cols)
             rows[bit_pos] = 1 << (self.num_cols - 1 - col_index)
         return rows
@@ -166,22 +166,17 @@ class Nonogram:
                    reordered_col_clues, self.row_clues)
 
     def save(self, rows):
-        # TODO: implement a stack to save nonograms
-        if self.nonogram_ones_save is None and self.nonogram_zeros_save is None:
-            self.nonogram_ones_save = self.nonogram_ones[:]
-            self.nonogram_zeros_save = self.nonogram_zeros[:]
-            self.rows_save = rows[:]
+        self.store.append((self.nonogram_ones[:],
+                           self.nonogram_zeros[:],
+                           rows[:]))
 
     def restore(self):
-        # TODO: take from stack
-        self.nonogram_ones = self.nonogram_ones_save[:]
-        self.nonogram_zeros = self.nonogram_zeros_save[:]
-        self.nonogram_ones_save = None
-        self.nonogram_zeros_save = None
+        self.nonogram_ones, self.nonogram_zeros, rows = self.store.pop()
         self.update_nonogram_mask()
+        return rows
 
-    def set_failed_to_zero(self):
-        idx, value = max(enumerate(self.rows_save), key=operator.itemgetter(1))
+    def set_failed_to_zero(self, rows):
+        idx, value = max(enumerate(rows), key=operator.itemgetter(1))
         self.nonogram_zeros[idx] = self.nonogram_zeros[idx] | value
 
     def check(self):

@@ -38,6 +38,13 @@ TESTS = [
              (0, 0, 0, 0, 1),
              (1, 1, 1, 1, 0),
              (0, 0, 1, 1, 0))},
+    {'clues': (((1,), (1,), (1,), (4,), (2,)),
+               ((1,), (1, 1), (1,), (1, 2), (1, 1))),
+     'ans': ((0, 0, 0, 1, 0),
+             (1, 0, 0, 1, 0),
+             (0, 0, 0, 1, 0),
+             (0, 1, 0, 1, 1),
+             (0, 0, 1, 0, 1))},
 ]
 
 
@@ -50,20 +57,20 @@ def random_nonograms():
         yield clues, ans
 
 
-# @pytest.mark.parametrize('test', TESTS)
-# def test_nonograms(test):
-#     """ tests """
-#     clues = test['clues']
-#     ans = test['ans']
-#     assert ans == Nonogram(clues).solve()
-
-
-@pytest.mark.parametrize('test', random_nonograms())
-def test_random_nonograms(test):
+@pytest.mark.parametrize('test', TESTS)
+def test_nonograms(test):
     """ tests """
-    clues = test[0]
-    ans = test[1]
+    clues = test['clues']
+    ans = test['ans']
     assert ans == Nonogram(clues).solve()
+
+
+# @pytest.mark.parametrize('test', random_nonograms())
+# def test_random_nonograms(test):
+#     """ tests """
+#     clues = test[0]
+#     ans = test[1]
+#     assert ans == Nonogram(clues).solve()
 
 
 def generate_nonogram(num_cols, num_rows):
