@@ -244,6 +244,10 @@ def find_common_positions(clues, pos_masks):
 
 
 def combinations(clue, mask, max_len):
+    # TODO: for performance optimisation add a test for checking that the mask
+    #       length is bigger than minimum length of the bit combination based
+    #       on the clue. For example: mask with only two bits '11' but clue is
+    #       (1, 1) which requires minimum 3 bits '101'.
     cmn_positions = None
     max_r_shift = max_len - (sum(clue) + len(clue) - 1)
     clue_shftd = init_shift(clue, max_len)
@@ -252,11 +256,12 @@ def combinations(clue, mask, max_len):
         if (combination & mask == combination) and (cmn_positions is None):
             # store very first value
             cmn_positions = combination
-        elif (combination & mask == combination) and cmn_positions:
+        if (combination & mask == combination) and cmn_positions:
             # bitwise 'and' with any subsequent value
             cmn_positions = and_merge([cmn_positions, combination])
         if cmn_positions == 0:
             break
+    cmn_positions = 0 if cmn_positions is None else cmn_positions
     return cmn_positions
 
 
@@ -399,5 +404,13 @@ if __name__ == '__main__':
            (0, 0, 0, 1, 0),
            (0, 1, 0, 1, 1),
            (0, 0, 1, 0, 1))
+
+    start_clues = (((1,), (1, 1), (2,), (1, 2), (1, 1)),
+                   ((1,), (1, 1), (1,), (4,), (2,)))
+    ans = ((0, 0, 0, 0, 1),
+           (0, 1, 0, 1, 0),
+           (0, 0, 0, 0, 1),
+           (1, 1, 1, 1, 0),
+           (0, 0, 1, 1, 0))
     sol = Nonogram(start_clues).solve()
     print(sol)

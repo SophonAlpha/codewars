@@ -60,9 +60,13 @@ def random_nonograms():
 @pytest.mark.parametrize('test', TESTS)
 def test_nonograms(test):
     """ tests """
-    clues = test['clues']
-    ans = test['ans']
-    assert ans == Nonogram(clues).solve()
+    clues_test = test['clues']
+    num_cols = test['ans'][0]
+    nonogram_ones = tuple2bin(Nonogram(clues_test).solve())
+    row_clues, col_clues = get_clues(nonogram_ones, num_cols)
+    col_clues = tuple(clue[::-1] for clue in col_clues)
+    clues_ans = (col_clues, row_clues)
+    assert clues_ans == clues_test
 
 
 # @pytest.mark.parametrize('test', random_nonograms())
@@ -119,3 +123,8 @@ def bin2tuple(nonogram_ones, num_cols):
         tuple(int(cell) for cell in fmt.format(item))
         for item in nonogram_ones)
     return nonogram
+
+
+def tuple2bin(nonogram):
+    nonogram_ones = [''.join([str(item) for item in [row for row in nonogram]])]
+    return nonogram_ones
