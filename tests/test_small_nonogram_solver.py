@@ -61,7 +61,7 @@ def random_nonograms():
 def test_nonograms(test):
     """ tests """
     clues_test = test['clues']
-    num_cols = test['ans'][0]
+    num_cols = len(test['ans'][0])
     nonogram_ones = tuple2bin(Nonogram(clues_test).solve())
     row_clues, col_clues = get_clues(nonogram_ones, num_cols)
     col_clues = tuple(clue[::-1] for clue in col_clues)
@@ -126,5 +126,6 @@ def bin2tuple(nonogram_ones, num_cols):
 
 
 def tuple2bin(nonogram):
-    nonogram_ones = [''.join([str(item) for item in [row for row in nonogram]])]
+    nonogram_ones = [int(''.join([str(item) for item in row]), 2)
+                     for row in nonogram]
     return nonogram_ones
