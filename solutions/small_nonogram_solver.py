@@ -30,8 +30,8 @@ class Nonogram:
         self.rows_save = None
         self.num_cols = len(self.col_clues)
         self.num_rows = len(self.row_clues)
-        self.col_bit_mask = 2 ** self.num_cols - 1  # TODO: do we need this?
-        self.row_bit_mask = 2 ** self.num_rows - 1  # TODO: do we need this?
+        self.col_bit_mask = 2 ** self.num_cols - 1
+        self.row_bit_mask = 2 ** self.num_rows - 1
         self.nonogram_col_masks = [self.col_bit_mask, ] * self.num_cols
         self.nonogram_row_masks = [self.row_bit_mask, ] * self.num_rows
 
@@ -145,6 +145,8 @@ class Nonogram:
                               for idx, item in enumerate(items)]
 
     def set_zeros(self):
+        # TODO: performance optimization. Skip rows and columns that are
+        #       already complete.
         # set zeros in columns
         ones = cols2rows(self.nonogram_ones, self.num_cols)
         width = self.num_rows
@@ -349,6 +351,7 @@ def set_new_zeros(ones, width, clues):
         clue_counts = sum(segments_counts)
         # Check if reminder of line can be set to zero.
         if clue_counts == sum(clues[idx]):
+            # All clues found! Mark all remaining positions as zeros.
             new_zeros[idx] = (2**width - 1) ^ line
         else:
             # Check if positions next to '1s' can be set to '0'.
@@ -404,13 +407,12 @@ if __name__ == '__main__':
            (0, 0, 0, 1, 0),
            (0, 1, 0, 1, 1),
            (0, 0, 1, 0, 1))
-
-    start_clues = (((1,), (1, 1), (2,), (1, 2), (1, 1)),
-                   ((1,), (1, 1), (1,), (4,), (2,)))
-    ans = ((0, 0, 0, 0, 1),
-           (0, 1, 0, 1, 0),
-           (0, 0, 0, 0, 1),
-           (1, 1, 1, 1, 0),
-           (0, 0, 1, 1, 0))
+    # start_clues = (((1,), (1, 1), (2,), (1, 2), (1, 1)),
+    #                ((1,), (1, 1), (1,), (4,), (2,)))
+    # ans = ((0, 0, 0, 0, 1),
+    #        (0, 1, 0, 1, 0),
+    #        (0, 0, 0, 0, 1),
+    #        (1, 1, 1, 1, 0),
+    #        (0, 0, 1, 1, 0))
     sol = Nonogram(start_clues).solve()
     print(sol)
