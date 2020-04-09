@@ -147,6 +147,9 @@ class Nonogram:
     def set_zeros(self):
         # TODO: performance optimization. Skip rows and columns that are
         #       already complete.
+        # TODO: performance optimization. Test if the correct number of clues
+        #       is set at the beginning and end of the line. If yes, set the
+        #       surrounding zeros.
         # set zeros in columns
         ones = cols2rows(self.nonogram_ones, self.num_cols)
         width = self.num_rows
@@ -182,12 +185,14 @@ class Nonogram:
         self.nonogram_zeros[idx] = self.nonogram_zeros[idx] | value
 
     def check(self):
+        # TODO: refactor to reduce duplication of code for rows and columns
         # check row '1s' match row clues
         length = self.num_cols
         row_clues = tuple((tuple(clue.count('1')
                                  for clue in f'{row:0{length}b}'.split('0')
                                  if clue)
                            for row in self.nonogram_ones))
+        row_clues = tuple(clue if clue else (0,) for clue in row_clues)
         rows_ok = [False if self.nonogram_row_masks[idx] == 0 and
                             item != self.row_clues[idx] else True
                    for idx, item in enumerate(row_clues)]
@@ -201,6 +206,7 @@ class Nonogram:
                                  if clue)
                            for col in cols2rows(self.nonogram_ones,
                                                 self.num_cols)))
+        col_clues = tuple(clue if clue else (0,) for clue in col_clues)
         cols_ok = [False if self.nonogram_col_masks[idx] == 0 and
                             item != self.col_clues[idx] else True
                    for idx, item in enumerate(col_clues)]
@@ -400,19 +406,16 @@ def get_first_zero_bit(value, max_len):
 
 
 if __name__ == '__main__':
-    start_clues = (((1,), (1,), (1,), (4,), (2,)),
-                   ((1,), (1, 1), (1,), (1, 2), (1, 1)))
-    ans = ((0, 0, 0, 1, 0),
-           (1, 0, 0, 1, 0),
-           (0, 0, 0, 1, 0),
-           (0, 1, 0, 1, 1),
-           (0, 0, 1, 0, 1))
-    # start_clues = (((1,), (1, 1), (2,), (1, 2), (1, 1)),
-    #                ((1,), (1, 1), (1,), (4,), (2,)))
-    # ans = ((0, 0, 0, 0, 1),
-    #        (0, 1, 0, 1, 0),
-    #        (0, 0, 0, 0, 1),
-    #        (1, 1, 1, 1, 0),
-    #        (0, 0, 1, 1, 0))
+    start_clues = (
+        ((3, 1), (2, 1), (3, 1), (1, 1, 2), (2, 1), (1, 1), (1, 1, 1)),
+        ((2, 1, 1), (3,), (1, 1, 1), (3,), (1, 2), (1, 3), (1, 2))
+    )
+    ans = ((1, 1, 0, 1, 0, 0, 1),
+           (1, 1, 1, 0, 0, 0, 0),
+           (1, 0, 1, 0, 1, 0, 0),
+           (0, 0, 1, 1, 1, 0, 0),
+           (0, 1, 0, 0, 0, 1, 1),
+           (1, 0, 1, 1, 1, 0, 0),
+           (0, 0, 0, 1, 0, 1, 1))
     sol = Nonogram(start_clues).solve()
     print(sol)

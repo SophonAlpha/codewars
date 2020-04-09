@@ -45,33 +45,41 @@ TESTS = [
              (0, 0, 0, 1, 0),
              (0, 1, 0, 1, 1),
              (0, 0, 1, 0, 1))},
+    {'clues': (((1, 1), (1, 1), (1, 1), (2, 1), (2, 1)),
+               ((1, 3), (1, 2), (0,), (4,), (1,))),
+     'ans': ((1, 0, 1, 1, 1),
+             (0, 1, 0, 1, 1),
+             (0, 0, 0, 0, 0),
+             (1, 1, 1, 1, 0),
+             (0, 0, 0, 0, 1))},
 ]
 
 
 def random_nonograms():
-    num_cols = 5
-    num_rows = 5
-    num_test = 10
+    num_cols = 7
+    num_rows = 7
+    num_test = 100
     for idx in range(num_test):
         clues, ans = generate_nonogram(num_cols, num_rows)
         yield clues, ans
 
 
-# @pytest.mark.parametrize('test', TESTS)
-# def test_nonograms(test):
-#     """ tests """
-#     clues_test = test['clues']
-#     num_cols = len(test['ans'][0])
-#     nonogram_ones = tuple2bin(Nonogram(clues_test).solve())
-#     row_clues, col_clues = get_clues(nonogram_ones, num_cols)
-#     col_clues = tuple(clue[::-1] for clue in col_clues)
-#     clues_ans = (col_clues, row_clues)
-#     assert clues_ans == clues_test
+@pytest.mark.parametrize('test', TESTS)
+def test_nonograms(test):
+    """ tests """
+    clues_test = test['clues']
+    num_cols = len(test['ans'][0])
+    nonogram_ones = tuple2bin(Nonogram(clues_test).solve())
+    row_clues, col_clues = get_clues(nonogram_ones, num_cols)
+    col_clues = tuple(clue[::-1] for clue in col_clues)
+    clues_ans = (col_clues, row_clues)
+    assert clues_ans == clues_test
 
 
 @pytest.mark.parametrize('test', random_nonograms())
 def test_random_nonograms(test):
     """ tests """
+    print(test)
     clues_test = test[0]
     num_cols = len(test[1])
     nonogram_ones = tuple2bin(Nonogram(clues_test).solve())
@@ -79,18 +87,6 @@ def test_random_nonograms(test):
     col_clues = tuple(clue[::-1] for clue in col_clues)
     clues_ans = (col_clues, row_clues)
     assert clues_ans == clues_test
-    # clues = test[0]
-    # ans = test[1]
-    # assert ans == Nonogram(clues).solve()
-
-test = ((((1,), (4,), (4,), (1,), (2, 2)), ((2, 1), (3, 1), (2,), (4,), (1,))),
-        ((0, 1, 1, 0, 1),
-         (1, 1, 1, 0, 1),
-         (0, 1, 1, 0, 0),
-         (0, 1, 1, 1, 1),
-         (0, 0, 0, 0, 1)))
-
-
 
 
 def generate_nonogram(num_cols, num_rows):
