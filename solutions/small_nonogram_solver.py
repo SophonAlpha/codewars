@@ -48,12 +48,14 @@ class Nonogram:
             #       once '11' is set in line 4 positions 3 & 4.
             self.set_zeros()
             self.update_nonogram_mask()
+            self.check()  # ----- DEBUG -----
             # set common positions in rows
             rows = find_common_positions(self.row_clues,
                                          self.nonogram_row_masks)
             self.set_ones(rows)
             self.set_zeros()
             self.update_nonogram_mask()
+            self.check()  # ----- DEBUG -----
             # set fixed positions in columns
             cols = find_fixed_positions(self.col_clues, self.nonogram_col_masks,
                                         cols2rows(self.nonogram_ones,
@@ -62,12 +64,14 @@ class Nonogram:
             self.set_ones(rows)
             self.set_zeros()
             self.update_nonogram_mask()
+            self.check()  # ----- DEBUG -----
             # set fixed positions in rows
             rows = find_fixed_positions(self.row_clues, self.nonogram_row_masks,
                                         self.nonogram_ones)
             self.set_ones(rows)
             self.set_zeros()
             self.update_nonogram_mask()
+            self.check()  # ----- DEBUG -----
             # check if reached a state of no progress
             if not self.is_solved() and \
                     not progress(prev_ones, self.nonogram_ones,
@@ -92,8 +96,8 @@ class Nonogram:
     def update_nonogram_mask(self):
         # combine ones & zeros with bitwise or with the invert of the mask
         ones_zeros = [
-            ~(self.nonogram_ones[idx] | self.nonogram_zeros[idx])
-            & self.col_bit_mask for idx, _ in enumerate(self.nonogram_ones)
+            self.nonogram_ones[idx] ^ self.nonogram_zeros[idx]
+            ^ self.col_bit_mask for idx, _ in enumerate(self.nonogram_ones)
         ]
         # row wise add all set positions ("1s")
         self.nonogram_row_masks = ones_zeros[:]
@@ -353,7 +357,8 @@ def set_new_zeros(ones, width, clues):
     new_zeros = [0] * len(ones)
     for idx, line in enumerate(ones):
         segments_counts = tuple(item.count('1')
-                                for item in f'{line:05b}'.split('0') if item)
+                                for item in f'{line:0{width}b}'.split('0')
+                                if item)
         clue_counts = sum(segments_counts)
         # Check if reminder of line can be set to zero.
         if clue_counts == sum(clues[idx]):
@@ -371,7 +376,7 @@ def find_neighbour_zeros(line, segments_counts, line_clues, width):
     bits_to_set = 0
     if len(segments_counts) == len(line_clues):
         segments_start_end = [(m.start(), m.end())
-                              for m in re.finditer('1+', f'{line:05b}')]
+                              for m in re.finditer('1+', f'{line:0{width}b}')]
         for count_idx, count in enumerate(segments_counts):
             if count == line_clues[count_idx]:
                 start, end = segments_start_end[count_idx]
@@ -407,15 +412,15 @@ def get_first_zero_bit(value, max_len):
 
 if __name__ == '__main__':
     start_clues = (
-        ((3, 1), (2, 1), (3, 1), (1, 1, 2), (2, 1), (1, 1), (1, 1, 1)),
-        ((2, 1, 1), (3,), (1, 1, 1), (3,), (1, 2), (1, 3), (1, 2))
+        ((2, 1), (1,), (1, 1, 1), (1, 1), (3,), (2, 2), (4, 1)),
+        ((1, 2, 1), (1, 2), (1, 1), (1, 1, 1), (1, 3), (3,), (1, 1))
     )
-    ans = ((1, 1, 0, 1, 0, 0, 1),
-           (1, 1, 1, 0, 0, 0, 0),
-           (1, 0, 1, 0, 1, 0, 0),
-           (0, 0, 1, 1, 1, 0, 0),
-           (0, 1, 0, 0, 0, 1, 1),
-           (1, 0, 1, 1, 1, 0, 0),
-           (0, 0, 0, 1, 0, 1, 1))
+    ans = ((1, 0, 1, 1, 0, 1, 0),
+           (1, 0, 0, 0, 0, 1, 1),
+           (0, 0, 1, 0, 0, 0, 1),
+           (1, 0, 0, 0, 1, 0, 1),
+           (0, 0, 1, 0, 1, 1, 1),
+           (0, 0, 0, 1, 1, 1, 0),
+           (0, 1, 0, 0, 0, 0, 1))
     sol = Nonogram(start_clues).solve()
     print(sol)

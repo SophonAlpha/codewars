@@ -4,7 +4,7 @@ Visualisation Module for nonogram solver.
 
 
 def show(nonogram_ones, nonogram_zeros, col_clues, row_clues):
-    nonogram = [['?', ] * len(col_clues) for _ in row_clues]
+    nonogram = [[' ', ] * len(col_clues) for _ in row_clues]
     nonogram = transform_bin2str(nonogram,
                                  nonogram_ones,
                                  nonogram_zeros)
