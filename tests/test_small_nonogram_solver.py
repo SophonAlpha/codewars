@@ -65,8 +65,8 @@ TESTS = [
 
 
 def random_nonograms():
-    num_cols = 7
-    num_rows = 7
+    num_cols = 6
+    num_rows = 6
     num_test = 100
     for idx in range(num_test):
         clues, ans = generate_nonogram(num_cols, num_rows)
@@ -88,7 +88,6 @@ def test_nonograms(test):
 @pytest.mark.parametrize('test', random_nonograms())
 def test_random_nonograms(test):
     """ tests """
-    print(test)
     clues_test = test[0]
     num_cols = len(test[1])
     nonogram_ones = tuple2bin(Nonogram(clues_test).solve())
