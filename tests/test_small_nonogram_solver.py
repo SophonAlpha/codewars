@@ -7,6 +7,7 @@ https://www.codewars.com/kata/5x5-nonogram-solver/
 
 import pytest
 from solutions.small_nonogram_solver import Nonogram
+# from solutions.medium_nonogram_solver import Nonogram
 import random
 
 TESTS = [
@@ -52,22 +53,22 @@ TESTS = [
              (0, 0, 0, 0, 0),
              (1, 1, 1, 1, 0),
              (0, 0, 0, 0, 1))},
-    {'clues': (((3, 1), (2, 1), (3, 1), (1, 1, 2), (2, 1), (1, 1), (1, 1, 1)),
-               ((2, 1, 1), (3,), (1, 1, 1), (3,), (1, 2), (1, 3), (1, 2))),
-     'ans': ((1, 1, 0, 1, 0, 0, 1),
-             (1, 1, 1, 0, 0, 0, 0),
-             (1, 0, 1, 0, 1, 0, 0),
-             (0, 0, 1, 1, 1, 0, 0),
-             (0, 1, 0, 0, 0, 1, 1),
-             (1, 0, 1, 1, 1, 0, 0),
-             (0, 0, 0, 1, 0, 1, 1))},
+    # {'clues': (((3, 1), (2, 1), (3, 1), (1, 1, 2), (2, 1), (1, 1), (1, 1, 1)),
+    #            ((2, 1, 1), (3,), (1, 1, 1), (3,), (1, 2), (1, 3), (1, 2))),
+    #  'ans': ((1, 1, 0, 1, 0, 0, 1),
+    #          (1, 1, 1, 0, 0, 0, 0),
+    #          (1, 0, 1, 0, 1, 0, 0),
+    #          (0, 0, 1, 1, 1, 0, 0),
+    #          (0, 1, 0, 0, 0, 1, 1),
+    #          (1, 0, 1, 1, 1, 0, 0),
+    #          (0, 0, 0, 1, 0, 1, 1))},
 ]
 
 
 def random_nonograms():
-    num_cols = 6
-    num_rows = 6
-    num_test = 100
+    num_cols = 5
+    num_rows = 5
+    num_test = 150
     for idx in range(num_test):
         clues, ans = generate_nonogram(num_cols, num_rows)
         yield clues, ans

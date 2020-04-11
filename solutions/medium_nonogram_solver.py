@@ -44,18 +44,14 @@ class Nonogram:
                                          self.nonogram_col_masks)
             cols = rows2cols(cols, len(cols))
             self.set_ones(cols)
-            # TODO: Check why set_zero() doesn't set the 0 in line 3, column 2
-            #       once '11' is set in line 4 positions 3 & 4.
             self.set_zeros()
             self.update_nonogram_mask()
-            self.check()  # ----- DEBUG -----
             # set common positions in rows
             rows = find_common_positions(self.row_clues,
                                          self.nonogram_row_masks)
             self.set_ones(rows)
             self.set_zeros()
             self.update_nonogram_mask()
-            self.check()  # ----- DEBUG -----
             # set fixed positions in columns
             cols = find_fixed_positions(self.col_clues, self.nonogram_col_masks,
                                         cols2rows(self.nonogram_ones,
@@ -64,14 +60,12 @@ class Nonogram:
             self.set_ones(rows)
             self.set_zeros()
             self.update_nonogram_mask()
-            self.check()  # ----- DEBUG -----
             # set fixed positions in rows
             rows = find_fixed_positions(self.row_clues, self.nonogram_row_masks,
                                         self.nonogram_ones)
             self.set_ones(rows)
             self.set_zeros()
             self.update_nonogram_mask()
-            self.check()  # ----- DEBUG -----
             # check if reached a state of no progress
             if not self.is_solved() and \
                     not progress(prev_ones, self.nonogram_ones,
