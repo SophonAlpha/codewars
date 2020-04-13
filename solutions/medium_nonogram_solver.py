@@ -249,6 +249,38 @@ def find_common_positions(clues, pos_masks):
     return items
 
 
+def find_common_positions_v2(clues, pos_masks):
+    max_len = len(clues)
+    items = [0, ] * max_len
+    for idx, clue, mask in [(idx, clue, pos_masks[idx])
+                            for idx, clue in enumerate(clues)]:
+        if mask != 0:
+            max_r_shift = max_len - (sum(clue) + len(clue) - 1)
+            start, stop = 0, 0
+            cmn_positions = 0
+            for elem in clue:
+                stop = stop + elem
+                if elem > max_r_shift:
+                    overlap = elem - max_r_shift
+                    shift = max_len - start - elem
+                    cmn_positions |= (get_bits(overlap) << shift)
+
+0000000000
+1111
+  1111
+        11 overlap = elem - max_r_shift
+  11       shift = max_len - start - elem = 6
+
+    return items
+
+
+def get_bits(num):
+    bits = 0
+    for pos in range(num):
+        bits = bits | 1 << pos
+    return bits
+
+
 def combinations(clue, mask, max_len):
     # TODO: for performance optimisation add a test for checking that the mask
     #       length is bigger than minimum length of the bit combination based
