@@ -6,9 +6,14 @@ https://www.codewars.com/kata/5x5-nonogram-solver/
 """
 
 import pytest
-from solutions.small_nonogram_solver import Nonogram
-# from solutions.medium_nonogram_solver import Nonogram
 import random
+import timeit
+import csv
+from solutions.medium_nonogram_solver import find_common_positions
+from solutions.medium_nonogram_solver import find_common_positions_v1
+# from solutions.small_nonogram_solver import Nonogram
+from solutions.medium_nonogram_solver import Nonogram
+
 
 TESTS = [
     {'clues': (((1, 1), (4,), (1, 1, 1), (3,), (1,)),
@@ -65,13 +70,56 @@ TESTS = [
 ]
 
 
+def wrapper(func, *args, **kwargs):
+    """
+    Wrapper function for performance testing individual functions.
+    """
+    def wrapped():
+        return func(*args, **kwargs)
+    return wrapped
+
+
 def random_nonograms():
-    num_cols = 5
-    num_rows = 5
-    num_test = 150
+    num_cols = 25
+    num_rows = 25
+    num_test = 100
     for idx in range(num_test):
         clues, ans = generate_nonogram(num_cols, num_rows)
         yield clues, ans
+
+
+with open('find_common_positions.csv', 'w', newline='') as csvfile:
+    writer = csv.DictWriter(csvfile, fieldnames=['row clues',
+                                                 'v1 run time',
+                                                 'v2 run time'])
+    writer.writeheader()
+
+
+@pytest.mark.parametrize('test', random_nonograms())
+def test_find_combinations(test):
+    """
+    Performance testing different algorithms for find_common_positions()
+    function.
+    """
+    start_clues = test[0]
+    col_clues, row_clues = start_clues[0], start_clues[1]
+    nono = Nonogram(start_clues)
+    wrapped = wrapper(find_common_positions,
+                      row_clues, nono.nonogram_row_masks,
+                      nono.num_cols)
+    run_timev2 = timeit.timeit(wrapped, number=10)
+    cmn_pos = find_common_positions(row_clues, nono.nonogram_row_masks,
+                                    nono.num_cols)
+    wrapped = wrapper(find_common_positions_v1,
+                      row_clues, nono.nonogram_row_masks,
+                      nono.num_cols)
+    run_timev1 = timeit.timeit(wrapped, number=10)
+    cmn_pos_v1 = find_common_positions_v1(row_clues, nono.nonogram_row_masks,
+                                          nono.num_cols)
+    with open('find_common_positions.csv', 'a', newline='') as csvfile:
+        writer = csv.writer(csvfile)
+        writer.writerow([row_clues, run_timev1, run_timev2])
+    assert cmn_pos == cmn_pos_v1
 
 
 @pytest.mark.parametrize('test', TESTS)

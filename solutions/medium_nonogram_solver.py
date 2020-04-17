@@ -13,6 +13,15 @@ import operator
 import re
 
 
+def wrapper(func, *args, **kwargs):
+    """
+    Wrapper function for performance testing individual functions.
+    """
+    def wrapped(*args, **kwargs):
+        return func(*args, **kwargs)
+    return wrapped
+
+
 class NonogramCheckError(Exception):
     """
     Custom error class: thrown when the '1s' set in the nonogram don't macth the
@@ -41,14 +50,16 @@ class Nonogram:
             prev_zeros = self.nonogram_zeros[:]
             # set common positions in columns
             cols = find_common_positions(self.col_clues,
-                                         self.nonogram_col_masks)
+                                         self.nonogram_col_masks,
+                                         self.num_rows)
             cols = rows2cols(cols, len(cols))
             self.set_ones(cols)
             self.set_zeros()
             self.update_nonogram_mask()
             # set common positions in rows
             rows = find_common_positions(self.row_clues,
-                                         self.nonogram_row_masks)
+                                         self.nonogram_row_masks,
+                                         self.num_cols)
             self.set_ones(rows)
             self.set_zeros()
             self.update_nonogram_mask()
@@ -239,8 +250,7 @@ def transform_row_clues(clues):
     return row_clues
 
 
-def find_common_positions(clues, pos_masks):
-    max_len = len(clues)
+def find_common_positions_v1(clues, pos_masks, max_len):
     items = [0, ] * max_len
     for idx, clue, mask in [(idx, clue, pos_masks[idx])
                             for idx, clue in enumerate(clues)]:
@@ -249,28 +259,21 @@ def find_common_positions(clues, pos_masks):
     return items
 
 
-def find_common_positions_v2(clues, pos_masks):
-    max_len = len(clues)
-    items = [0, ] * max_len
+def find_common_positions(clues, pos_masks, max_len):
+    items = [0, ] * len(clues)
     for idx, clue, mask in [(idx, clue, pos_masks[idx])
                             for idx, clue in enumerate(clues)]:
         if mask != 0:
             max_r_shift = max_len - (sum(clue) + len(clue) - 1)
-            start, stop = 0, 0
+            shift = max_len
             cmn_positions = 0
             for elem in clue:
-                stop = stop + elem
+                shift = shift - elem
                 if elem > max_r_shift:
                     overlap = elem - max_r_shift
-                    shift = max_len - start - elem
                     cmn_positions |= (get_bits(overlap) << shift)
-
-0000000000
-1111
-  1111
-        11 overlap = elem - max_r_shift
-  11       shift = max_len - start - elem = 6
-
+                shift = shift - 1
+            items[idx] = cmn_positions
     return items
 
 
