@@ -11,15 +11,7 @@ import functools
 import solutions.nonogram_solver_show as nshow
 import operator
 import re
-
-
-def wrapper(func, *args, **kwargs):
-    """
-    Wrapper function for performance testing individual functions.
-    """
-    def wrapped(*args, **kwargs):
-        return func(*args, **kwargs)
-    return wrapped
+import pprint
 
 
 class NonogramCheckError(Exception):
@@ -81,7 +73,8 @@ class Nonogram:
             if not self.is_solved() and \
                     not progress(prev_ones, self.nonogram_ones,
                                  prev_zeros, self.nonogram_zeros):
-                rows = self.set_one_position()
+                # rows = self.set_one_position()
+                rows = self.choose_combination()
                 self.save(rows)
                 self.set_ones(rows)
                 self.set_zeros()
@@ -141,6 +134,31 @@ class Nonogram:
             bit_pos = get_first_zero_bit(col_open_positions[col_index],
                                          self.num_cols)
             rows[bit_pos] = 1 << (self.num_cols - 1 - col_index)
+        return rows
+
+    def choose_combination(self):
+        rows = [0] * self.num_rows
+        row_open_positions = [ones | self.nonogram_zeros[idx]
+                              for idx, ones in enumerate(self.nonogram_ones)]
+        col_open_positions = cols2rows(row_open_positions, self.num_cols)
+        row_counts = [(idx, f'{item:0{self.num_cols}b}'.count('0'))
+                      for idx, item in enumerate(row_open_positions)
+                      if self.nonogram_row_masks[idx] != 0]
+        col_counts = [(idx, f'{item:0{self.num_cols}b}'.count('0'))
+                      for idx, item in enumerate(col_open_positions)
+                      if self.nonogram_col_masks[idx] != 0]
+        row_index, row_num_zeros = min(row_counts,
+                                       key=operator.itemgetter(1))
+        col_index, col_num_zeros = min(col_counts,
+                                       key=operator.itemgetter(1))
+        if row_num_zeros <= col_num_zeros:
+            print()
+        else:
+            clue = self.col_clues[col_index]
+            max_r_shift = self.num_rows - (sum(clue) + len(clue) - 1)
+            clue_shftd = init_shift(clue, self.num_rows)
+            for combination in combinator(clue_shftd, 0, 0, max_r_shift):
+                print(f'{or_merge(combination):0{self.num_rows}b}')
         return rows
 
     def get_col_masks(self):
@@ -452,4 +470,8 @@ if __name__ == '__main__':
            (0, 0, 0, 1, 1, 1, 0),
            (0, 1, 0, 0, 0, 0, 1))
     sol = Nonogram(start_clues).solve()
-    print(sol)
+    print(sol == ans)
+    pprint.pprint(sol)
+    print()
+    pprint.pprint(ans)
+
