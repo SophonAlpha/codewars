@@ -5,6 +5,9 @@ https://www.codewars.com/kata/5x5-nonogram-solver/
 Level: 4 kyu
 
 try nonograms here: https://www.puzzle-nonograms.com/
+
+test Sonarlint: https://www.sonarlint.org/
+
 """
 
 import functools
@@ -35,6 +38,8 @@ class Nonogram:
         self.row_bit_mask = 2 ** self.num_rows - 1
         self.nonogram_col_masks = [self.col_bit_mask, ] * self.num_cols
         self.nonogram_row_masks = [self.row_bit_mask, ] * self.num_rows
+        self.num_row_variants = num_variants(self.row_clues, self.num_cols)
+        self.num_col_variants = num_variants(self.col_clues, self.num_rows)
 
     def solve(self):
         while not self.is_solved():
@@ -240,6 +245,31 @@ class Nonogram:
         if not all(cols_ok):
             raise NonogramCheckError('Set "1s" in the nonogram columns '
                                      'don\'t match the column clues.')
+
+
+def num_variants(clues, length):
+    clue = (1, 1, 1, 1, 1)
+    length = 13
+    max_r_shift = length - (2 * len(clue) - 1)
+    total_variants = 0
+    max_level = max_r_shift
+    try:
+        var = variants(max_r_shift, 1, max_level)
+    except StopIteration:
+        pass
+
+
+def variants(max_r_shift, level, max_level):
+    num_variants = sum_arithmetic_seq(num=max_r_shift)
+    return num_variants
+
+
+def sum_arithmetic_seq(first=1, diff=1, num=1):
+    return (num / 2) * (2 * first + (num - 1) * diff)
+
+
+def sum_arithmetic_seq_v2(first=1, diff=1, num=1):
+    return (num >> 1) * (2 * first + (num - 1) * diff)
 
 
 def reorder(items):
