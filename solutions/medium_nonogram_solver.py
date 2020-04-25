@@ -249,27 +249,24 @@ class Nonogram:
 
 def num_variants(clues, length):
     clue = (1, 1, 1, 1, 1)
-    length = 13
+    length = 9
     max_r_shift = length - (2 * len(clue) - 1)
-    total_variants = 0
-    max_level = max_r_shift
-    try:
-        var = variants(max_r_shift, 1, max_level)
-    except StopIteration:
-        pass
+    # total_variants = [(lvl, var_sum) for lvl, var_sum in
+    #                   variants(max_r_shift, 1, len(clue) - 1)]
+    total_variants = max_r_shift + 1
+    total_variants += sum(variants(max_r_shift, 1, len(clue) - 1))
+    return total_variants
 
 
 def variants(max_r_shift, level, max_level):
-    num_variants = sum_arithmetic_seq(num=max_r_shift)
-    return num_variants
+    yield int(sum_arithmetic_seq(num=max_r_shift))
+    if not (level + 1 > max_level):
+        for num in range(max_r_shift, 0, -1):
+            yield from variants(num, level + 1, max_level)
 
 
 def sum_arithmetic_seq(first=1, diff=1, num=1):
     return (num / 2) * (2 * first + (num - 1) * diff)
-
-
-def sum_arithmetic_seq_v2(first=1, diff=1, num=1):
-    return (num >> 1) * (2 * first + (num - 1) * diff)
 
 
 def reorder(items):
