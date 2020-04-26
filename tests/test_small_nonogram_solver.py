@@ -11,8 +11,10 @@ import timeit
 import csv
 from solutions.medium_nonogram_solver import find_common_positions
 from solutions.medium_nonogram_solver import find_common_positions_v1
-# from solutions.small_nonogram_solver import Nonogram
 from solutions.medium_nonogram_solver import Nonogram
+from solutions.medium_nonogram_solver import combinator
+from solutions.medium_nonogram_solver import or_merge
+from solutions.medium_nonogram_solver import init_shift
 
 
 TESTS = [
@@ -80,9 +82,9 @@ def wrapper(func, *args, **kwargs):
 
 
 def random_nonograms():
-    num_cols = 25
-    num_rows = 25
-    num_test = 100
+    num_cols = 7
+    num_rows = 7
+    num_test = 10
     for idx in range(num_test):
         clues, ans = generate_nonogram(num_cols, num_rows)
         yield clues, ans
@@ -120,6 +122,26 @@ def test_find_combinations(test):
         writer = csv.writer(csvfile)
         writer.writerow([row_clues, run_timev1, run_timev2])
     assert cmn_pos == cmn_pos_v1
+
+
+@pytest.mark.parametrize('test', random_nonograms())
+def test_num_variants(test):
+    start_clues = test[0]
+    col_clues, row_clues = start_clues[0], start_clues[1]
+    nono = Nonogram(start_clues)
+    num_row_variants_comb = []
+    num_row_variants_counts = []
+    max_len = nono.num_cols
+    for clue in nono.row_clues:
+        max_r_shift = max_len - (sum(clue) + len(clue) - 1)
+        clue_shftd = init_shift(clue, max_len)
+        combinations = [or_merge(combination)
+                        for combination in
+                        combinator(clue_shftd, 0, 0, max_r_shift)]
+        num_row_variants_comb.append(combinations)
+        num_row_variants_counts.append(len(combinations))
+    assert nono.num_row_variants == num_row_variants_counts
+    print()
 
 
 @pytest.mark.parametrize('test', TESTS)

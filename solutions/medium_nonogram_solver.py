@@ -248,13 +248,12 @@ class Nonogram:
 
 
 def num_variants(clues, length):
-    clue = (1, 1, 1, 1, 1)
-    length = 9
-    max_r_shift = length - (2 * len(clue) - 1)
-    # total_variants = [(lvl, var_sum) for lvl, var_sum in
-    #                   variants(max_r_shift, 1, len(clue) - 1)]
-    total_variants = max_r_shift + 1
-    total_variants += sum(variants(max_r_shift, 1, len(clue) - 1))
+    total_variants = []
+    for clue in clues:
+        max_r_shift = length - (sum(clue) + len(clue) - 1)
+        count = max_r_shift + 1
+        count += sum(variants(max_r_shift, 1, len(clue) - 1))
+        total_variants.append(count)
     return total_variants
 
 
