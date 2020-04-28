@@ -252,7 +252,8 @@ def num_variants(clues, length):
     for clue in clues:
         max_r_shift = length - (sum(clue) + len(clue) - 1)
         count = max_r_shift + 1
-        count += sum(variants(max_r_shift, 1, len(clue) - 1))
+        if len(clue) > 1:
+            count += sum(variants(max_r_shift, 1, len(clue) - 1))
         total_variants.append(count)
     return total_variants
 

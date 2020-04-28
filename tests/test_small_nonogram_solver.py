@@ -81,10 +81,7 @@ def wrapper(func, *args, **kwargs):
     return wrapped
 
 
-def random_nonograms():
-    num_cols = 7
-    num_rows = 7
-    num_test = 10
+def random_nonograms(num_cols=5, num_rows=5, num_test=10):
     for idx in range(num_test):
         clues, ans = generate_nonogram(num_cols, num_rows)
         yield clues, ans
@@ -124,10 +121,11 @@ def test_find_combinations(test):
     assert cmn_pos == cmn_pos_v1
 
 
-@pytest.mark.parametrize('test', random_nonograms())
+@pytest.mark.parametrize('test', random_nonograms(num_cols=25,
+                                                  num_rows=25,
+                                                  num_test=100))
 def test_num_variants(test):
     start_clues = test[0]
-    col_clues, row_clues = start_clues[0], start_clues[1]
     nono = Nonogram(start_clues)
     num_row_variants_comb = []
     num_row_variants_counts = []
