@@ -94,7 +94,9 @@ with open('find_common_positions.csv', 'w', newline='') as csvfile:
     writer.writeheader()
 
 
-@pytest.mark.parametrize('test', random_nonograms())
+@pytest.mark.parametrize('test', random_nonograms(num_cols=15,
+                                                  num_rows=15,
+                                                  num_test=100))
 def test_find_combinations(test):
     """
     Performance testing different algorithms for find_common_positions()
@@ -125,21 +127,31 @@ def test_find_combinations(test):
                                                   num_rows=25,
                                                   num_test=100))
 def test_num_variants(test):
+    """
+    Test to ensure that the function for calculating the number of clue variants
+    is correct. We compare calculated variants against the number of all
+    possible combinations.
+    """
     start_clues = test[0]
     nono = Nonogram(start_clues)
-    num_row_variants_comb = []
-    num_row_variants_counts = []
-    max_len = nono.num_cols
-    for clue in nono.row_clues:
+    num_row_variants_counts = count_variants(nono.row_clues, nono.num_cols)
+    assert nono.num_row_variants == num_row_variants_counts
+    num_col_variants_counts = count_variants(nono.col_clues, nono.num_rows)
+    assert nono.num_col_variants == num_col_variants_counts
+
+
+def count_variants(clues, max_len):
+    num_variants_comb = []
+    num_variants_counts = []
+    for clue in clues:
         max_r_shift = max_len - (sum(clue) + len(clue) - 1)
         clue_shftd = init_shift(clue, max_len)
         combinations = [or_merge(combination)
                         for combination in
                         combinator(clue_shftd, 0, 0, max_r_shift)]
-        num_row_variants_comb.append(combinations)
-        num_row_variants_counts.append(len(combinations))
-    assert nono.num_row_variants == num_row_variants_counts
-    print()
+        num_variants_comb.append(combinations)
+        num_variants_counts.append(len(combinations))
+    return num_variants_counts
 
 
 @pytest.mark.parametrize('test', TESTS)
@@ -154,7 +166,9 @@ def test_nonograms(test):
     assert clues_ans == clues_test
 
 
-@pytest.mark.parametrize('test', random_nonograms())
+@pytest.mark.parametrize('test', random_nonograms(num_cols=15,
+                                                  num_rows=15,
+                                                  num_test=100))
 def test_random_nonograms(test):
     """ tests """
     clues_test = test[0]

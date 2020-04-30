@@ -1,5 +1,5 @@
 """
-Solution for 5x5 Nonogram Solver:
+Solution for Nonogram Solver:
 https://www.codewars.com/kata/5x5-nonogram-solver/
 
 Level: 4 kyu
@@ -7,7 +7,6 @@ Level: 4 kyu
 try nonograms here: https://www.puzzle-nonograms.com/
 
 test Sonarlint: https://www.sonarlint.org/
-
 """
 
 import functools
@@ -15,6 +14,15 @@ import solutions.nonogram_solver_show as nshow
 import operator
 import re
 import pprint
+
+
+def wrapper(func, *args, **kwargs):
+    """
+    Wrapper function for initialising generator functions.
+    """
+    def wrapped():
+        return func(*args, **kwargs)
+    return wrapped
 
 
 class NonogramCheckError(Exception):
@@ -40,6 +48,10 @@ class Nonogram:
         self.nonogram_row_masks = [self.row_bit_mask, ] * self.num_rows
         self.num_row_variants = num_variants(self.row_clues, self.num_cols)
         self.num_col_variants = num_variants(self.col_clues, self.num_rows)
+        self.row_combinators = init_combinator(self.row_clues,
+                                               self.num_cols)
+        self.col_combinators = init_combinator(self.col_clues,
+                                               self.num_rows)
 
     def solve(self):
         while not self.is_solved():
@@ -78,7 +90,6 @@ class Nonogram:
             if not self.is_solved() and \
                     not progress(prev_ones, self.nonogram_ones,
                                  prev_zeros, self.nonogram_zeros):
-                # rows = self.set_one_position()
                 rows = self.choose_combination()
                 self.save(rows)
                 self.set_ones(rows)
@@ -143,27 +154,15 @@ class Nonogram:
 
     def choose_combination(self):
         rows = [0] * self.num_rows
-        row_open_positions = [ones | self.nonogram_zeros[idx]
-                              for idx, ones in enumerate(self.nonogram_ones)]
-        col_open_positions = cols2rows(row_open_positions, self.num_cols)
-        row_counts = [(idx, f'{item:0{self.num_cols}b}'.count('0'))
-                      for idx, item in enumerate(row_open_positions)
-                      if self.nonogram_row_masks[idx] != 0]
-        col_counts = [(idx, f'{item:0{self.num_cols}b}'.count('0'))
-                      for idx, item in enumerate(col_open_positions)
-                      if self.nonogram_col_masks[idx] != 0]
-        row_index, row_num_zeros = min(row_counts,
-                                       key=operator.itemgetter(1))
-        col_index, col_num_zeros = min(col_counts,
-                                       key=operator.itemgetter(1))
-        if row_num_zeros <= col_num_zeros:
-            print()
+        cols = [0] * self.num_cols
+        idx_min_row = self.num_row_variants.index(min(self.num_row_variants))
+        idx_min_col = self.num_col_variants.index(min(self.num_col_variants))
+        if self.num_row_variants[idx_min_row] <= self.num_col_variants[idx_min_col]:
+            # choose a row combination
+            rows[idx_min_row] = next(self.row_combinators[idx_min_row])
         else:
-            clue = self.col_clues[col_index]
-            max_r_shift = self.num_rows - (sum(clue) + len(clue) - 1)
-            clue_shftd = init_shift(clue, self.num_rows)
-            for combination in combinator(clue_shftd, 0, 0, max_r_shift):
-                print(f'{or_merge(combination):0{self.num_rows}b}')
+            cols[idx_min_col] = next(self.col_combinators[idx_min_col])
+            rows = rows2cols(cols, self.num_rows)
         return rows
 
     def get_col_masks(self):
@@ -247,6 +246,16 @@ class Nonogram:
                                      'don\'t match the column clues.')
 
 
+def init_combinator(clues, max_len):
+    combinator_funcs = []
+    for clue in clues:
+        max_r_shift = max_len - (sum(clue) + len(clue) - 1)
+        clue_shftd = init_shift(clue, max_len)
+        wrapped = wrapper(combinator, clue_shftd, 0, 0, max_r_shift)
+        combinator_funcs.append(wrapped())
+    return combinator_funcs
+
+
 def num_variants(clues, length):
     total_variants = []
     for clue in clues:
@@ -305,6 +314,20 @@ def find_common_positions_v1(clues, pos_masks, max_len):
 
 
 def find_common_positions(clues, pos_masks, max_len):
+    """
+    For all clues find the common positions. Common positions are fields in the
+    nonogram that are always set no matter what variant of the clue is
+    applied. For example: clue 3 in a 5 column nonogram row. There a three
+    possible variants:
+              v
+    column: 01234
+    1.)     11100
+    2.)     01110
+    3.)     00111
+
+    Position (column) 2 is common in all variants of the clue. This common
+    position can safely be set to '1'.
+    """
     items = [0, ] * len(clues)
     for idx, clue, mask in [(idx, clue, pos_masks[idx])
                             for idx, clue in enumerate(clues)]:
@@ -338,7 +361,6 @@ def combinations(clue, mask, max_len):
     max_r_shift = max_len - (sum(clue) + len(clue) - 1)
     clue_shftd = init_shift(clue, max_len)
     for combination in combinator(clue_shftd, 0, 0, max_r_shift):
-        combination = or_merge(combination)
         if (combination & mask == combination) and (cmn_positions is None):
             # store very first value
             cmn_positions = combination
@@ -367,7 +389,6 @@ def fixed_positions(clue, mask, max_len, nonogram_ones_line):
     max_r_shift = max_len - (sum(clue) + len(clue) - 1)
     clue_shftd = init_shift(clue, max_len)
     for combination in combinator(clue_shftd, 0, 0, max_r_shift):
-        combination = or_merge(combination)
         if (combination & mask == combination) and \
                 (combination & nonogram_ones_line == nonogram_ones_line):
             if not option:
@@ -385,7 +406,7 @@ def combinator(clue, idx, start_r_shift, max_r_shift):
         if idx < (len(clue) - 1):
             yield from combinator(clue_shftd, idx + 1, r_shift, max_r_shift)
         else:
-            yield clue_shftd
+            yield or_merge(clue_shftd)
 
 
 def init_shift(squares, max_len):
@@ -430,34 +451,32 @@ def set_new_zeros(ones, width, clues):
     """
     new_zeros = [0] * len(ones)
     for idx, line in enumerate(ones):
-        segments_counts = tuple(item.count('1')
-                                for item in f'{line:0{width}b}'.split('0')
-                                if item)
-        clue_counts = sum(segments_counts)
+        segments = tuple(item.count('1')
+                         for item in f'{line:0{width}b}'.split('0')
+                         if item)
         # Check if reminder of line can be set to zero.
-        if clue_counts == sum(clues[idx]):
+        if sum(segments) == sum(clues[idx]):
             # All clues found! Mark all remaining positions as zeros.
             new_zeros[idx] = (2**width - 1) ^ line
-        else:
-            # Check if positions next to '1s' can be set to '0'.
-            line_clues = clues[idx]
-            new_zeros[idx] = find_neighbour_zeros(line, segments_counts,
-                                                  line_clues, width)
+        # elif len(segments) == len(clues[idx]):
+        #     # Check if positions next to '1s' can be set to '0'.
+        #     line_clues = clues[idx]
+        #     new_zeros[idx] = find_neighbour_zeros(line, segments,
+        #                                           line_clues, width)
     return new_zeros
 
 
-def find_neighbour_zeros(line, segments_counts, line_clues, width):
+def find_neighbour_zeros(line, segments, clue, width):
     bits_to_set = 0
-    if len(segments_counts) == len(line_clues):
-        segments_start_end = [(m.start(), m.end())
-                              for m in re.finditer('1+', f'{line:0{width}b}')]
-        for count_idx, count in enumerate(segments_counts):
-            if count == line_clues[count_idx]:
-                start, end = segments_start_end[count_idx]
-                if start > 0:
-                    bits_to_set = bits_to_set | 1 << (width - 1) - (start - 1)
-                if end <= (width - 1):
-                    bits_to_set = bits_to_set | 1 << (width - 1) - end
+    segments_start_end = [(m.start(), m.end())
+                          for m in re.finditer('1+', f'{line:0{width}b}')]
+    for count_idx, count in enumerate(segments):
+        if count == clue[count_idx]:
+            start, end = segments_start_end[count_idx]
+            if start > 0:
+                bits_to_set = bits_to_set | 1 << (width - 1) - (start - 1)
+            if end <= (width - 1):
+                bits_to_set = bits_to_set | 1 << (width - 1) - end
     new_zeros = bits_to_set
     return new_zeros
 
