@@ -10,6 +10,7 @@ test Sonarlint: https://www.sonarlint.org/
 """
 
 import functools
+import itertools
 import solutions.nonogram_solver_show as nshow
 import operator
 import re
@@ -45,13 +46,16 @@ class Nonogram:
         self.col_bit_mask = 2 ** self.num_cols - 1
         self.row_bit_mask = 2 ** self.num_rows - 1
         self.nonogram_col_masks = [self.col_bit_mask, ] * self.num_cols
-        self.nonogram_row_masks = [self.row_bit_mask, ] * self.num_rows
+        self.nonogram_masks = [self.row_bit_mask, ] * self.num_rows
         self.num_row_variants = num_variants(self.row_clues, self.num_cols)
         self.num_col_variants = num_variants(self.col_clues, self.num_rows)
         self.row_combinators = init_combinator(self.row_clues,
                                                self.num_cols)
+        self.row_selector = [True, ] * self.num_rows
         self.col_combinators = init_combinator(self.col_clues,
                                                self.num_rows)
+        self.col_selector = [True, ] * self.num_cols
+        self.row_or_col = None
 
     def solve(self):
         while not self.is_solved():
@@ -67,21 +71,21 @@ class Nonogram:
             self.update_nonogram_mask()
             # set common positions in rows
             rows = find_common_positions(self.row_clues,
-                                         self.nonogram_row_masks,
+                                         self.nonogram_masks,
                                          self.num_cols)
             self.set_ones(rows)
             self.set_zeros()
             self.update_nonogram_mask()
             # set fixed positions in columns
-            cols = find_fixed_positions(self.col_clues, self.nonogram_col_masks,
-                                        cols2rows(self.nonogram_ones,
-                                                  self.num_rows))
+            cols = find_fixed_positions(self.col_clues, cols2rows(
+                self.nonogram_col_masks, self.num_rows), cols2rows(
+                self.nonogram_ones, self.num_rows))
             rows = rows2cols(cols, len(cols))
             self.set_ones(rows)
             self.set_zeros()
             self.update_nonogram_mask()
             # set fixed positions in rows
-            rows = find_fixed_positions(self.row_clues, self.nonogram_row_masks,
+            rows = find_fixed_positions(self.row_clues, self.nonogram_masks,
                                         self.nonogram_ones)
             self.set_ones(rows)
             self.set_zeros()
@@ -90,8 +94,8 @@ class Nonogram:
             if not self.is_solved() and \
                     not progress(prev_ones, self.nonogram_ones,
                                  prev_zeros, self.nonogram_zeros):
+                self.save()
                 rows = self.choose_combination()
-                self.save(rows)
                 self.set_ones(rows)
                 self.set_zeros()
                 self.update_nonogram_mask()
@@ -99,77 +103,111 @@ class Nonogram:
             try:
                 self.check()
             except NonogramCheckError:
-                rows = self.restore()
-                self.set_failed_to_zero(rows)
+                self.restore()
+                # self.set_failed_to_zero(rows) --- TODO: to be removed
                 self.update_nonogram_mask()
         return bin2tuple(self.nonogram_ones, self.num_cols)
 
     def is_solved(self):
-        return sum(self.nonogram_row_masks) + sum(self.nonogram_col_masks) == 0
+        return sum(self.nonogram_masks) + sum(self.nonogram_col_masks) == 0
 
     def update_nonogram_mask(self):
-        # combine ones & zeros with bitwise or with the invert of the mask
+        """
+        In the nonogram mask a '1' indicates where a '1' can be placed. A row or
+        column with all positions set to '0' indicates a solved row or column.
+
+        The nonogram mask is maintained row-wise and column-wise.
+
+        A nonogram is solved when all positions in the nonogram mask are set
+        to '0'.
+        """
+        # combine ones & zeros with 'bitwise or' with the invert of the mask
         ones_zeros = [
             self.nonogram_ones[idx] ^ self.nonogram_zeros[idx]
             ^ self.col_bit_mask for idx, _ in enumerate(self.nonogram_ones)
         ]
-        # row wise add all set positions ("1s")
-        self.nonogram_row_masks = ones_zeros[:]
-        self.nonogram_row_masks = [
-            mask | self.nonogram_ones[idx] if mask != 0 else mask
-            for idx, mask in enumerate(self.nonogram_row_masks)
-        ]
-        # column wise add all set positions ("1s")
-        self.nonogram_col_masks = cols2rows(ones_zeros[:], self.num_cols)
-        col_ones = cols2rows(self.nonogram_ones, self.num_cols)
-        self.nonogram_col_masks = [
-            mask | col_ones[idx] if mask != 0 else mask
-            for idx, mask in enumerate(self.nonogram_col_masks)
-        ]
+        self.nonogram_masks = ones_zeros[:]
 
-    def set_one_position(self):
-        rows = [0] * self.num_rows
-        row_open_positions = [ones | self.nonogram_zeros[idx]
-                              for idx, ones in enumerate(self.nonogram_ones)]
-        col_open_positions = cols2rows(row_open_positions, self.num_cols)
-        row_counts = [(idx, f'{item:0{self.num_cols}b}'.count('0'))
-                      for idx, item in enumerate(row_open_positions)
-                      if self.nonogram_row_masks[idx] != 0]
-        col_counts = [(idx, f'{item:0{self.num_cols}b}'.count('0'))
-                      for idx, item in enumerate(col_open_positions)
-                      if self.nonogram_col_masks[idx] != 0]
-        row_index, row_num_zeros = min(row_counts,
-                                       key=operator.itemgetter(1))
-        col_index, col_num_zeros = min(col_counts,
-                                       key=operator.itemgetter(1))
-        if row_num_zeros <= col_num_zeros:
-            bit_pos = get_first_zero_bit(row_open_positions[row_index],
-                                         self.num_cols)
-            rows[row_index] = 1 << bit_pos
-        else:
-            bit_pos = get_first_zero_bit(col_open_positions[col_index],
-                                         self.num_cols)
-            rows[bit_pos] = 1 << (self.num_cols - 1 - col_index)
-        return rows
+        # self.nonogram_masks = [
+        #     mask | self.nonogram_ones[idx] if mask != 0 else mask
+        #     for idx, mask in enumerate(self.nonogram_masks)
+        # ]
+        # # column wise add all set positions ("1s")
+        # self.nonogram_col_masks = cols2rows(ones_zeros[:], self.num_cols)
+        # col_ones = cols2rows(self.nonogram_ones, self.num_cols)
+        # self.nonogram_col_masks = [
+        #     mask | col_ones[idx] if mask != 0 else mask
+        #     for idx, mask in enumerate(self.nonogram_col_masks)
+        # ]
+
+    # def set_one_position(self):
+    #     rows = [0] * self.num_rows
+    #     row_open_positions = [ones | self.nonogram_zeros[idx]
+    #                           for idx, ones in enumerate(self.nonogram_ones)]
+    #     col_open_positions = cols2rows(row_open_positions, self.num_cols)
+    #     row_counts = [(idx, f'{item:0{self.num_cols}b}'.count('0'))
+    #                   for idx, item in enumerate(row_open_positions)
+    #                   if self.nonogram_row_masks[idx] != 0]
+    #     col_counts = [(idx, f'{item:0{self.num_cols}b}'.count('0'))
+    #                   for idx, item in enumerate(col_open_positions)
+    #                   if self.nonogram_col_masks[idx] != 0]
+    #     row_index, row_num_zeros = min(row_counts,
+    #                                    key=operator.itemgetter(1))
+    #     col_index, col_num_zeros = min(col_counts,
+    #                                    key=operator.itemgetter(1))
+    #     if row_num_zeros <= col_num_zeros:
+    #         bit_pos = get_first_zero_bit(row_open_positions[row_index],
+    #                                      self.num_cols)
+    #         rows[row_index] = 1 << bit_pos
+    #     else:
+    #         bit_pos = get_first_zero_bit(col_open_positions[col_index],
+    #                                      self.num_cols)
+    #         rows[bit_pos] = 1 << (self.num_cols - 1 - col_index)
+    #     return rows
 
     def choose_combination(self):
         rows = [0] * self.num_rows
         cols = [0] * self.num_cols
-        idx_min_row = self.num_row_variants.index(min(self.num_row_variants))
-        idx_min_col = self.num_col_variants.index(min(self.num_col_variants))
-        if self.num_row_variants[idx_min_row] <= self.num_col_variants[idx_min_col]:
-            # choose a row combination
-            rows[idx_min_row] = next(self.row_combinators[idx_min_row])
-        else:
-            cols[idx_min_col] = next(self.col_combinators[idx_min_col])
+        idx_min_row = self.num_row_variants.index(min(
+                itertools.compress(self.num_row_variants, self.row_selector)
+            )
+        )
+        idx_min_col = self.num_col_variants.index(min(
+                itertools.compress(self.num_col_variants, self.col_selector)
+            )
+        )
+        if not self.row_or_col:
+            if self.num_row_variants[idx_min_row] <= self.num_col_variants[idx_min_col]:
+                # choose a row variant
+                self.row_or_col = "row"
+            else:
+                # choose column variants
+                self.row_or_col = "col"
+        if self.row_or_col == "row":
+            # choose a row variant
+            found = False
+            while not found:
+                combination = next(self.row_combinators[idx_min_row])
+                found = rows[idx_min_row] & combination == rows[idx_min_row]
+            rows[idx_min_row] = combination
+            self.row_selector[idx_min_row] = False
+        elif self.row_or_col == "col":
+            # choose a column variant
+            columns = cols2rows(self.nonogram_ones, self.num_cols)
+            found = False
+            while not found:
+                combination = next(self.col_combinators[idx_min_col])
+                found = columns[idx_min_col] & combination == columns[idx_min_col]
+            cols[idx_min_col] = combination
             rows = rows2cols(cols, self.num_rows)
+            self.col_selector[idx_min_col] = False
         return rows
 
-    def get_col_masks(self):
-        return self.nonogram_col_masks[:]
-
-    def get_row_masks(self):
-        return self.nonogram_row_masks[:]
+    # def get_col_masks(self):
+    #     return self.nonogram_col_masks[:]
+    #
+    # def get_row_masks(self):
+    #     return self.nonogram_row_masks[:]
 
     def set_ones(self, items):
         self.nonogram_ones = [self.nonogram_ones[idx] | item
@@ -201,15 +239,24 @@ class Nonogram:
         nshow.show(self.nonogram_ones, self.nonogram_zeros,
                    reordered_col_clues, self.row_clues)
 
-    def save(self, rows):
+    def save(self):
+        """
+        Save the current state of the nonogram.
+        """
         self.store.append((self.nonogram_ones[:],
                            self.nonogram_zeros[:],
-                           rows[:]))
+                           self.nonogram_masks[:],
+                           self.row_selector[:],
+                           self.col_selector[:],
+                           self.row_or_col))
 
     def restore(self):
-        self.nonogram_ones, self.nonogram_zeros, rows = self.store.pop()
-        self.update_nonogram_mask()
-        return rows
+        self.nonogram_ones,
+        self.nonogram_zeros,
+        self.nonogram_masks,
+        self.row_selector,
+        self.col_selector,
+        self.row_or_col = self.store.pop()
 
     def set_failed_to_zero(self, rows):
         idx, value = max(enumerate(rows), key=operator.itemgetter(1))
@@ -224,7 +271,7 @@ class Nonogram:
                                  if clue)
                            for row in self.nonogram_ones))
         row_clues = tuple(clue if clue else (0,) for clue in row_clues)
-        rows_ok = [False if self.nonogram_row_masks[idx] == 0 and
+        rows_ok = [False if self.nonogram_masks[idx] == 0 and
                             item != self.row_clues[idx] else True
                    for idx, item in enumerate(row_clues)]
         if not all(rows_ok):
@@ -389,7 +436,7 @@ def fixed_positions(clue, mask, max_len, nonogram_ones_line):
     max_r_shift = max_len - (sum(clue) + len(clue) - 1)
     clue_shftd = init_shift(clue, max_len)
     for combination in combinator(clue_shftd, 0, 0, max_r_shift):
-        if (combination & mask == combination) and \
+        if (combination & (nonogram_ones_line | mask) == combination) and \
                 (combination & nonogram_ones_line == nonogram_ones_line):
             if not option:
                 option = combination
