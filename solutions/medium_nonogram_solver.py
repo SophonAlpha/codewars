@@ -61,41 +61,42 @@ class Nonogram:
         while not self.is_solved():
             prev_ones = self.nonogram_ones[:]
             prev_zeros = self.nonogram_zeros[:]
-            # set common positions in columns
-            cols = find_common_positions(self.col_clues,
-                                         self.nonogram_col_masks,
-                                         self.num_rows)
-            cols = rows2cols(cols, len(cols))
-            self.set_ones(cols)
-            self.set_zeros()
-            self.update_nonogram_mask()
-            # set common positions in rows
-            rows = find_common_positions(self.row_clues,
-                                         self.nonogram_masks,
-                                         self.num_cols)
-            self.set_ones(rows)
-            self.set_zeros()
-            self.update_nonogram_mask()
-            # set fixed positions in columns
-            cols = find_fixed_positions(self.col_clues, cols2rows(
-                self.nonogram_col_masks, self.num_rows), cols2rows(
-                self.nonogram_ones, self.num_rows))
-            rows = rows2cols(cols, len(cols))
-            self.set_ones(rows)
-            self.set_zeros()
-            self.update_nonogram_mask()
-            # set fixed positions in rows
-            rows = find_fixed_positions(self.row_clues, self.nonogram_masks,
-                                        self.nonogram_ones)
-            self.set_ones(rows)
-            self.set_zeros()
-            self.update_nonogram_mask()
+            # # set common positions in columns
+            # cols = find_common_positions(self.col_clues,
+            #                              self.nonogram_col_masks,
+            #                              self.num_rows)
+            # cols = rows2cols(cols, len(cols))
+            # self.set_ones(cols)
+            # self.set_zeros()
+            # self.update_nonogram_mask()
+            # # set common positions in rows
+            # rows = find_common_positions(self.row_clues,
+            #                              self.nonogram_masks,
+            #                              self.num_cols)
+            # self.set_ones(rows)
+            # self.set_zeros()
+            # self.update_nonogram_mask()
+            # # set fixed positions in columns
+            # cols = find_fixed_positions(self.col_clues, cols2rows(
+            #     self.nonogram_col_masks, self.num_rows), cols2rows(
+            #     self.nonogram_ones, self.num_rows))
+            # rows = rows2cols(cols, len(cols))
+            # self.set_ones(rows)
+            # self.set_zeros()
+            # self.update_nonogram_mask()
+            # # set fixed positions in rows
+            # rows = find_fixed_positions(self.row_clues, self.nonogram_masks,
+            #                             self.nonogram_ones)
+            # self.set_ones(rows)
+            # self.set_zeros()
+            # self.update_nonogram_mask()
             # check if reached a state of no progress
             if not self.is_solved() and \
                     not progress(prev_ones, self.nonogram_ones,
                                  prev_zeros, self.nonogram_zeros):
-                self.save()
+                self.save_selectors()
                 rows = self.choose_combination()
+                self.save_nonogram()
                 self.set_ones(rows)
                 self.set_zeros()
                 self.update_nonogram_mask()
@@ -239,24 +240,38 @@ class Nonogram:
         nshow.show(self.nonogram_ones, self.nonogram_zeros,
                    reordered_col_clues, self.row_clues)
 
-    def save(self):
+    def save_selectors(self):
+        """
+        Save the current state of the nonogram row and column selectors.
+        """
+        self.store.append((self.row_selector[:],
+                           self.col_selector[:],))
+
+    def save_nonogram(self):
         """
         Save the current state of the nonogram.
         """
+        row_iter_states = [itertools.tee(iter_state)
+                           for iter_state in self.row_combinators]
+
         self.store.append((self.nonogram_ones[:],
                            self.nonogram_zeros[:],
                            self.nonogram_masks[:],
-                           self.row_selector[:],
-                           self.col_selector[:],
-                           self.row_or_col))
+                           self.row_combinators[:],
+                           self.col_combinators[:],
+                           self.row_or_col,))
 
     def restore(self):
-        self.nonogram_ones,
-        self.nonogram_zeros,
-        self.nonogram_masks,
-        self.row_selector,
-        self.col_selector,
-        self.row_or_col = self.store.pop()
+        # restore the nonogram
+        (self.nonogram_ones,
+         self.nonogram_zeros,
+         self.nonogram_masks,
+         self.row_combinators,
+         self.col_combinators,
+         self.row_or_col,) = self.store.pop()
+        # restore the row and column selectors
+        (self.row_selector,
+         self.col_selector,) = self.store.pop()
 
     def set_failed_to_zero(self, rows):
         idx, value = max(enumerate(rows), key=operator.itemgetter(1))
