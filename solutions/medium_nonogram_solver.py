@@ -26,7 +26,7 @@ def wrapper(func, *args, **kwargs):
     return wrapped
 
 
-class NonogramCheckError(Exception):
+class NonogramError(Exception):
     """
     Custom error class: thrown when the '1s' set in the nonogram don't macth the
     row clues or column clues.
@@ -95,17 +95,22 @@ class Nonogram:
                     not progress(prev_ones, self.nonogram_ones,
                                  prev_zeros, self.nonogram_zeros):
                 self.save_selectors()
-                rows = self.choose_combination()
-                self.save_nonogram()
-                self.set_ones(rows)
-                self.set_zeros()
-                self.update_nonogram_mask()
+                try:
+                    rows = self.choose_combination()
+                except StopIteration:
+                    self.restore_selectors()
+                    self.restore()
+                    self.update_nonogram_mask()
+                else:
+                    self.save_nonogram()
+                    self.set_ones(rows)
+                    self.set_zeros()
+                    self.update_nonogram_mask()
             # check that the nonogram is consistent ('1s' match the clues)
             try:
                 self.check()
-            except NonogramCheckError:
+            except NonogramError:
                 self.restore()
-                # self.set_failed_to_zero(rows) --- TODO: to be removed
                 self.update_nonogram_mask()
         return bin2tuple(self.nonogram_ones, self.num_cols)
 
@@ -247,6 +252,10 @@ class Nonogram:
         self.store.append((self.row_selector[:],
                            self.col_selector[:],))
 
+    def restore_selectors(self):
+        (self.row_selector,
+         self.col_selector,) = self.store.pop()
+
     def save_nonogram(self):
         """
         Save the current state of the nonogram.
@@ -296,7 +305,7 @@ class Nonogram:
             for idx, row in enumerate(self.nonogram_ones)
         ]
         if not all(separate):
-            raise NonogramCheckError('Overlap between the \'one\' and '
+            raise NonogramError('Overlap between the \'one\' and '
                                      '\'zero\' maps.')
         # check row '1s' match row clues
         length = self.num_cols
@@ -309,7 +318,7 @@ class Nonogram:
                             item != self.row_clues[idx] else True
                    for idx, item in enumerate(row_clues)]
         if not all(rows_ok):
-            raise NonogramCheckError('Set "1s" in the nonogram rows '
+            raise NonogramError('Set "1s" in the nonogram rows '
                                      'don\'t match the row clues.')
         # check column '1s' match column clues
         length = self.num_rows
@@ -323,7 +332,7 @@ class Nonogram:
                             item != self.col_clues[idx] else True
                    for idx, item in enumerate(col_clues)]
         if not all(cols_ok):
-            raise NonogramCheckError('Set "1s" in the nonogram columns '
+            raise NonogramError('Set "1s" in the nonogram columns '
                                      'don\'t match the column clues.')
 
 
