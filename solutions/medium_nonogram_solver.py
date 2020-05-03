@@ -251,27 +251,36 @@ class Nonogram:
         """
         Save the current state of the nonogram.
         """
+        # save the current state of the row and column variants iterators
         row_iter_states = [itertools.tee(iter_state)
                            for iter_state in self.row_combinators]
-
+        col_iter_states = [itertools.tee(iter_state)
+                           for iter_state in self.col_combinators]
+        # save the nonogram details in a list
         self.store.append((self.nonogram_ones[:],
                            self.nonogram_zeros[:],
                            self.nonogram_masks[:],
-                           self.row_combinators[:],
-                           self.col_combinators[:],
+                           row_iter_states,
+                           col_iter_states,
                            self.row_or_col,))
 
     def restore(self):
-        # restore the nonogram
+        # restore the nonogram details
         (self.nonogram_ones,
          self.nonogram_zeros,
          self.nonogram_masks,
-         self.row_combinators,
-         self.col_combinators,
+         row_iter_states,
+         col_iter_states,
          self.row_or_col,) = self.store.pop()
         # restore the row and column selectors
         (self.row_selector,
          self.col_selector,) = self.store.pop()
+        # restore the states of the row and column variants iterators
+        self.row_combinators = [prev_state
+                                for prev_state, _ in row_iter_states]
+        self.col_combinators = [prev_state
+                                for prev_state, _ in col_iter_states]
+
 
     def set_failed_to_zero(self, rows):
         idx, value = max(enumerate(rows), key=operator.itemgetter(1))
@@ -279,6 +288,16 @@ class Nonogram:
 
     def check(self):
         # TODO: refactor to reduce duplication of code for rows and columns
+        # check that there is no overlap between the "ones" map and the "zeros"
+        # map. If there is, this indicates that a choosen variant has
+        # overwritten an already found "zero".
+        separate = [
+            row ^ self.nonogram_zeros[idx] == row | self.nonogram_zeros[idx]
+            for idx, row in enumerate(self.nonogram_ones)
+        ]
+        if not all(separate):
+            raise NonogramCheckError('Overlap between the \'one\' and '
+                                     '\'zero\' maps.')
         # check row '1s' match row clues
         length = self.num_cols
         row_clues = tuple((tuple(clue.count('1')
