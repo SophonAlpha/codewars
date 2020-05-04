@@ -21,8 +21,10 @@ def wrapper(func, *args, **kwargs):
     """
     Wrapper function for initialising generator functions.
     """
+
     def wrapped():
         return func(*args, **kwargs)
+
     return wrapped
 
 
@@ -58,6 +60,45 @@ class Nonogram:
         self.row_or_col = None
 
     def solve(self):
+        rows = [0] * self.num_rows
+        cols = [0] * self.num_cols
+        idx_min_row = self.num_row_variants.index(min(
+            itertools.compress(self.num_row_variants, self.row_selector)))
+        idx_min_col = self.num_col_variants.index(min(
+            itertools.compress(self.num_col_variants, self.col_selector)))
+        if not self.row_or_col:
+            if self.num_row_variants[idx_min_row] <= self.num_col_variants[
+                idx_min_col]:
+                # choose a row variant
+                self.row_or_col = "row"
+            else:
+                # choose column variants
+                self.row_or_col = "col"
+        if self.row_or_col == "row":
+            clues = self.row_clues[idx_min_row]
+            max_len = self.num_cols
+            for clue in clues:
+                max_r_shift = max_len - (sum(clue) + len(clue) - 1)
+                clue_shftd = init_shift(clue, max_len)
+                combination = combinator(clue_shftd, 0, 0, max_r_shift)
+
+
+
+
+
+        elif self.row_or_col == "col":
+
+
+
+        return rows
+
+        for clue in clues:
+            max_r_shift = max_len - (sum(clue) + len(clue) - 1)
+            clue_shftd = init_shift(clue, max_len)
+            wrapped = wrapper(combinator, clue_shftd, 0, 0, max_r_shift)
+            combinator_funcs.append(wrapped())
+
+    def solve_v1(self):
         while not self.is_solved():
             prev_ones = self.nonogram_ones[:]
             prev_zeros = self.nonogram_zeros[:]
@@ -99,6 +140,8 @@ class Nonogram:
                     rows = self.choose_combination()
                 except StopIteration:
                     self.restore_selectors()
+                    # two restores are needed
+                    self.restore()
                     self.restore()
                     self.update_nonogram_mask()
                 else:
@@ -175,15 +218,16 @@ class Nonogram:
         rows = [0] * self.num_rows
         cols = [0] * self.num_cols
         idx_min_row = self.num_row_variants.index(min(
-                itertools.compress(self.num_row_variants, self.row_selector)
-            )
+            itertools.compress(self.num_row_variants, self.row_selector)
+        )
         )
         idx_min_col = self.num_col_variants.index(min(
-                itertools.compress(self.num_col_variants, self.col_selector)
-            )
+            itertools.compress(self.num_col_variants, self.col_selector)
+        )
         )
         if not self.row_or_col:
-            if self.num_row_variants[idx_min_row] <= self.num_col_variants[idx_min_col]:
+            if self.num_row_variants[idx_min_row] <= self.num_col_variants[
+                idx_min_col]:
                 # choose a row variant
                 self.row_or_col = "row"
             else:
@@ -203,7 +247,8 @@ class Nonogram:
             found = False
             while not found:
                 combination = next(self.col_combinators[idx_min_col])
-                found = columns[idx_min_col] & combination == columns[idx_min_col]
+                found = columns[idx_min_col] & combination == columns[
+                    idx_min_col]
             cols[idx_min_col] = combination
             rows = rows2cols(cols, self.num_rows)
             self.col_selector[idx_min_col] = False
@@ -290,7 +335,6 @@ class Nonogram:
         self.col_combinators = [prev_state
                                 for prev_state, _ in col_iter_states]
 
-
     def set_failed_to_zero(self, rows):
         idx, value = max(enumerate(rows), key=operator.itemgetter(1))
         self.nonogram_zeros[idx] = self.nonogram_zeros[idx] | value
@@ -306,7 +350,7 @@ class Nonogram:
         ]
         if not all(separate):
             raise NonogramError('Overlap between the \'one\' and '
-                                     '\'zero\' maps.')
+                                '\'zero\' maps.')
         # check row '1s' match row clues
         length = self.num_cols
         row_clues = tuple((tuple(clue.count('1')
@@ -319,7 +363,7 @@ class Nonogram:
                    for idx, item in enumerate(row_clues)]
         if not all(rows_ok):
             raise NonogramError('Set "1s" in the nonogram rows '
-                                     'don\'t match the row clues.')
+                                'don\'t match the row clues.')
         # check column '1s' match column clues
         length = self.num_rows
         col_clues = tuple((tuple(clue.count('1')
@@ -333,7 +377,7 @@ class Nonogram:
                    for idx, item in enumerate(col_clues)]
         if not all(cols_ok):
             raise NonogramError('Set "1s" in the nonogram columns '
-                                     'don\'t match the column clues.')
+                                'don\'t match the column clues.')
 
 
 def init_combinator(clues, max_len):
@@ -547,7 +591,7 @@ def set_new_zeros(ones, width, clues):
         # Check if reminder of line can be set to zero.
         if sum(segments) == sum(clues[idx]):
             # All clues found! Mark all remaining positions as zeros.
-            new_zeros[idx] = (2**width - 1) ^ line
+            new_zeros[idx] = (2 ** width - 1) ^ line
         # elif len(segments) == len(clues[idx]):
         #     # Check if positions next to '1s' can be set to '0'.
         #     line_clues = clues[idx]
@@ -610,4 +654,3 @@ if __name__ == '__main__':
     pprint.pprint(sol)
     print()
     pprint.pprint(ans)
-
