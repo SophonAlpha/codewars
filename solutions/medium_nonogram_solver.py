@@ -41,7 +41,7 @@ class Nonogram:
         self.col_clues, self.row_clues = reorder(clues[0]), clues[1]
         self.nonogram_ones = [0, ] * len(self.row_clues)
         self.nonogram_zeros = [0, ] * len(self.row_clues)
-        self.store = []
+        self.backups = []
         self.rows_save = None
         self.num_cols = len(self.col_clues)
         self.num_rows = len(self.row_clues)
@@ -92,12 +92,12 @@ class Nonogram:
         return variant_is_valid
 
     def backup(self):
-        self.backup_ones = self.nonogram_ones.copy()
-        self.backup_zeros = self.nonogram_zeros.copy()
+        self.backups.append(
+            (self.nonogram_ones.copy(), self.nonogram_zeros.copy())
+        )
 
     def restore(self):
-        self.nonogram_ones = self.backup_ones.copy()
-        self.nonogram_zeros = self.backup_zeros.copy()
+        (self.nonogram_ones, self.nonogram_zeros) = self.backups.pop()
 
     def solve_v1(self):
         while not self.is_solved():
@@ -295,12 +295,12 @@ class Nonogram:
         """
         Save the current state of the nonogram row and column selectors.
         """
-        self.store.append((self.row_selector[:],
+        self.backups.append((self.row_selector[:],
                            self.col_selector[:],))
 
     def restore_selectors(self):
         (self.row_selector,
-         self.col_selector,) = self.store.pop()
+         self.col_selector,) = self.backups.pop()
 
     def save_nonogram(self):
         """
@@ -312,12 +312,12 @@ class Nonogram:
         col_iter_states = [itertools.tee(iter_state)
                            for iter_state in self.col_combinators]
         # save the nonogram details in a list
-        self.store.append((self.nonogram_ones[:],
+        self.backups.append((self.nonogram_ones[:],
                            self.nonogram_zeros[:],
                            self.nonogram_masks[:],
-                           row_iter_states,
-                           col_iter_states,
-                           self.row_or_col,))
+                             row_iter_states,
+                             col_iter_states,
+                             self.row_or_col,))
 
     def restore_v1(self):
         # restore the nonogram details
@@ -326,10 +326,10 @@ class Nonogram:
          self.nonogram_masks,
          row_iter_states,
          col_iter_states,
-         self.row_or_col,) = self.store.pop()
+         self.row_or_col,) = self.backups.pop()
         # restore the row and column selectors
         (self.row_selector,
-         self.col_selector,) = self.store.pop()
+         self.col_selector,) = self.backups.pop()
         # restore the states of the row and column variants iterators
         self.row_combinators = [prev_state
                                 for prev_state, _ in row_iter_states]
@@ -361,24 +361,27 @@ class Nonogram:
                                  if clue)
                            for row in self.nonogram_ones))
         row_clues = tuple(clue if clue else (0,) for clue in row_clues)
-        rows_ok = [False if (self.nonogram_masks[idx] == 0 or
-                             sum(item) == sum(self.row_clues[idx])) and
-                            item != self.row_clues[idx] else True
+        rows_ok = [(self.nonogram_masks[idx] == 0 and
+                    item == self.row_clues[idx]) or
+                   (self.nonogram_masks[idx] != 0 and
+                    sum(item) <= sum(self.row_clues[idx]))
                    for idx, item in enumerate(row_clues)]
         if not all(rows_ok):
             raise NonogramError('Set "1s" in the nonogram rows '
                                 'don\'t match the row clues.')
         # check column '1s' match column clues
         length = self.num_rows
+        col_masks = cols2rows(self.nonogram_masks, self.num_cols)
         col_clues = tuple((tuple(clue.count('1')
                                  for clue in f'{col:0{length}b}'.split('0')
                                  if clue)
                            for col in cols2rows(self.nonogram_ones,
                                                 self.num_cols)))
         col_clues = tuple(clue if clue else (0,) for clue in col_clues)
-        cols_ok = [False if (self.nonogram_col_masks[idx] == 0 or
-                             sum(item) == sum(self.col_clues[idx])) and
-                            item != self.col_clues[idx] else True
+        cols_ok = [(col_masks[idx] == 0 and
+                    item == self.col_clues[idx]) or
+                   (col_masks[idx] != 0 and
+                    sum(item) <= sum(self.col_clues[idx]))
                    for idx, item in enumerate(col_clues)]
         if not all(cols_ok):
             raise NonogramError('Set "1s" in the nonogram columns '
@@ -643,15 +646,43 @@ def get_first_zero_bit(value, max_len):
 
 
 if __name__ == '__main__':
-    start_clues = (((1, 1), (4,), (1, 1, 1), (3,), (1,)),
-                   ((1,), (2,), (3,), (2, 1), (4,)))
-    ans = ((0, 0, 1, 0, 0),
-           (1, 1, 0, 0, 0),
-           (0, 1, 1, 1, 0),
-           (1, 1, 0, 1, 0),
-           (0, 1, 1, 1, 1))
-    sol = Nonogram(start_clues).solve()
-    print(sol == ans)
-    pprint.pprint(sol)
+    complex_clues = (
+        ((1, 1, 1), (1, 2, 3), (1, 4), (2, 1),
+         (1, 2, 3), (1, 1, 1), (1, 2), (1,)),
+        ((1, 2), (1, 2), (2, 2), (1, 3),
+         (1, 1), (2, 1, 1), (2, 3), (5,))
+    )
+    complex_ans = ((0, 1, 0, 0, 1, 1, 0, 0),
+                   (0, 0, 1, 0, 0, 0, 1, 1),
+                   (1, 1, 0, 1, 1, 0, 0, 0),
+                   (0, 1, 0, 1, 1, 1, 0, 0),
+                   (1, 0, 1, 0, 0, 0, 0, 0),
+                   (0, 1, 1, 0, 1, 0, 1, 0),
+                   (0, 1, 1, 0, 1, 1, 1, 0),
+                   (1, 1, 1, 1, 1, 0, 0, 0))
+    simple_clues = (
+        ((1, 4), (1, 1), (4, 1), (1, 1, 1),
+         (1, 1, 2), (1, 1, 1, 2), (1,), (1, 4)),
+        ((1, 4, 1), (2,), (2, 1), (1, 1, 1, 2),
+         (1, 1, 1), (1, 1, 1, 1), (2, 2, 1), (1, 1))
+    )
+    simple_ans = ((1, 0, 1, 1, 1, 1, 0, 1),
+                  (0, 1, 1, 0, 0, 0, 0, 0),
+                  (0, 0, 1, 1, 0, 1, 0, 0),
+                  (1, 0, 1, 0, 1, 0, 1, 1),
+                  (1, 0, 0, 0, 0, 1, 0, 1),
+                  (1, 0, 1, 0, 1, 0, 0, 1),
+                  (1, 1, 0, 0, 1, 1, 0, 1),
+                  (0, 0, 0, 1, 0, 1, 0, 0))
+    nono = Nonogram(simple_clues)
     print()
-    pprint.pprint(ans)
+    print(f'row variants      = {nono.num_row_variants}')
+    complexity = functools.reduce(lambda x, y: x * y, nono.num_row_variants)
+    print(f'row complexity    = {complexity:,}')
+    print(f'column variants   = {nono.num_col_variants}')
+    complexity = functools.reduce(lambda x, y: x * y, nono.num_col_variants)
+    print(f'column complexity = {complexity:,}')
+    sol = nono.solve()
+    print()
+    pprint.pprint(sol)
+
