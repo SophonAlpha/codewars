@@ -80,6 +80,22 @@ TESTS = [
              (0, 1, 0, 0, 0, 0, 1))},
 ]
 
+PERFORMANCE_TESTS = [
+    {'clues': (
+        ((1, 1, 1), (1, 2, 3), (1, 4), (2, 1),
+         (1, 2, 3), (1, 1, 1), (1, 2), (1,)),
+        ((1, 2), (1, 2), (2, 2), (1, 3),
+         (1, 1), (2, 1, 1), (2, 3), (5,))
+    ),
+        'ans': ((0, 1, 0, 0, 1, 1, 0, 0),
+                (0, 0, 1, 0, 0, 0, 1, 1),
+                (1, 1, 0, 1, 1, 0, 0, 0),
+                (0, 1, 0, 1, 1, 1, 0, 0),
+                (1, 0, 1, 0, 0, 0, 0, 0),
+                (0, 1, 1, 0, 1, 0, 1, 0),
+                (0, 1, 1, 0, 1, 1, 1, 0),
+                (1, 1, 1, 1, 1, 0, 0, 0))},
+]
 
 def wrapper(func, *args, **kwargs):
     """
@@ -186,6 +202,28 @@ def test_random_nonograms(test):
     print(f'ans = {ans}')
     num_cols = len(test[1])
     nonogram_ones = tuple2bin(Nonogram(clues_test).solve())
+    row_clues, col_clues = get_clues(nonogram_ones, num_cols)
+    col_clues = tuple(clue[::-1] for clue in col_clues)
+    clues_ans = (col_clues, row_clues)
+    assert clues_ans == clues_test
+
+
+@pytest.mark.parametrize('test', PERFORMANCE_TESTS)
+def test_performance(test):
+    """
+    Performance profiling
+    """
+    import cProfile, pstats, sys
+    clues_test = test['clues']
+    num_cols = len(test['ans'][0])
+    profile = cProfile.Profile()
+    profile.enable()
+    nonogram_ones = Nonogram(clues_test).solve()
+    profile.disable()
+    ps = pstats.Stats(profile, stream=sys.stdout).strip_dirs().sort_stats(
+        pstats.SortKey.CUMULATIVE)
+    ps.print_stats('medium_nonogram_solver.py:')
+    nonogram_ones = tuple2bin(nonogram_ones)
     row_clues, col_clues = get_clues(nonogram_ones, num_cols)
     col_clues = tuple(clue[::-1] for clue in col_clues)
     clues_ans = (col_clues, row_clues)

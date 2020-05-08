@@ -674,7 +674,7 @@ if __name__ == '__main__':
                   (1, 0, 1, 0, 1, 0, 0, 1),
                   (1, 1, 0, 0, 1, 1, 0, 1),
                   (0, 0, 0, 1, 0, 1, 0, 0))
-    nono = Nonogram(simple_clues)
+    nono = Nonogram(complex_clues)
     print()
     print(f'row variants      = {nono.num_row_variants}')
     complexity = functools.reduce(lambda x, y: x * y, nono.num_row_variants)
