@@ -242,6 +242,7 @@ def test_performance(test):
     profile.disable()
     ps = pstats.Stats(profile, stream=sys.stdout).strip_dirs().sort_stats(
         pstats.SortKey.CUMULATIVE)
+    print()
     ps.print_stats('medium_nonogram_solver.py:')
     nonogram_ones = tuple2bin(nonogram_ones)
     row_clues, col_clues = get_clues(nonogram_ones, num_cols)

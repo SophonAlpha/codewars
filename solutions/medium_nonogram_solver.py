@@ -6,9 +6,9 @@ Level: 4 kyu
 
 try nonograms here: https://www.puzzle-nonograms.com/
 
+Performance optimization:
 
-
-
+    - 9 May 2020, iterator through all variants of row clues: 29.338 seconds
 """
 
 import functools
@@ -30,31 +30,39 @@ def wrapper(func, *args, **kwargs):
     return wrapped
 
 
-class NonogramError(Exception):
-    """
-    Custom error class: thrown when the '1s' set in the nonogram don't macth the
-    row clues or column clues.
-    """
-
-
 class Nonogram:
 
     def __init__(self, clues):
-        self.col_clues, self.row_clues = reorder(clues[0]), clues[1]
+        # check which way is faster column wise or row wise
+        col_clues, row_clues = clues[0], clues[1]
+        row_variants = functools.reduce(
+            lambda x, y: x * y, num_variants(row_clues, len(col_clues)))
+        col_variants = functools.reduce(
+            lambda x, y: x * y, num_variants(col_clues, len(row_clues)))
+        if row_variants <= col_variants:
+            # process row wise
+            self.swap = False
+            self.col_clues, self.row_clues = reorder(col_clues), row_clues
+        else:
+            # process column wise
+            self.swap = True
+            self.col_clues, self.row_clues = reorder(row_clues), col_clues
+        # initialise the nonogram
         self.nonogram_ones = [0, ] * len(self.row_clues)
         self.nonogram_zeros = [0, ] * len(self.row_clues)
-        self.backups = []
         self.num_cols = len(self.col_clues)
         self.num_rows = len(self.row_clues)
         self.col_bit_mask = 2 ** self.num_cols - 1
         self.row_bit_mask = 2 ** self.num_rows - 1
-        self.nonogram_col_masks = [self.col_bit_mask, ] * self.num_cols
         self.nonogram_masks = [self.row_bit_mask, ] * self.num_rows
-        self.num_row_variants = num_variants(self.row_clues, self.num_cols)
-        self.num_col_variants = num_variants(self.col_clues, self.num_rows)
+        self.backups = []
 
     def solve(self):
         self.build(0, self.row_clues, self.num_cols)
+        if self.swap:
+            # turn the nonogram back
+            self.nonogram_ones = rows2cols(self.nonogram_ones, self.num_cols)
+            self.num_rows, self.num_cols = self.num_cols, self.num_rows
         return bin2tuple(self.nonogram_ones, self.num_cols)
 
     def build(self, idx, clues, max_len):
@@ -66,9 +74,7 @@ class Nonogram:
             self.nonogram_ones[idx] = combination
             self.set_zeros()
             self.update_nonogram_mask()
-            try:
-                self.check()
-            except NonogramError:
+            if not self.nonogram_valid():
                 variant_is_valid = False
                 self.restore()
                 self.update_nonogram_mask()
@@ -180,7 +186,7 @@ class Nonogram:
         nshow.show(self.nonogram_ones, self.nonogram_zeros,
                    reordered_col_clues, self.row_clues)
 
-    def check(self):
+    def nonogram_valid(self):
         # TODO: refactor to reduce duplication of code for rows and columns
         # check that there is no overlap between the "ones" map and the "zeros"
         # map. If there is, this indicates that a choosen variant has
@@ -192,8 +198,7 @@ class Nonogram:
             for idx, row in enumerate(self.nonogram_ones)
         ]
         if not all(separate):
-            raise NonogramError('Overlap between the \'one\' and '
-                                '\'zero\' maps.')
+            return False
         # check row '1s' match row clues
         length = self.num_cols
         row_clues = tuple((tuple(clue.count('1')
@@ -207,8 +212,7 @@ class Nonogram:
                     sum(item) <= sum(self.row_clues[idx]))
                    for idx, item in enumerate(row_clues)]
         if not all(rows_ok):
-            raise NonogramError('Set "1s" in the nonogram rows '
-                                'don\'t match the row clues.')
+            return False
         # check column '1s' match column clues
         length = self.num_rows
         col_masks = cols2rows(self.nonogram_masks, self.num_cols)
@@ -224,8 +228,8 @@ class Nonogram:
                     sum(item) <= sum(self.col_clues[idx]))
                    for idx, item in enumerate(col_clues)]
         if not all(cols_ok):
-            raise NonogramError('Set "1s" in the nonogram columns '
-                                'don\'t match the column clues.')
+            return False
+        return True
 
 
 def num_variants(clues, length):
@@ -430,13 +434,6 @@ if __name__ == '__main__':
                   (1, 1, 0, 0, 1, 1, 0, 1),
                   (0, 0, 0, 1, 0, 1, 0, 0))
     nono = Nonogram(complex_clues)
-    print()
-    print(f'row variants      = {nono.num_row_variants}')
-    complexity = functools.reduce(lambda x, y: x * y, nono.num_row_variants)
-    print(f'row complexity    = {complexity:,}')
-    print(f'column variants   = {nono.num_col_variants}')
-    complexity = functools.reduce(lambda x, y: x * y, nono.num_col_variants)
-    print(f'column complexity = {complexity:,}')
     sol = nono.solve()
     print()
     pprint.pprint(sol)
