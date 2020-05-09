@@ -6,7 +6,9 @@ Level: 4 kyu
 
 try nonograms here: https://www.puzzle-nonograms.com/
 
-test Sonarlint: https://www.sonarlint.org/
+
+
+
 """
 
 import functools
@@ -42,7 +44,6 @@ class Nonogram:
         self.nonogram_ones = [0, ] * len(self.row_clues)
         self.nonogram_zeros = [0, ] * len(self.row_clues)
         self.backups = []
-        self.rows_save = None
         self.num_cols = len(self.col_clues)
         self.num_rows = len(self.row_clues)
         self.col_bit_mask = 2 ** self.num_cols - 1
@@ -51,13 +52,6 @@ class Nonogram:
         self.nonogram_masks = [self.row_bit_mask, ] * self.num_rows
         self.num_row_variants = num_variants(self.row_clues, self.num_cols)
         self.num_col_variants = num_variants(self.col_clues, self.num_rows)
-        self.row_combinators = init_combinator(self.row_clues,
-                                               self.num_cols)
-        self.row_selector = [True, ] * self.num_rows
-        self.col_combinators = init_combinator(self.col_clues,
-                                               self.num_rows)
-        self.col_selector = [True, ] * self.num_cols
-        self.row_or_col = None
 
     def solve(self):
         self.build(0, self.row_clues, self.num_cols)
@@ -99,68 +93,6 @@ class Nonogram:
     def restore(self):
         (self.nonogram_ones, self.nonogram_zeros) = self.backups.pop()
 
-    def solve_v1(self):
-        while not self.is_solved():
-            prev_ones = self.nonogram_ones[:]
-            prev_zeros = self.nonogram_zeros[:]
-            # # set common positions in columns
-            # cols = find_common_positions(self.col_clues,
-            #                              self.nonogram_col_masks,
-            #                              self.num_rows)
-            # cols = rows2cols(cols, len(cols))
-            # self.set_ones(cols)
-            # self.set_zeros()
-            # self.update_nonogram_mask()
-            # # set common positions in rows
-            # rows = find_common_positions(self.row_clues,
-            #                              self.nonogram_masks,
-            #                              self.num_cols)
-            # self.set_ones(rows)
-            # self.set_zeros()
-            # self.update_nonogram_mask()
-            # # set fixed positions in columns
-            # cols = find_fixed_positions(self.col_clues, cols2rows(
-            #     self.nonogram_col_masks, self.num_rows), cols2rows(
-            #     self.nonogram_ones, self.num_rows))
-            # rows = rows2cols(cols, len(cols))
-            # self.set_ones(rows)
-            # self.set_zeros()
-            # self.update_nonogram_mask()
-            # # set fixed positions in rows
-            # rows = find_fixed_positions(self.row_clues, self.nonogram_masks,
-            #                             self.nonogram_ones)
-            # self.set_ones(rows)
-            # self.set_zeros()
-            # self.update_nonogram_mask()
-            # check if reached a state of no progress
-            if not self.is_solved() and \
-                    not progress(prev_ones, self.nonogram_ones,
-                                 prev_zeros, self.nonogram_zeros):
-                self.save_selectors()
-                try:
-                    rows = self.choose_combination()
-                except StopIteration:
-                    self.restore_selectors()
-                    # two restores are needed
-                    self.restore()
-                    self.restore()
-                    self.update_nonogram_mask()
-                else:
-                    self.save_nonogram()
-                    self.set_ones(rows)
-                    self.set_zeros()
-                    self.update_nonogram_mask()
-            # check that the nonogram is consistent ('1s' match the clues)
-            try:
-                self.check()
-            except NonogramError:
-                self.restore()
-                self.update_nonogram_mask()
-        return bin2tuple(self.nonogram_ones, self.num_cols)
-
-    def is_solved(self):
-        return sum(self.nonogram_masks) + sum(self.nonogram_col_masks) == 0
-
     def update_nonogram_mask(self):
         """
         In the nonogram mask a '1' indicates where a '1' can be placed. A row or
@@ -177,43 +109,6 @@ class Nonogram:
             ^ self.col_bit_mask for idx, _ in enumerate(self.nonogram_ones)
         ]
         self.nonogram_masks = ones_zeros[:]
-
-        # self.nonogram_masks = [
-        #     mask | self.nonogram_ones[idx] if mask != 0 else mask
-        #     for idx, mask in enumerate(self.nonogram_masks)
-        # ]
-        # # column wise add all set positions ("1s")
-        # self.nonogram_col_masks = cols2rows(ones_zeros[:], self.num_cols)
-        # col_ones = cols2rows(self.nonogram_ones, self.num_cols)
-        # self.nonogram_col_masks = [
-        #     mask | col_ones[idx] if mask != 0 else mask
-        #     for idx, mask in enumerate(self.nonogram_col_masks)
-        # ]
-
-    # def set_one_position(self):
-    #     rows = [0] * self.num_rows
-    #     row_open_positions = [ones | self.nonogram_zeros[idx]
-    #                           for idx, ones in enumerate(self.nonogram_ones)]
-    #     col_open_positions = cols2rows(row_open_positions, self.num_cols)
-    #     row_counts = [(idx, f'{item:0{self.num_cols}b}'.count('0'))
-    #                   for idx, item in enumerate(row_open_positions)
-    #                   if self.nonogram_row_masks[idx] != 0]
-    #     col_counts = [(idx, f'{item:0{self.num_cols}b}'.count('0'))
-    #                   for idx, item in enumerate(col_open_positions)
-    #                   if self.nonogram_col_masks[idx] != 0]
-    #     row_index, row_num_zeros = min(row_counts,
-    #                                    key=operator.itemgetter(1))
-    #     col_index, col_num_zeros = min(col_counts,
-    #                                    key=operator.itemgetter(1))
-    #     if row_num_zeros <= col_num_zeros:
-    #         bit_pos = get_first_zero_bit(row_open_positions[row_index],
-    #                                      self.num_cols)
-    #         rows[row_index] = 1 << bit_pos
-    #     else:
-    #         bit_pos = get_first_zero_bit(col_open_positions[col_index],
-    #                                      self.num_cols)
-    #         rows[bit_pos] = 1 << (self.num_cols - 1 - col_index)
-    #     return rows
 
     def choose_combination(self):
         rows = [0] * self.num_rows
@@ -255,12 +150,6 @@ class Nonogram:
             self.col_selector[idx_min_col] = False
         return rows
 
-    # def get_col_masks(self):
-    #     return self.nonogram_col_masks[:]
-    #
-    # def get_row_masks(self):
-    #     return self.nonogram_row_masks[:]
-
     def set_ones(self, items):
         self.nonogram_ones = [self.nonogram_ones[idx] | item
                               for idx, item in enumerate(items)]
@@ -290,55 +179,6 @@ class Nonogram:
         reordered_col_clues = reorder(self.col_clues)
         nshow.show(self.nonogram_ones, self.nonogram_zeros,
                    reordered_col_clues, self.row_clues)
-
-    def save_selectors(self):
-        """
-        Save the current state of the nonogram row and column selectors.
-        """
-        self.backups.append((self.row_selector[:],
-                           self.col_selector[:],))
-
-    def restore_selectors(self):
-        (self.row_selector,
-         self.col_selector,) = self.backups.pop()
-
-    def save_nonogram(self):
-        """
-        Save the current state of the nonogram.
-        """
-        # save the current state of the row and column variants iterators
-        row_iter_states = [itertools.tee(iter_state)
-                           for iter_state in self.row_combinators]
-        col_iter_states = [itertools.tee(iter_state)
-                           for iter_state in self.col_combinators]
-        # save the nonogram details in a list
-        self.backups.append((self.nonogram_ones[:],
-                           self.nonogram_zeros[:],
-                           self.nonogram_masks[:],
-                             row_iter_states,
-                             col_iter_states,
-                             self.row_or_col,))
-
-    def restore_v1(self):
-        # restore the nonogram details
-        (self.nonogram_ones,
-         self.nonogram_zeros,
-         self.nonogram_masks,
-         row_iter_states,
-         col_iter_states,
-         self.row_or_col,) = self.backups.pop()
-        # restore the row and column selectors
-        (self.row_selector,
-         self.col_selector,) = self.backups.pop()
-        # restore the states of the row and column variants iterators
-        self.row_combinators = [prev_state
-                                for prev_state, _ in row_iter_states]
-        self.col_combinators = [prev_state
-                                for prev_state, _ in col_iter_states]
-
-    def set_failed_to_zero(self, rows):
-        idx, value = max(enumerate(rows), key=operator.itemgetter(1))
-        self.nonogram_zeros[idx] = self.nonogram_zeros[idx] | value
 
     def check(self):
         # TODO: refactor to reduce duplication of code for rows and columns
@@ -388,16 +228,6 @@ class Nonogram:
                                 'don\'t match the column clues.')
 
 
-def init_combinator(clues, max_len):
-    combinator_funcs = []
-    for clue in clues:
-        max_r_shift = max_len - (sum(clue) + len(clue) - 1)
-        clue_shftd = init_shift(clue, max_len)
-        wrapped = wrapper(combinator, clue_shftd, 0, 0, max_r_shift)
-        combinator_funcs.append(wrapped())
-    return combinator_funcs
-
-
 def num_variants(clues, length):
     total_variants = []
     for clue in clues:
@@ -422,37 +252,6 @@ def sum_arithmetic_seq(first=1, diff=1, num=1):
 
 def reorder(items):
     return tuple(tuple(item[::-1]) for item in items)
-
-
-def transform_col_clues(clues):
-    col_clues_rows = max([len(clue) for clue in clues])
-    col_clues = clues[:]
-    col_clues = [(0,) * (col_clues_rows - len(item)) + item
-                 for item in col_clues]
-    col_clues = zip(*[item for item in col_clues])
-    col_clues = [[str(item) if item != 0 else ' '
-                  for item in line] for line in col_clues]
-    col_clues = [' '.join([str(item).rjust(2, ' ') + ' ' for item in line])
-                 for line in col_clues]
-    return col_clues
-
-
-def transform_row_clues(clues):
-    row_clues = [', '.join([str(item) for item in clue])
-                 for clue in clues]
-    row_clue_max = max([len(item) for item in row_clues])
-    row_clues = [' ' * (row_clue_max - len(item)) + item + ' '
-                 for item in row_clues]
-    return row_clues
-
-
-def find_common_positions_v1(clues, pos_masks, max_len):
-    items = [0, ] * max_len
-    for idx, clue, mask in [(idx, clue, pos_masks[idx])
-                            for idx, clue in enumerate(clues)]:
-        if mask != 0:
-            items[idx] = combinations(clue, mask, max_len)
-    return items
 
 
 def find_common_positions(clues, pos_masks, max_len):
@@ -492,27 +291,6 @@ def get_bits(num):
     for pos in range(num):
         bits = bits | 1 << pos
     return bits
-
-
-def combinations(clue, mask, max_len):
-    # TODO: for performance optimisation add a test for checking that the mask
-    #       length is bigger than minimum length of the bit combination based
-    #       on the clue. For example: mask with only two bits '11' but clue is
-    #       (1, 1) which requires minimum 3 bits '101'.
-    cmn_positions = None
-    max_r_shift = max_len - (sum(clue) + len(clue) - 1)
-    clue_shftd = init_shift(clue, max_len)
-    for combination in combinator(clue_shftd, 0, 0, max_r_shift):
-        if (combination & mask == combination) and (cmn_positions is None):
-            # store very first value
-            cmn_positions = combination
-        if (combination & mask == combination) and cmn_positions:
-            # bitwise 'and' with any subsequent value
-            cmn_positions = and_merge([cmn_positions, combination])
-        if cmn_positions == 0:
-            break
-    cmn_positions = 0 if cmn_positions is None else cmn_positions
-    return cmn_positions
 
 
 def find_fixed_positions(clues, pos_masks, nonogram_ones):
@@ -565,10 +343,6 @@ def or_merge(items):
     return functools.reduce(lambda x, y: x | y, items)
 
 
-def and_merge(items):
-    return functools.reduce(lambda x, y: x & y, items)
-
-
 def cols2rows(items, max_len):
     new_rows = []
     for idx in reversed(range(max_len)):
@@ -600,11 +374,6 @@ def set_new_zeros(ones, width, clues):
         if sum(segments) == sum(clues[idx]):
             # All clues found! Mark all remaining positions as zeros.
             new_zeros[idx] = (2 ** width - 1) ^ line
-        # elif len(segments) == len(clues[idx]):
-        #     # Check if positions next to '1s' can be set to '0'.
-        #     line_clues = clues[idx]
-        #     new_zeros[idx] = find_neighbour_zeros(line, segments,
-        #                                           line_clues, width)
     return new_zeros
 
 
@@ -629,20 +398,6 @@ def bin2tuple(nonogram_ones, num_cols):
         tuple(int(cell) for cell in fmt.format(item)) for item in nonogram_ones
     )
     return nonogram
-
-
-def progress(prev_ones, nonogram_ones, prev_zeros, nonogram_zeros):
-    return prev_ones != nonogram_ones or prev_zeros != nonogram_zeros
-
-
-def get_first_zero_bit(value, max_len):
-    bit_pos = None
-    for pos in range(max_len):
-        mask = 1 << pos
-        if value & mask == 0:
-            bit_pos = pos
-            break
-    return bit_pos
 
 
 if __name__ == '__main__':
@@ -685,4 +440,3 @@ if __name__ == '__main__':
     sol = nono.solve()
     print()
     pprint.pprint(sol)
-

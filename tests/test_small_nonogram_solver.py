@@ -7,13 +7,8 @@ https://www.codewars.com/kata/5x5-nonogram-solver/
 
 import pytest
 import random
-import timeit
-import csv
-from solutions.medium_nonogram_solver import find_common_positions
-from solutions.medium_nonogram_solver import find_common_positions_v1
 from solutions.medium_nonogram_solver import Nonogram
 from solutions.medium_nonogram_solver import combinator
-from solutions.medium_nonogram_solver import or_merge
 from solutions.medium_nonogram_solver import init_shift
 
 
@@ -97,6 +92,10 @@ PERFORMANCE_TESTS = [
                 (1, 1, 1, 1, 1, 0, 0, 0))},
 ]
 
+
+# --------- support functions --------------------------------------------------
+
+
 def wrapper(func, *args, **kwargs):
     """
     Wrapper function for performance testing individual functions.
@@ -112,59 +111,6 @@ def random_nonograms(num_cols=5, num_rows=5, num_test=10):
         yield clues, ans
 
 
-with open('find_common_positions.csv', 'w', newline='') as csvfile:
-    writer = csv.DictWriter(csvfile, fieldnames=['row clues',
-                                                 'v1 run time',
-                                                 'v2 run time'])
-    writer.writeheader()
-
-
-@pytest.mark.parametrize('test', random_nonograms(num_cols=15,
-                                                  num_rows=15,
-                                                  num_test=100))
-def test_find_combinations(test):
-    """
-    Performance testing different algorithms for find_common_positions()
-    function.
-    """
-    start_clues = test[0]
-    col_clues, row_clues = start_clues[0], start_clues[1]
-    nono = Nonogram(start_clues)
-    wrapped = wrapper(find_common_positions,
-                      row_clues, nono.nonogram_row_masks,
-                      nono.num_cols)
-    run_timev2 = timeit.timeit(wrapped, number=10)
-    cmn_pos = find_common_positions(row_clues, nono.nonogram_row_masks,
-                                    nono.num_cols)
-    wrapped = wrapper(find_common_positions_v1,
-                      row_clues, nono.nonogram_row_masks,
-                      nono.num_cols)
-    run_timev1 = timeit.timeit(wrapped, number=10)
-    cmn_pos_v1 = find_common_positions_v1(row_clues, nono.nonogram_row_masks,
-                                          nono.num_cols)
-    with open('find_common_positions.csv', 'a', newline='') as csvfile:
-        writer = csv.writer(csvfile)
-        writer.writerow([row_clues, run_timev1, run_timev2])
-    assert cmn_pos == cmn_pos_v1
-
-
-@pytest.mark.parametrize('test', random_nonograms(num_cols=25,
-                                                  num_rows=25,
-                                                  num_test=100))
-def test_num_variants(test):
-    """
-    Test to ensure that the function for calculating the number of clue variants
-    is correct. We compare calculated variants against the number of all
-    possible combinations.
-    """
-    start_clues = test[0]
-    nono = Nonogram(start_clues)
-    num_row_variants_counts = count_variants(nono.row_clues, nono.num_cols)
-    assert nono.num_row_variants == num_row_variants_counts
-    num_col_variants_counts = count_variants(nono.col_clues, nono.num_rows)
-    assert nono.num_col_variants == num_col_variants_counts
-
-
 def count_variants(clues, max_len):
     num_variants_comb = []
     num_variants_counts = []
@@ -175,59 +121,6 @@ def count_variants(clues, max_len):
         num_variants_comb.append(combinations)
         num_variants_counts.append(len(combinations))
     return num_variants_counts
-
-
-@pytest.mark.parametrize('test', TESTS)
-def test_nonograms(test):
-    """ tests """
-    clues_test = test['clues']
-    num_cols = len(test['ans'][0])
-    nonogram_ones = tuple2bin(Nonogram(clues_test).solve())
-    row_clues, col_clues = get_clues(nonogram_ones, num_cols)
-    col_clues = tuple(clue[::-1] for clue in col_clues)
-    clues_ans = (col_clues, row_clues)
-    assert clues_ans == clues_test
-
-
-@pytest.mark.parametrize('test', random_nonograms(num_cols=8,
-                                                  num_rows=8,
-                                                  num_test=100))
-def test_random_nonograms(test):
-    """ tests """
-    clues_test = test[0]
-    ans = test[1]
-    print()
-    print(f'clues = {clues_test}')
-    print()
-    print(f'ans = {ans}')
-    num_cols = len(test[1])
-    nonogram_ones = tuple2bin(Nonogram(clues_test).solve())
-    row_clues, col_clues = get_clues(nonogram_ones, num_cols)
-    col_clues = tuple(clue[::-1] for clue in col_clues)
-    clues_ans = (col_clues, row_clues)
-    assert clues_ans == clues_test
-
-
-@pytest.mark.parametrize('test', PERFORMANCE_TESTS)
-def test_performance(test):
-    """
-    Performance profiling
-    """
-    import cProfile, pstats, sys
-    clues_test = test['clues']
-    num_cols = len(test['ans'][0])
-    profile = cProfile.Profile()
-    profile.enable()
-    nonogram_ones = Nonogram(clues_test).solve()
-    profile.disable()
-    ps = pstats.Stats(profile, stream=sys.stdout).strip_dirs().sort_stats(
-        pstats.SortKey.CUMULATIVE)
-    ps.print_stats('medium_nonogram_solver.py:')
-    nonogram_ones = tuple2bin(nonogram_ones)
-    row_clues, col_clues = get_clues(nonogram_ones, num_cols)
-    col_clues = tuple(clue[::-1] for clue in col_clues)
-    clues_ans = (col_clues, row_clues)
-    assert clues_ans == clues_test
 
 
 def generate_nonogram(num_cols, num_rows):
@@ -282,3 +175,76 @@ def tuple2bin(nonogram):
     nonogram_ones = [int(''.join([str(item) for item in row]), 2)
                      for row in nonogram]
     return nonogram_ones
+
+
+# ---------- test functions ----------------------------------------------------
+
+
+@pytest.mark.parametrize('test', random_nonograms(num_cols=25,
+                                                  num_rows=25,
+                                                  num_test=50))
+def test_num_variants(test):
+    """
+    Test to ensure that the function for calculating the number of clue variants
+    is correct. We compare calculated variants against the number of all
+    possible combinations.
+    """
+    start_clues = test[0]
+    nono = Nonogram(start_clues)
+    num_row_variants_counts = count_variants(nono.row_clues, nono.num_cols)
+    assert nono.num_row_variants == num_row_variants_counts
+    num_col_variants_counts = count_variants(nono.col_clues, nono.num_rows)
+    assert nono.num_col_variants == num_col_variants_counts
+
+
+@pytest.mark.parametrize('test', TESTS)
+def test_nonograms(test):
+    """ tests """
+    clues_test = test['clues']
+    num_cols = len(test['ans'][0])
+    nonogram_ones = tuple2bin(Nonogram(clues_test).solve())
+    row_clues, col_clues = get_clues(nonogram_ones, num_cols)
+    col_clues = tuple(clue[::-1] for clue in col_clues)
+    clues_ans = (col_clues, row_clues)
+    assert clues_ans == clues_test
+
+
+@pytest.mark.parametrize('test', random_nonograms(num_cols=6,
+                                                  num_rows=6,
+                                                  num_test=50))
+def test_random_nonograms(test):
+    """ tests """
+    clues_test = test[0]
+    ans = test[1]
+    print()
+    print(f'clues = {clues_test}')
+    print()
+    print(f'ans = {ans}')
+    num_cols = len(test[1])
+    nonogram_ones = tuple2bin(Nonogram(clues_test).solve())
+    row_clues, col_clues = get_clues(nonogram_ones, num_cols)
+    col_clues = tuple(clue[::-1] for clue in col_clues)
+    clues_ans = (col_clues, row_clues)
+    assert clues_ans == clues_test
+
+
+@pytest.mark.parametrize('test', PERFORMANCE_TESTS)
+def test_performance(test):
+    """
+    Performance profiling
+    """
+    import cProfile, pstats, sys
+    clues_test = test['clues']
+    num_cols = len(test['ans'][0])
+    profile = cProfile.Profile()
+    profile.enable()
+    nonogram_ones = Nonogram(clues_test).solve()
+    profile.disable()
+    ps = pstats.Stats(profile, stream=sys.stdout).strip_dirs().sort_stats(
+        pstats.SortKey.CUMULATIVE)
+    ps.print_stats('medium_nonogram_solver.py:')
+    nonogram_ones = tuple2bin(nonogram_ones)
+    row_clues, col_clues = get_clues(nonogram_ones, num_cols)
+    col_clues = tuple(clue[::-1] for clue in col_clues)
+    clues_ans = (col_clues, row_clues)
+    assert clues_ans == clues_test
