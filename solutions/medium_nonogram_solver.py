@@ -8,7 +8,11 @@ try nonograms here: https://www.puzzle-nonograms.com/
 
 Performance optimization:
 
-    - 9 May 2020, iterator through all variants of row clues: 29.338 seconds
+     9 May 2020, iterator through all variants of row clues: 29.338 seconds
+    10 May 2020, iterate through row or columns dependent
+                 on which one has the lowest number of
+                 variants:                                    0.6501498 seconds
+
 """
 
 import functools
@@ -61,7 +65,7 @@ class Nonogram:
         self.build(0, self.row_clues, self.num_cols)
         if self.swap:
             # turn the nonogram back
-            self.nonogram_ones = rows2cols(self.nonogram_ones, self.num_cols)
+            self.nonogram_ones = transpose(self.nonogram_ones, self.num_cols)
             self.num_rows, self.num_cols = self.num_cols, self.num_rows
         return bin2tuple(self.nonogram_ones, self.num_cols)
 
@@ -72,6 +76,7 @@ class Nonogram:
         for combination in combinator(clue_shftd, 0, 0, max_r_shift):
             self.backup()
             self.nonogram_ones[idx] = combination
+            # self.nonogram_zeros[idx] = combination ^ self.row_bit_mask
             self.set_zeros()
             self.update_nonogram_mask()
             if not self.nonogram_valid():
@@ -115,46 +120,6 @@ class Nonogram:
             ^ self.col_bit_mask for idx, _ in enumerate(self.nonogram_ones)
         ]
         self.nonogram_masks = ones_zeros[:]
-
-    def choose_combination(self):
-        rows = [0] * self.num_rows
-        cols = [0] * self.num_cols
-        idx_min_row = self.num_row_variants.index(min(
-            itertools.compress(self.num_row_variants, self.row_selector)
-        )
-        )
-        idx_min_col = self.num_col_variants.index(min(
-            itertools.compress(self.num_col_variants, self.col_selector)
-        )
-        )
-        if not self.row_or_col:
-            if self.num_row_variants[idx_min_row] <= self.num_col_variants[
-                idx_min_col]:
-                # choose a row variant
-                self.row_or_col = "row"
-            else:
-                # choose column variants
-                self.row_or_col = "col"
-        if self.row_or_col == "row":
-            # choose a row variant
-            found = False
-            while not found:
-                combination = next(self.row_combinators[idx_min_row])
-                found = rows[idx_min_row] & combination == rows[idx_min_row]
-            rows[idx_min_row] = combination
-            self.row_selector[idx_min_row] = False
-        elif self.row_or_col == "col":
-            # choose a column variant
-            columns = cols2rows(self.nonogram_ones, self.num_cols)
-            found = False
-            while not found:
-                combination = next(self.col_combinators[idx_min_col])
-                found = columns[idx_min_col] & combination == columns[
-                    idx_min_col]
-            cols[idx_min_col] = combination
-            rows = rows2cols(cols, self.num_rows)
-            self.col_selector[idx_min_col] = False
-        return rows
 
     def set_ones(self, items):
         self.nonogram_ones = [self.nonogram_ones[idx] | item
@@ -363,6 +328,16 @@ def rows2cols(items, max_len):
     return new_cols
 
 
+def transpose(items, max_len):
+    new_rows = []
+    for col_idx in reversed(range(max_len)):
+        new_rows.append(sum(
+            [((item & (1 << col_idx)) >> col_idx) << (max_len - row_idx - 1)
+             for row_idx, item in enumerate(items)])
+        )
+    return new_rows
+
+
 def set_new_zeros(ones, width, clues):
     """
     Set the zeros for a nonogram array. The algorithm looks for the segments of
@@ -433,6 +408,13 @@ if __name__ == '__main__':
                   (1, 0, 1, 0, 1, 0, 0, 1),
                   (1, 1, 0, 0, 1, 1, 0, 1),
                   (0, 0, 0, 1, 0, 1, 0, 0))
+    asymmetric_clues = (((1,), (2,), (4,), (1,), (1,), (5,), (2,), (1, 1)),
+                        ((1, 1), (1, 2, 1), (3, 1), (2, 3), (1, 2)))
+    asymmetric_ans = ((1, 0, 0, 0, 0, 1, 0, 0),
+                      (0, 0, 1, 0, 1, 1, 0, 1),
+                      (0, 1, 1, 1, 0, 1, 0, 0),
+                      (0, 1, 1, 0, 0, 1, 1, 1),
+                      (0, 0, 1, 0, 0, 1, 1, 0))
     nono = Nonogram(complex_clues)
     sol = nono.solve()
     print()

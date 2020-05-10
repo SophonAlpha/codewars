@@ -90,6 +90,19 @@ PERFORMANCE_TESTS = [
                 (0, 1, 1, 0, 1, 0, 1, 0),
                 (0, 1, 1, 0, 1, 1, 1, 0),
                 (1, 1, 1, 1, 1, 0, 0, 0))},
+    {'clues': (((1, 1, 2), (1, 1, 1), (1, 1, 1), (5,),
+                (3, 1), (1, 1), (1, 1, 2, 1), (1, 3, 2)),
+               ((2, 2), (1, 1), (1, 2), (2, 2, 1),
+                (3, 2), (1, 1, 1), (2, 1, 1, 1), (3, 2))),
+     'ans': (
+         (0, 1, 1, 0, 0, 0, 1, 1),
+         (1, 0, 0, 0, 0, 1, 0, 0),
+         (0, 0, 0, 0, 1, 0, 1, 1),
+         (1, 1, 0, 1, 1, 0, 0, 1),
+         (0, 0, 1, 1, 1, 0, 1, 1),
+         (1, 0, 0, 1, 0, 0, 1, 0),
+         (1, 1, 0, 1, 0, 1, 0, 1),
+         (0, 0, 1, 1, 1, 0, 1, 1))},
 ]
 
 
@@ -226,6 +239,23 @@ def test_random_nonograms(test):
     col_clues = tuple(clue[::-1] for clue in col_clues)
     clues_ans = (col_clues, row_clues)
     assert clues_ans == clues_test
+
+
+@pytest.mark.parametrize('test', random_nonograms(num_cols=25,
+                                                  num_rows=25,
+                                                  num_test=50))
+def test_combinator_speed(test):
+    """ test """
+    col_clues, row_clues = test[0][0], test[0][1]
+    max_len = len(col_clues)
+    print()
+    for clue in row_clues:
+        max_r_shift = max_len - (sum(clue) + len(clue) - 1)
+        clue_shftd = init_shift(clue, max_len)
+        count = 0
+        for _ in combinator(clue_shftd, 0, 0, max_r_shift):
+            count += 1
+        print(f'{clue}: {count:,}')
 
 
 @pytest.mark.parametrize('test', PERFORMANCE_TESTS)
