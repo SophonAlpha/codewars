@@ -103,6 +103,18 @@ PERFORMANCE_TESTS = [
          (1, 0, 0, 1, 0, 0, 1, 0),
          (1, 1, 0, 1, 0, 1, 0, 1),
          (0, 0, 1, 1, 1, 0, 1, 1))},
+    {'clues': (((1, 1, 1), (2, 2), (3, 2), (3, 1),
+                (1, 2), (1, 1, 2), (1, 1, 1), (3, 1)),
+               ((1, 1, 2), (1, 1), (6,), (1, 1),
+                (3, 2), (2, 1, 1), (1, 2), (1, 3))),
+     'ans': ((1, 0, 0, 1, 0, 1, 1, 0),
+             (0, 1, 0, 1, 0, 0, 0, 0),
+             (1, 1, 1, 1, 1, 1, 0, 0),
+             (0, 0, 1, 0, 0, 0, 0, 1),
+             (0, 1, 1, 1, 0, 0, 1, 1),
+             (1, 1, 0, 0, 1, 0, 0, 1),
+             (0, 0, 1, 0, 1, 1, 0, 0),
+             (0, 0, 1, 0, 0, 1, 1, 1))}
 ]
 
 
@@ -222,9 +234,9 @@ def test_nonograms(test):
     assert clues_ans == clues_test
 
 
-@pytest.mark.parametrize('test', random_nonograms(num_cols=6,
-                                                  num_rows=6,
-                                                  num_test=50))
+@pytest.mark.parametrize('test', random_nonograms(num_cols=8,
+                                                  num_rows=8,
+                                                  num_test=100))
 def test_random_nonograms(test):
     """ tests """
     clues_test = test[0]

@@ -12,6 +12,10 @@ Performance optimization:
     10 May 2020, iterate through row or columns dependent
                  on which one has the lowest number of
                  variants:                                    0.6501498 seconds
+    14 May 2020, set common positions before iterating
+                 through variants:                            0.1204889 seconds
+                 don't process variants that don't match
+                 already set positions:                       0.0655467 seconds
 
 """
 
@@ -58,10 +62,14 @@ class Nonogram:
         self.num_rows = len(self.row_clues)
         self.col_bit_mask = 2 ** self.num_cols - 1
         self.row_bit_mask = 2 ** self.num_rows - 1
+        self.nonogram_col_masks = [self.col_bit_mask, ] * self.num_cols
         self.nonogram_masks = [self.row_bit_mask, ] * self.num_rows
         self.backups = []
 
     def solve(self):
+        # set common positions in columns and rows
+        self.set_common_positions()
+        # solve the nonogram
         self.build(0, self.row_clues, self.num_cols)
         if self.swap:
             # turn the nonogram back
@@ -74,9 +82,11 @@ class Nonogram:
         max_r_shift = max_len - (sum(clue) + len(clue) - 1)
         clue_shftd = init_shift(clue, max_len)
         for combination in combinator(clue_shftd, 0, 0, max_r_shift):
+            if self.nonogram_ones[idx] & combination != self.nonogram_ones[idx]:
+                # the combination doesn't match the fields already set
+                continue
             self.backup()
             self.nonogram_ones[idx] = combination
-            # self.nonogram_zeros[idx] = combination ^ self.row_bit_mask
             self.set_zeros()
             self.update_nonogram_mask()
             if not self.nonogram_valid():
@@ -95,6 +105,23 @@ class Nonogram:
                 else:
                     break
         return variant_is_valid
+
+    def set_common_positions(self):
+        # set common positions in columns
+        cols = find_common_positions(self.col_clues,
+                                     self.nonogram_col_masks,
+                                     self.num_rows)
+        cols = rows2cols(cols, len(cols))
+        self.set_ones(cols)
+        self.set_zeros()
+        self.update_nonogram_mask()
+        # set common positions in rows
+        rows = find_common_positions(self.row_clues,
+                                     self.nonogram_masks,
+                                     self.num_cols)
+        self.set_ones(rows)
+        self.set_zeros()
+        self.update_nonogram_mask()
 
     def backup(self):
         self.backups.append(
@@ -133,11 +160,14 @@ class Nonogram:
         #       surrounding zeros.
         # set zeros in columns
         ones = cols2rows(self.nonogram_ones, self.num_cols)
+        col_masks = cols2rows(self.nonogram_masks, self.num_cols)
         width = self.num_rows
-        new_col_zeros = set_new_zeros(ones, width, self.col_clues)
+        new_col_zeros = set_new_zeros(ones, col_masks, width, self.col_clues)
         new_col_zeros = rows2cols(new_col_zeros, self.num_rows)
         # set zeros in rows
-        new_row_zeros = set_new_zeros(self.nonogram_ones, self.num_cols,
+        new_row_zeros = set_new_zeros(self.nonogram_ones,
+                                      self.nonogram_masks,
+                                      self.num_cols,
                                       self.row_clues)
         # combine new columns and rows zeros
         new_zeros = [row | new_col_zeros[idx]
@@ -338,7 +368,7 @@ def transpose(items, max_len):
     return new_rows
 
 
-def set_new_zeros(ones, width, clues):
+def set_new_zeros(ones, masks, width, clues):
     """
     Set the zeros for a nonogram array. The algorithm looks for the segments of
     '1s' and compares against the given clues. Where the number of '1s' matches
@@ -346,6 +376,8 @@ def set_new_zeros(ones, width, clues):
     """
     new_zeros = [0] * len(ones)
     for idx, line in enumerate(ones):
+        if masks[idx] == 0:
+            continue
         segments = tuple(item.count('1')
                          for item in f'{line:0{width}b}'.split('0')
                          if item)
@@ -380,34 +412,18 @@ def bin2tuple(nonogram_ones, num_cols):
 
 
 if __name__ == '__main__':
-    complex_clues = (
-        ((1, 1, 1), (1, 2, 3), (1, 4), (2, 1),
-         (1, 2, 3), (1, 1, 1), (1, 2), (1,)),
-        ((1, 2), (1, 2), (2, 2), (1, 3),
-         (1, 1), (2, 1, 1), (2, 3), (5,))
-    )
-    complex_ans = ((0, 1, 0, 0, 1, 1, 0, 0),
-                   (0, 0, 1, 0, 0, 0, 1, 1),
-                   (1, 1, 0, 1, 1, 0, 0, 0),
-                   (0, 1, 0, 1, 1, 1, 0, 0),
-                   (1, 0, 1, 0, 0, 0, 0, 0),
-                   (0, 1, 1, 0, 1, 0, 1, 0),
-                   (0, 1, 1, 0, 1, 1, 1, 0),
-                   (1, 1, 1, 1, 1, 0, 0, 0))
-    simple_clues = (
-        ((1, 4), (1, 1), (4, 1), (1, 1, 1),
-         (1, 1, 2), (1, 1, 1, 2), (1,), (1, 4)),
-        ((1, 4, 1), (2,), (2, 1), (1, 1, 1, 2),
-         (1, 1, 1), (1, 1, 1, 1), (2, 2, 1), (1, 1))
-    )
-    simple_ans = ((1, 0, 1, 1, 1, 1, 0, 1),
-                  (0, 1, 1, 0, 0, 0, 0, 0),
-                  (0, 0, 1, 1, 0, 1, 0, 0),
-                  (1, 0, 1, 0, 1, 0, 1, 1),
-                  (1, 0, 0, 0, 0, 1, 0, 1),
-                  (1, 0, 1, 0, 1, 0, 0, 1),
-                  (1, 1, 0, 0, 1, 1, 0, 1),
-                  (0, 0, 0, 1, 0, 1, 0, 0))
+    clues = (((1, 1, 1), (2, 2), (3, 2), (3, 1),
+              (1, 2), (1, 1, 2), (1, 1, 1), (3, 1)),
+             ((1, 1, 2), (1, 1), (6,), (1, 1),
+              (3, 2), (2, 1, 1), (1, 2), (1, 3))),
+    ans = ((1, 0, 0, 1, 0, 1, 1, 0),
+           (0, 1, 0, 1, 0, 0, 0, 0),
+           (1, 1, 1, 1, 1, 1, 0, 0),
+           (0, 0, 1, 0, 0, 0, 0, 1),
+           (0, 1, 1, 1, 0, 0, 1, 1),
+           (1, 1, 0, 0, 1, 0, 0, 1),
+           (0, 0, 1, 0, 1, 1, 0, 0),
+           (0, 0, 1, 0, 0, 1, 1, 1)),
     asymmetric_clues = (((1,), (2,), (4,), (1,), (1,), (5,), (2,), (1, 1)),
                         ((1, 1), (1, 2, 1), (3, 1), (2, 3), (1, 2)))
     asymmetric_ans = ((1, 0, 0, 0, 0, 1, 0, 0),
@@ -415,7 +431,7 @@ if __name__ == '__main__':
                       (0, 1, 1, 1, 0, 1, 0, 0),
                       (0, 1, 1, 0, 0, 1, 1, 1),
                       (0, 0, 1, 0, 0, 1, 1, 0))
-    nono = Nonogram(complex_clues)
+    nono = Nonogram(clues)
     sol = nono.solve()
     print()
     pprint.pprint(sol)
