@@ -38,6 +38,17 @@ def wrapper(func, *args, **kwargs):
     return wrapped
 
 
+class NonoArray:
+
+    def __init__(self, clues):
+        self.num_rows = 0
+        self.num_cols = 0
+        self.row_ones = []
+        self.row_zeros = []
+        self.col_ones = []
+        self.col_zeros = []
+
+
 class Nonogram:
 
     def __init__(self, clues):
@@ -56,14 +67,16 @@ class Nonogram:
             self.swap = True
             self.col_clues, self.row_clues = reorder(row_clues), col_clues
         # initialise the nonogram
-        self.nonogram_ones = [0, ] * len(self.row_clues)
-        self.nonogram_zeros = [0, ] * len(self.row_clues)
         self.num_cols = len(self.col_clues)
         self.num_rows = len(self.row_clues)
         self.col_bit_mask = 2 ** self.num_cols - 1
         self.row_bit_mask = 2 ** self.num_rows - 1
-        self.nonogram_col_masks = [self.col_bit_mask, ] * self.num_cols
-        self.nonogram_masks = [self.row_bit_mask, ] * self.num_rows
+        self.nono_row_ones = [0, ] * len(self.row_clues)
+        self.nono_row_zeros = [0, ] * len(self.row_clues)
+        self.nono_row_masks = [self.row_bit_mask, ] * self.num_rows
+        self.nono_col_ones = [0, ] * len(self.col_clues)
+        self.nono_col_zeros = [0, ] * len(self.col_clues)
+        self.nono_col_masks = [self.col_bit_mask, ] * self.num_cols
         self.backups = []
 
     def solve(self):
@@ -73,20 +86,23 @@ class Nonogram:
         self.build(0, self.row_clues, self.num_cols)
         if self.swap:
             # turn the nonogram back
-            self.nonogram_ones = transpose(self.nonogram_ones, self.num_cols)
+            self.nono_row_ones = transpose(self.nono_row_ones, self.num_cols)
             self.num_rows, self.num_cols = self.num_cols, self.num_rows
-        return bin2tuple(self.nonogram_ones, self.num_cols)
+        return bin2tuple(self.nono_row_ones, self.num_cols)
 
     def build(self, idx, clues, max_len):
         clue = clues[idx]
         max_r_shift = max_len - (sum(clue) + len(clue) - 1)
         clue_shftd = init_shift(clue, max_len)
-        for combination in combinator(clue_shftd, 0, 0, max_r_shift):
-            if self.nonogram_ones[idx] & combination != self.nonogram_ones[idx]:
+        for combination, col_bits in combinator(clue_shftd, 0, 0,
+                                                max_r_shift, max_len):
+            if self.nono_row_ones[idx] & combination != self.nono_row_ones[idx]:
                 # the combination doesn't match the fields already set
                 continue
             self.backup()
-            self.nonogram_ones[idx] = combination
+            self.nono_row_ones[idx] = combination
+            self.nono_col_ones = [self.nono_col_ones[col_idx] | (bit << idx)
+                                  for col_idx, bit in enumerate(col_bits)]
             self.set_zeros()
             self.update_nonogram_mask()
             if not self.nonogram_valid():
@@ -109,7 +125,7 @@ class Nonogram:
     def set_common_positions(self):
         # set common positions in columns
         cols = find_common_positions(self.col_clues,
-                                     self.nonogram_col_masks,
+                                     self.nono_col_masks,
                                      self.num_rows)
         cols = rows2cols(cols, len(cols))
         self.set_ones(cols)
@@ -117,7 +133,7 @@ class Nonogram:
         self.update_nonogram_mask()
         # set common positions in rows
         rows = find_common_positions(self.row_clues,
-                                     self.nonogram_masks,
+                                     self.nono_row_masks,
                                      self.num_cols)
         self.set_ones(rows)
         self.set_zeros()
@@ -125,11 +141,17 @@ class Nonogram:
 
     def backup(self):
         self.backups.append(
-            (self.nonogram_ones.copy(), self.nonogram_zeros.copy())
+            (self.nono_row_ones.copy(),
+             self.nono_row_zeros.copy(),
+             self.nono_col_ones.copy(),
+             self.nono_col_zeros.copy())
         )
 
     def restore(self):
-        (self.nonogram_ones, self.nonogram_zeros) = self.backups.pop()
+        (self.nono_row_ones,
+         self.nono_row_zeros,
+         self.nono_col_ones,
+         self.nono_col_zeros) = self.backups.pop()
 
     def update_nonogram_mask(self):
         """
@@ -142,14 +164,19 @@ class Nonogram:
         to '0'.
         """
         # combine ones & zeros with 'bitwise or' with the invert of the mask
-        ones_zeros = [
-            self.nonogram_ones[idx] ^ self.nonogram_zeros[idx]
-            ^ self.col_bit_mask for idx, _ in enumerate(self.nonogram_ones)
+        self.nono_row_masks = [
+            self.nono_row_ones[idx] ^ self.nono_row_zeros[idx]
+            ^ self.col_bit_mask for idx, _ in enumerate(self.nono_row_ones)
         ]
-        self.nonogram_masks = ones_zeros[:]
+        print()
+        # self.nono_col_masks = [
+        #     [self.nono_col_masks[col_idx] | (int(char) << row_idx)
+        #      for col_idx, char in enumerate(f'{row_mask:0{self.num_cols}b}')]
+        #     for row_idx, row_mask in enumerate(self.nono_row_masks)
+        # ]
 
     def set_ones(self, items):
-        self.nonogram_ones = [self.nonogram_ones[idx] | item
+        self.nono_row_ones = [self.nono_row_ones[idx] | item
                               for idx, item in enumerate(items)]
 
     def set_zeros(self):
@@ -159,72 +186,65 @@ class Nonogram:
         #       is set at the beginning and end of the line. If yes, set the
         #       surrounding zeros.
         # set zeros in columns
-        ones = cols2rows(self.nonogram_ones, self.num_cols)
-        col_masks = cols2rows(self.nonogram_masks, self.num_cols)
+        ones = cols2rows(self.nono_row_ones, self.num_cols)
+        col_masks = cols2rows(self.nono_row_masks, self.num_cols)
         width = self.num_rows
         new_col_zeros = set_new_zeros(ones, col_masks, width, self.col_clues)
         new_col_zeros = rows2cols(new_col_zeros, self.num_rows)
         # set zeros in rows
-        new_row_zeros = set_new_zeros(self.nonogram_ones,
-                                      self.nonogram_masks,
+        new_row_zeros = set_new_zeros(self.nono_row_ones,
+                                      self.nono_row_masks,
                                       self.num_cols,
                                       self.row_clues)
         # combine new columns and rows zeros
         new_zeros = [row | new_col_zeros[idx]
                      for idx, row in enumerate(new_row_zeros)]
         # set zeros in nonogram
-        self.nonogram_zeros = [row | new_zeros[idx]
-                               for idx, row in enumerate(self.nonogram_zeros)]
+        self.nono_row_zeros = [row | new_zeros[idx]
+                               for idx, row in enumerate(self.nono_row_zeros)]
 
     def show(self):
         reordered_col_clues = reorder(self.col_clues)
-        nshow.show(self.nonogram_ones, self.nonogram_zeros,
+        nshow.show(self.nono_row_ones, self.nono_row_zeros,
                    reordered_col_clues, self.row_clues)
 
     def nonogram_valid(self):
-        # TODO: refactor to reduce duplication of code for rows and columns
-        # check that there is no overlap between the "ones" map and the "zeros"
-        # map. If there is, this indicates that a choosen variant has
-        # overwritten an already found "zero".
         # TODO: add test for mismatch at the beginning or end of row or column.
         #       e.g. (2,1) 10.....
-        separate = [
-            row ^ self.nonogram_zeros[idx] == row | self.nonogram_zeros[idx]
-            for idx, row in enumerate(self.nonogram_ones)
-        ]
-        if not all(separate):
-            return False
-        # check row '1s' match row clues
-        length = self.num_cols
-        row_clues = tuple((tuple(clue.count('1')
-                                 for clue in f'{row:0{length}b}'.split('0')
-                                 if clue)
-                           for row in self.nonogram_ones))
-        row_clues = tuple(clue if clue else (0,) for clue in row_clues)
-        rows_ok = [(self.nonogram_masks[idx] == 0 and
-                    item == self.row_clues[idx]) or
-                   (self.nonogram_masks[idx] != 0 and
-                    sum(item) <= sum(self.row_clues[idx]))
-                   for idx, item in enumerate(row_clues)]
-        if not all(rows_ok):
+        # Check that "ones" and "zeros" are separate and don't overlap. Overlap
+        # would be when a position is marked with "one" in nonogram_ones and
+        # nonogram_zeros. If there is, this indicates that a chosen variant has
+        # overwritten an already found "zero". Therefore the variant is invalid.
+        if not is_separate(self.nono_row_ones, self.nono_row_zeros):
             return False
         # check column '1s' match column clues
-        length = self.num_rows
-        col_masks = cols2rows(self.nonogram_masks, self.num_cols)
-        col_clues = tuple((tuple(clue.count('1')
-                                 for clue in f'{col:0{length}b}'.split('0')
-                                 if clue)
-                           for col in cols2rows(self.nonogram_ones,
-                                                self.num_cols)))
-        col_clues = tuple(clue if clue else (0,) for clue in col_clues)
-        cols_ok = [(col_masks[idx] == 0 and
-                    item == self.col_clues[idx]) or
-                   (col_masks[idx] != 0 and
-                    sum(item) <= sum(self.col_clues[idx]))
-                   for idx, item in enumerate(col_clues)]
-        if not all(cols_ok):
+        if not clues_correct(cols2rows(self.nono_row_ones, self.num_cols),
+                             cols2rows(self.nono_row_masks, self.num_cols),
+                             self.col_clues,
+                             self.num_rows):
             return False
         return True
+
+
+def is_separate(nonogram_ones, nonogram_zeros):
+    separate = [
+        row ^ nonogram_zeros[idx] == row | nonogram_zeros[idx]
+        for idx, row in enumerate(nonogram_ones)
+    ]
+    return all(separate)
+
+
+def clues_correct(ones, masks, clues, length):
+    check_clues = tuple((tuple(clue.count('1')
+                               for clue in f'{row:0{length}b}'.split('0')
+                               if clue) for row in ones))
+    check_clues = tuple(clue if clue else (0,) for clue in check_clues)
+    check_clues = [(masks[idx] == 0 and
+                    item == clues[idx]) or
+                   (masks[idx] != 0 and
+                    sum(item) <= sum(clues[idx]))
+                   for idx, item in enumerate(check_clues)]
+    return all(check_clues)
 
 
 def num_variants(clues, length):
@@ -318,14 +338,18 @@ def fixed_positions(clue, mask, max_len, nonogram_ones_line):
     return option
 
 
-def combinator(clue, idx, start_r_shift, max_r_shift):
+def combinator(clue, idx, start_r_shift, max_r_shift, max_len):
     clue_shftd = clue[:]
     for r_shift in range(start_r_shift, max_r_shift + 1):
         clue_shftd[idx] = clue[idx] >> r_shift
         if idx < (len(clue) - 1):
-            yield from combinator(clue_shftd, idx + 1, r_shift, max_r_shift)
+            yield from combinator(clue_shftd, idx + 1,
+                                  r_shift, max_r_shift, max_len)
         else:
-            yield or_merge(clue_shftd)
+            merged_clue_shftd = or_merge(clue_shftd)
+            col_bits = [int(char)
+                        for char in f'{merged_clue_shftd:0{max_len}b}']
+            yield merged_clue_shftd, col_bits
 
 
 def init_shift(squares, max_len):
@@ -412,18 +436,18 @@ def bin2tuple(nonogram_ones, num_cols):
 
 
 if __name__ == '__main__':
-    clues = (((1, 1, 1), (2, 2), (3, 2), (3, 1),
-              (1, 2), (1, 1, 2), (1, 1, 1), (3, 1)),
-             ((1, 1, 2), (1, 1), (6,), (1, 1),
-              (3, 2), (2, 1, 1), (1, 2), (1, 3))),
-    ans = ((1, 0, 0, 1, 0, 1, 1, 0),
-           (0, 1, 0, 1, 0, 0, 0, 0),
-           (1, 1, 1, 1, 1, 1, 0, 0),
-           (0, 0, 1, 0, 0, 0, 0, 1),
-           (0, 1, 1, 1, 0, 0, 1, 1),
-           (1, 1, 0, 0, 1, 0, 0, 1),
-           (0, 0, 1, 0, 1, 1, 0, 0),
-           (0, 0, 1, 0, 0, 1, 1, 1)),
+    test_clues = (((1, 1, 1), (2, 2), (3, 2), (3, 1),
+                   (1, 2), (1, 1, 2), (1, 1, 1), (3, 1)),
+                  ((1, 1, 2), (1, 1), (6,), (1, 1),
+                   (3, 2), (2, 1, 1), (1, 2), (1, 3)))
+    test_ans = ((1, 0, 0, 1, 0, 1, 1, 0),
+                (0, 1, 0, 1, 0, 0, 0, 0),
+                (1, 1, 1, 1, 1, 1, 0, 0),
+                (0, 0, 1, 0, 0, 0, 0, 1),
+                (0, 1, 1, 1, 0, 0, 1, 1),
+                (1, 1, 0, 0, 1, 0, 0, 1),
+                (0, 0, 1, 0, 1, 1, 0, 0),
+                (0, 0, 1, 0, 0, 1, 1, 1))
     asymmetric_clues = (((1,), (2,), (4,), (1,), (1,), (5,), (2,), (1, 1)),
                         ((1, 1), (1, 2, 1), (3, 1), (2, 3), (1, 2)))
     asymmetric_ans = ((1, 0, 0, 0, 0, 1, 0, 0),
@@ -431,7 +455,7 @@ if __name__ == '__main__':
                       (0, 1, 1, 1, 0, 1, 0, 0),
                       (0, 1, 1, 0, 0, 1, 1, 1),
                       (0, 0, 1, 0, 0, 1, 1, 0))
-    nono = Nonogram(clues)
+    nono = Nonogram(test_clues)
     sol = nono.solve()
     print()
     pprint.pprint(sol)
