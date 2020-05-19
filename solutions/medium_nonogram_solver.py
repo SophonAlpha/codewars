@@ -45,8 +45,25 @@ class NonoArray:
         self.num_cols = 0
         self.row_ones = []
         self.row_zeros = []
+        self.row_masks = []
         self.col_ones = []
         self.col_zeros = []
+        self.col_masks = []
+
+    def set_ones(self):
+        pass
+
+    def set_zeros(self):
+        pass
+
+    def update_mask(self):
+        pass
+
+    def backup(self):
+        pass
+
+    def restore(self):
+        pass
 
 
 class Nonogram:
@@ -68,9 +85,11 @@ class Nonogram:
             self.col_clues, self.row_clues = reorder(row_clues), col_clues
         # initialise the nonogram
         self.num_cols = len(self.col_clues)
+        self.row_num_bits = self.num_cols
+        self.row_bit_mask = 2 ** self.num_cols - 1
         self.num_rows = len(self.row_clues)
-        self.col_bit_mask = 2 ** self.num_cols - 1
-        self.row_bit_mask = 2 ** self.num_rows - 1
+        self.col_num_bits = self.num_rows
+        self.col_bit_mask = 2 ** self.num_rows - 1
         self.nono_row_ones = [0, ] * len(self.row_clues)
         self.nono_row_zeros = [0, ] * len(self.row_clues)
         self.nono_row_masks = [self.row_bit_mask, ] * self.num_rows
@@ -82,6 +101,10 @@ class Nonogram:
     def solve(self):
         # set common positions in columns and rows
         self.set_common_positions()
+        self.set_zeros()
+
+        # self.update_nonogram_mask()
+
         # solve the nonogram
         self.build(0, self.row_clues, self.num_cols)
         if self.swap:
@@ -91,6 +114,7 @@ class Nonogram:
         return bin2tuple(self.nono_row_ones, self.num_cols)
 
     def build(self, idx, clues, max_len):
+        variant_is_valid = False
         clue = clues[idx]
         max_r_shift = max_len - (sum(clue) + len(clue) - 1)
         clue_shftd = init_shift(clue, max_len)
@@ -101,14 +125,22 @@ class Nonogram:
                 continue
             self.backup()
             self.nono_row_ones[idx] = combination
-            self.nono_col_ones = [self.nono_col_ones[col_idx] | (bit << idx)
-                                  for col_idx, bit in enumerate(col_bits)]
+            self.nono_row_zeros[idx] = combination ^ self.row_bit_mask
+            bit_filter = self.col_bit_mask ^ (1 << idx)
+            self.nono_col_ones = [
+                (self.nono_col_ones[col_idx] & bit_filter) | (bit << idx)
+                for col_idx, bit in enumerate(col_bits)
+            ]
+            self.nono_col_zeros = [
+                (self.nono_col_zeros[col_idx] & bit_filter) | ((bit ^ 1) << idx)
+                for col_idx, bit in enumerate(col_bits)
+            ]
             self.set_zeros()
-            self.update_nonogram_mask()
+            # self.update_nonogram_mask()
             if not self.nonogram_valid():
                 variant_is_valid = False
                 self.restore()
-                self.update_nonogram_mask()
+                # self.update_nonogram_mask()
             else:
                 variant_is_valid = True
                 if idx + 1 < len(clues):
@@ -117,7 +149,7 @@ class Nonogram:
                     else:
                         variant_is_valid = False
                         self.restore()
-                        self.update_nonogram_mask()
+                        # self.update_nonogram_mask()
                 else:
                     break
         return variant_is_valid
@@ -127,57 +159,82 @@ class Nonogram:
         cols = find_common_positions(self.col_clues,
                                      self.nono_col_masks,
                                      self.num_rows)
+        self.nono_col_ones = [self.nono_col_ones[col_idx] | col
+                              for col_idx, col in enumerate(cols)]
         cols = rows2cols(cols, len(cols))
         self.set_ones(cols)
-        self.set_zeros()
-        self.update_nonogram_mask()
         # set common positions in rows
         rows = find_common_positions(self.row_clues,
                                      self.nono_row_masks,
                                      self.num_cols)
         self.set_ones(rows)
-        self.set_zeros()
-        self.update_nonogram_mask()
 
     def backup(self):
         self.backups.append(
             (self.nono_row_ones.copy(),
              self.nono_row_zeros.copy(),
+             self.nono_row_masks.copy(),
              self.nono_col_ones.copy(),
-             self.nono_col_zeros.copy())
+             self.nono_col_zeros.copy(),
+             self.nono_col_masks.copy())
         )
 
     def restore(self):
         (self.nono_row_ones,
          self.nono_row_zeros,
+         self.nono_row_masks,
          self.nono_col_ones,
-         self.nono_col_zeros) = self.backups.pop()
+         self.nono_col_zeros,
+         self.nono_col_masks) = self.backups.pop()
 
     def update_nonogram_mask(self):
         """
-        In the nonogram mask a '1' indicates where a '1' can be placed. A row or
-        column with all positions set to '0' indicates a solved row or column.
+        In the nonogram mask a '1' indicates an undecided position (can be
+        either a one or a zero). A row or column with all positions set to '0'
+        indicates a completed row or column.
 
         The nonogram mask is maintained row-wise and column-wise.
 
         A nonogram is solved when all positions in the nonogram mask are set
         to '0'.
         """
+
         # combine ones & zeros with 'bitwise or' with the invert of the mask
         self.nono_row_masks = [
             self.nono_row_ones[idx] ^ self.nono_row_zeros[idx]
             ^ self.col_bit_mask for idx, _ in enumerate(self.nono_row_ones)
         ]
-        print()
-        # self.nono_col_masks = [
-        #     [self.nono_col_masks[col_idx] | (int(char) << row_idx)
-        #      for col_idx, char in enumerate(f'{row_mask:0{self.num_cols}b}')]
-        #     for row_idx, row_mask in enumerate(self.nono_row_masks)
-        # ]
+
+        check_nono_col_masks = [
+            self.nono_col_ones[idx] ^ self.nono_col_zeros[idx]
+            ^ self.row_bit_mask for idx, _ in enumerate(self.nono_col_ones)
+        ]
+
+        row_masks_txt = [f'{row_mask:0{self.num_cols}b}'
+                         for row_mask in self.nono_row_masks]
+        self.nono_col_masks = [
+            or_merge(
+                [int(row_mask[col_idx]) << row_idx
+                 for row_idx, row_mask in enumerate(row_masks_txt)]
+            )
+            for col_idx in range(self.num_cols)
+        ]
+
+        if check_nono_col_masks != self.nono_col_masks:
+            print('Masks don\'t match')
 
     def set_ones(self, items):
         self.nono_row_ones = [self.nono_row_ones[idx] | item
                               for idx, item in enumerate(items)]
+        row_ones_txt = [f'{row:0{self.row_num_bits}b}'
+                         for row in self.nono_row_ones]
+        self.nono_col_ones = [
+            or_merge(
+                [int(row[col_idx]) << row_idx
+                 for row_idx, row in enumerate(row_ones_txt)]
+            )
+            for col_idx, _ in enumerate(self.nono_col_ones)
+        ]
 
     def set_zeros(self):
         # TODO: performance optimization. Skip rows and columns that are
@@ -186,22 +243,38 @@ class Nonogram:
         #       is set at the beginning and end of the line. If yes, set the
         #       surrounding zeros.
         # set zeros in columns
-        ones = cols2rows(self.nono_row_ones, self.num_cols)
-        col_masks = cols2rows(self.nono_row_masks, self.num_cols)
-        width = self.num_rows
-        new_col_zeros = set_new_zeros(ones, col_masks, width, self.col_clues)
+        new_col_zeros = set_new_zeros(self.nono_col_ones,
+                                      self.nono_col_zeros,
+                                      self.nono_col_masks,
+                                      self.col_num_bits,
+                                      self.col_bit_mask,
+                                      self.col_clues)
         new_col_zeros = rows2cols(new_col_zeros, self.num_rows)
         # set zeros in rows
         new_row_zeros = set_new_zeros(self.nono_row_ones,
+                                      self.nono_row_zeros,
                                       self.nono_row_masks,
-                                      self.num_cols,
+                                      self.row_num_bits,
+                                      self.row_bit_mask,
                                       self.row_clues)
         # combine new columns and rows zeros
         new_zeros = [row | new_col_zeros[idx]
                      for idx, row in enumerate(new_row_zeros)]
         # set zeros in nonogram
-        self.nono_row_zeros = [row | new_zeros[idx]
-                               for idx, row in enumerate(self.nono_row_zeros)]
+        if sum(new_zeros) > 0:
+            self.nono_row_zeros = [
+                row | new_zeros[idx]
+                for idx, row in enumerate(self.nono_row_zeros)
+            ]
+            row_zeros_txt = [f'{row:0{self.row_num_bits}b}'
+                             for row in self.nono_row_zeros]
+            self.nono_col_zeros = [
+                or_merge(
+                    [int(row[col_idx]) << row_idx
+                     for row_idx, row in enumerate(row_zeros_txt)]
+                )
+                for col_idx, _ in enumerate(self.nono_col_zeros)
+            ]
 
     def show(self):
         reordered_col_clues = reorder(self.col_clues)
@@ -218,10 +291,12 @@ class Nonogram:
         if not is_separate(self.nono_row_ones, self.nono_row_zeros):
             return False
         # check column '1s' match column clues
-        if not clues_correct(cols2rows(self.nono_row_ones, self.num_cols),
-                             cols2rows(self.nono_row_masks, self.num_cols),
-                             self.col_clues,
-                             self.num_rows):
+        if not clues_correct(self.nono_col_ones,
+                             self.nono_col_zeros,
+                             self.nono_col_masks,
+                             self.col_num_bits,
+                             self.col_bit_mask,
+                             self.col_clues):
             return False
         return True
 
@@ -234,16 +309,24 @@ def is_separate(nonogram_ones, nonogram_zeros):
     return all(separate)
 
 
-def clues_correct(ones, masks, clues, length):
+def clues_correct(ones, zeros, masks, num_bits, all_bits_mask, clues):
     check_clues = tuple((tuple(clue.count('1')
-                               for clue in f'{row:0{length}b}'.split('0')
+                               for clue in f'{row:0{num_bits}b}'.split('0')
                                if clue) for row in ones))
     check_clues = tuple(clue if clue else (0,) for clue in check_clues)
-    check_clues = [(masks[idx] == 0 and
+
+    # check_clues = [(masks[idx] == 0 and
+    #                 item == clues[idx]) or
+    #                (masks[idx] != 0 and
+    #                 sum(item) <= sum(clues[idx]))
+    #                for idx, item in enumerate(check_clues)]
+
+    check_clues = [((ones[idx] ^ zeros[idx] ^ all_bits_mask) == 0 and
                     item == clues[idx]) or
-                   (masks[idx] != 0 and
+                   ((ones[idx] ^ zeros[idx] ^ all_bits_mask) != 0 and
                     sum(item) <= sum(clues[idx]))
                    for idx, item in enumerate(check_clues)]
+
     return all(check_clues)
 
 
@@ -302,6 +385,8 @@ def find_common_positions(clues, pos_masks, max_len):
                     cmn_positions |= (get_bits(overlap) << shift)
                 shift = shift - 1
             items[idx] = cmn_positions
+            # TODO: return tuples of (index, item) to reduce number of loops
+            #       when applying changes to the nonogram.
     return items
 
 
@@ -327,7 +412,7 @@ def fixed_positions(clue, mask, max_len, nonogram_ones_line):
     option = 0
     max_r_shift = max_len - (sum(clue) + len(clue) - 1)
     clue_shftd = init_shift(clue, max_len)
-    for combination in combinator(clue_shftd, 0, 0, max_r_shift):
+    for combination in combinator(clue_shftd, 0, 0, max_r_shift, max_len):
         if (combination & (nonogram_ones_line | mask) == combination) and \
                 (combination & nonogram_ones_line == nonogram_ones_line):
             if not option:
@@ -392,7 +477,7 @@ def transpose(items, max_len):
     return new_rows
 
 
-def set_new_zeros(ones, masks, width, clues):
+def set_new_zeros(ones, zeros, masks, num_bits, all_bits_mask, clues):
     """
     Set the zeros for a nonogram array. The algorithm looks for the segments of
     '1s' and compares against the given clues. Where the number of '1s' matches
@@ -400,15 +485,20 @@ def set_new_zeros(ones, masks, width, clues):
     """
     new_zeros = [0] * len(ones)
     for idx, line in enumerate(ones):
-        if masks[idx] == 0:
+
+        # if masks[idx] == 0:
+        #     continue
+
+        if (ones[idx] ^ zeros[idx] ^ all_bits_mask) == 0:
             continue
+
         segments = tuple(item.count('1')
-                         for item in f'{line:0{width}b}'.split('0')
+                         for item in f'{line:0{num_bits}b}'.split('0')
                          if item)
         # Check if reminder of line can be set to zero.
         if sum(segments) == sum(clues[idx]):
             # All clues found! Mark all remaining positions as zeros.
-            new_zeros[idx] = (2 ** width - 1) ^ line
+            new_zeros[idx] = (2 ** num_bits - 1) ^ line
     return new_zeros
 
 
