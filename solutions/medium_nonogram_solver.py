@@ -35,7 +35,6 @@ def wrapper(func, *args, **kwargs):
 
     def wrapped():
         return func(*args, **kwargs)
-
     return wrapped
 
 
@@ -61,44 +60,60 @@ class NonoArray:
 
     def set_ones(self, rows=None, cols=None):
         if rows:
-            for idx, row in rows:
-                self.row_ones[idx] = self.row_ones[idx] | row
-                self.col_ones = [
-                    self.col_ones[col_idx] | (int(bit) << idx)
-                    for col_idx, bit in enumerate(f'{row:0{self.row_num_bits}b}')
-                ]
+            self.row_ones, self.col_ones = self.__set_bits(
+                rows,
+                self.row_ones, self.row_num_bits,
+                self.col_ones, self.col_num_bits,
+                axis='rows')
         if cols:
-            for idx, col in cols:
-                self.col_ones[idx] = self.col_ones[idx] | col
-                self.row_ones = [
-                    self.row_ones[row_idx] | (
-                                int(bit) << (self.row_num_bits - 1 - idx))
-                    for row_idx, bit in
-                    enumerate(f'{col:0{self.col_num_bits}b}'[::-1])
-                ]
+            self.col_ones, self.row_ones = self.__set_bits(
+                cols,
+                self.row_ones, self.row_num_bits,
+                self.col_ones, self.col_num_bits,
+                axis='cols')
 
     def set_zeros(self, rows=None, cols=None):
         if rows:
-            for idx, row in rows:
-                self.row_zeros[idx] = self.row_zeros[idx] | row
-                self.col_zeros = [
-                    self.col_zeros[col_idx] | (int(bit) << idx)
-                    for col_idx, bit in enumerate(f'{row:0{self.row_num_bits}b}')
-                ]
+            self.row_zeros, self.col_zeros = self.__set_bits(
+                rows,
+                self.row_zeros, self.row_num_bits,
+                self.col_zeros, self.col_num_bits,
+                axis='rows')
         if cols:
-            for idx, col in cols:
-                self.col_zeros[idx] = self.col_zeros[idx] | col
-                self.row_zeros = [
-                    self.row_zeros[row_idx] | (
-                        int(bit) << (self.row_num_bits - 1 - idx))
-                    for row_idx, bit in
-                    enumerate(f'{col:0{self.col_num_bits}b}'[::-1])
-                ]
+            self.col_zeros, self.row_zeros = self.__set_bits(
+                cols,
+                self.row_zeros, self.row_num_bits,
+                self.col_zeros, self.col_num_bits,
+                axis='cols')
 
-    def update_mask(self):
-        pass
+    def __set_bits(self, items, row_ones, row_num_bits, col_ones, col_num_bits,
+                   axis='rows'):
+        if axis == 'rows':
+            direction = 1
+            first_ones = row_ones
+            first_num_bits = row_num_bits
+            second_ones = col_ones
+            second_num_bits = col_num_bits
+        elif axis == 'cols':
+            direction = -1
+            first_ones = col_ones
+            first_num_bits = col_num_bits
+            second_ones = row_ones
+            second_num_bits = row_num_bits
+        bit_shift = list(range(second_num_bits))[::direction]
+        for idx, item in items:
+            first_ones[idx] = first_ones[idx] | item
+            second_ones = [
+                second_ones[bit_idx] | (int(bit) << bit_shift[idx])
+                for bit_idx, bit in
+                enumerate(f'{item:0{first_num_bits}b}'[::direction])
+            ]
+        return first_ones, second_ones
 
     def backup(self):
+        """
+        Save current state of the nonogram arrays in a FIFO stack.
+        """
         self.backups.append(
             (self.row_ones.copy(),
              self.row_zeros.copy(),
@@ -109,6 +124,9 @@ class NonoArray:
         )
 
     def restore(self):
+        """
+        Restore nonogram arrays from FIFO stack.
+        """
         (self.row_ones,
          self.row_zeros,
          self.row_masks,
@@ -145,8 +163,10 @@ class Nonogram:
         self.build(0, self.row_clues, self.nono.num_cols)
         if self.swap:
             # turn the nonogram back
-            self.nono.row_ones = transpose(self.nono.row_ones, self.nono.num_cols)
-            self.nono.num_rows, self.nono.num_cols = self.nono.num_cols, self.nono.num_rows
+            self.nono.row_ones = transpose(
+                self.nono.row_ones, self.nono.num_cols)
+            self.nono.num_rows, self.nono.num_cols = self.nono.num_cols, \
+                                                     self.nono.num_rows
         return bin2tuple(self.nono.row_ones, self.nono.num_cols)
 
     def build(self, idx, clues, max_len):
@@ -154,14 +174,13 @@ class Nonogram:
         clue = clues[idx]
         max_r_shift = max_len - (sum(clue) + len(clue) - 1)
         clue_shftd = init_shift(clue, max_len)
-        for combination, col_bits in combinator(clue_shftd, 0, 0,
-                                                max_r_shift, max_len):
+        for combination in combinator(clue_shftd, 0, 0,
+                                      max_r_shift, max_len):
             if self.nono.row_ones[idx] & combination != self.nono.row_ones[idx]:
                 # the combination doesn't match the fields already set
                 continue
             self.nono.backup()
-            self.nono.set_ones(
-                rows=[(idx, combination)])
+            self.nono.set_ones(rows=[(idx, combination)])
             self.nono.set_zeros(
                 rows=[(idx, combination ^ self.nono.row_bit_mask)])
             self.deduct_zeros()
@@ -182,19 +201,13 @@ class Nonogram:
 
     def set_common_positions(self):
         # set common positions in columns
-        cols = find_common_positions(self.col_clues,
-                                     self.nono.col_masks,
-                                     self.nono.num_rows)
+        cols = deduct_common_positions(self.col_clues, self.nono.num_rows)
         self.nono.set_ones(cols=cols)
         # set common positions in rows
-        rows = find_common_positions(self.row_clues,
-                                     self.nono.row_masks,
-                                     self.nono.num_cols)
+        rows = deduct_common_positions(self.row_clues, self.nono.num_cols)
         self.nono.set_ones(rows=rows)
 
     def deduct_zeros(self):
-        # TODO: performance optimization. Skip rows and columns that are
-        #       already complete.
         # TODO: performance optimization. Test if the correct number of clues
         #       is set at the beginning and end of the line. If yes, set the
         #       surrounding zeros.
@@ -214,6 +227,9 @@ class Nonogram:
         self.nono.set_zeros(rows=new_row_zeros)
 
     def show(self):
+        """
+        Helper function to visualize the nonogram.
+        """
         reordered_col_clues = reorder(self.col_clues)
         nshow.show(self.nono.row_ones, self.nono.row_zeros,
                    reordered_col_clues, self.row_clues)
@@ -285,7 +301,7 @@ def reorder(items):
     return tuple(tuple(item[::-1]) for item in items)
 
 
-def find_common_positions(clues, pos_masks, max_len):
+def deduct_common_positions(clues, max_len):
     """
     For all clues find the common positions. Common positions are fields in the
     nonogram that are always set no matter what variant of the clue is
@@ -301,20 +317,18 @@ def find_common_positions(clues, pos_masks, max_len):
     position can safely be set to '1'.
     """
     items = []
-    for idx, clue, mask in [(idx, clue, pos_masks[idx])
-                            for idx, clue in enumerate(clues)]:
-        # TODO: refactor to remove the use of mask
-        if mask != 0:
-            max_r_shift = max_len - (sum(clue) + len(clue) - 1)
-            shift = max_len
-            cmn_positions = 0
-            for elem in clue:
-                shift = shift - elem
-                if elem > max_r_shift:
-                    overlap = elem - max_r_shift
-                    cmn_positions |= (get_bits(overlap) << shift)
-                shift = shift - 1
-            items.append((idx, cmn_positions))
+    for idx, clue in [(idx, clue)
+                      for idx, clue in enumerate(clues)]:
+        max_r_shift = max_len - (sum(clue) + len(clue) - 1)
+        shift = max_len
+        cmn_positions = 0
+        for elem in clue:
+            shift = shift - elem
+            if elem > max_r_shift:
+                overlap = elem - max_r_shift
+                cmn_positions |= (get_bits(overlap) << shift)
+            shift = shift - 1
+        items.append((idx, cmn_positions))
     return items
 
 
@@ -360,9 +374,7 @@ def combinator(clue, idx, start_r_shift, max_r_shift, max_len):
                                   r_shift, max_r_shift, max_len)
         else:
             merged_clue_shftd = or_merge(clue_shftd)
-            col_bits = [int(char)
-                        for char in f'{merged_clue_shftd:0{max_len}b}']
-            yield merged_clue_shftd, col_bits
+            yield merged_clue_shftd
 
 
 def init_shift(squares, max_len):
@@ -414,11 +426,11 @@ def set_new_zeros(ones, zeros, num_bits, bit_mask, clues):
     new_zeros = []
     for idx, line in enumerate(ones):
         if (ones[idx] ^ zeros[idx] ^ bit_mask) == 0:
+            # skip lines already completed
             continue
         segments = tuple(item.count('1')
                          for item in f'{line:0{num_bits}b}'.split('0')
                          if item)
-        # Check if reminder of line can be set to zero.
         if sum(segments) == sum(clues[idx]):
             # All clues found! Mark all remaining positions as zeros.
             # new_zeros[idx] = all_bits_mask ^ line
