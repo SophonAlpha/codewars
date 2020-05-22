@@ -110,6 +110,12 @@ class NonoArray:
             ]
         return first_ones, second_ones
 
+    def is_complete(self):
+        completed = [
+            (self.row_ones[idx] ^ self.row_zeros[idx] ^ self.row_bit_mask) == 0
+            for idx in range(self.num_rows)]
+        return all(completed)
+
     def backup(self):
         """
         Save current state of the nonogram arrays in a FIFO stack.
@@ -171,11 +177,7 @@ class Nonogram:
 
     def build(self, idx, clues, max_len):
         variant_is_valid = False
-        clue = clues[idx]
-        max_r_shift = max_len - (sum(clue) + len(clue) - 1)
-        clue_shftd = init_shift(clue, max_len)
-        for combination in combinator(clue_shftd, 0, 0,
-                                      max_r_shift, max_len):
+        for combination in combinations(self.nono, idx, clues, max_len):
             if self.nono.row_ones[idx] & combination != self.nono.row_ones[idx]:
                 # the combination doesn't match the fields already set
                 continue
@@ -365,12 +367,19 @@ def fixed_positions(clue, mask, max_len, nonogram_ones_line):
     return option
 
 
-def combinator(clue, idx, start_r_shift, max_r_shift, max_len):
+def combinations(nono, idx, clues, max_len):
+    clue = clues[idx]
+    max_r_shift = max_len - (sum(clue) + len(clue) - 1)
+    clue_shftd = init_shift(clue, max_len)
+    yield from combinator(nono, clue_shftd, 0, 0, max_r_shift, max_len)
+
+
+def combinator(nono, clue, idx, start_r_shift, max_r_shift, max_len):
     clue_shftd = clue[:]
     for r_shift in range(start_r_shift, max_r_shift + 1):
         clue_shftd[idx] = clue[idx] >> r_shift
         if idx < (len(clue) - 1):
-            yield from combinator(clue_shftd, idx + 1,
+            yield from combinator(nono, clue_shftd, idx + 1,
                                   r_shift, max_r_shift, max_len)
         else:
             merged_clue_shftd = or_merge(clue_shftd)
@@ -481,7 +490,7 @@ if __name__ == '__main__':
                       (0, 1, 1, 1, 0, 1, 0, 0),
                       (0, 1, 1, 0, 0, 1, 1, 1),
                       (0, 0, 1, 0, 0, 1, 1, 0))
-    nono = Nonogram(test_clues)
-    sol = nono.solve()
+    nonogram = Nonogram(test_clues)
+    sol = nonogram.solve()
     print()
     pprint.pprint(sol)
