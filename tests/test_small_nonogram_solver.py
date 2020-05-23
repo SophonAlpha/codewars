@@ -234,17 +234,17 @@ def test_nonograms(test):
     assert clues_ans == clues_test
 
 
-@pytest.mark.parametrize('test', random_nonograms(num_cols=7,
-                                                  num_rows=7,
+@pytest.mark.parametrize('test', random_nonograms(num_cols=9,
+                                                  num_rows=9,
                                                   num_test=100))
 def test_random_nonograms(test):
     """ tests """
     clues_test = test[0]
     ans = test[1]
-    print()
-    print(f'clues = {clues_test}')
-    print()
-    print(f'ans = {ans}')
+    # print()
+    # print(f'clues = {clues_test}')
+    # print()
+    # print(f'ans = {ans}')
     num_cols = len(test[1])
     nonogram_ones = tuple2bin(Nonogram(clues_test).solve())
     row_clues, col_clues = get_clues(nonogram_ones, num_cols)

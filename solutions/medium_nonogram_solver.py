@@ -18,6 +18,10 @@ Performance optimization:
                  already set positions:                       0.0655467 seconds
     19 May 2020, remove the need for a bit mask to detect
                  completion of the nonogram:                  0.0343510 seconds
+    24 May 2020, replaced recursive approach with while loop,
+                 process rows in order of number of variants,
+                 lowest number of variants first:             0.0658589 seconds
+                 100 tests (9x9) passed in                  177.74 seconds
 """
 
 import functools
@@ -35,12 +39,13 @@ def wrapper(func, *args, **kwargs):
 
     def wrapped():
         return func(*args, **kwargs)
+
     return wrapped
 
 
 class NonoArray:
 
-    def __init__(self, col_clues, row_clues):
+    def __init__(self, row_clues, col_clues):
         self.num_rows = len(row_clues)
         self.num_cols = len(col_clues)
 
@@ -51,9 +56,11 @@ class NonoArray:
 
         self.row_ones = [0, ] * len(row_clues)
         self.row_zeros = [0, ] * len(row_clues)
+        # TODO: Check if masks can be removed.
         self.row_masks = [self.row_bit_mask, ] * self.num_rows
         self.col_ones = [0, ] * len(col_clues)
         self.col_zeros = [0, ] * len(col_clues)
+        # TODO: Check if masks can be removed.
         self.col_masks = [self.col_bit_mask, ] * self.num_cols
 
         self.backups = []
@@ -110,7 +117,12 @@ class NonoArray:
             ]
         return first_ones, second_ones
 
-    def is_complete(self):
+    def complete(self):
+        """
+        Check if the nonogram has been completed. Completed means all fields are
+        either set to "one" or "zero". Important: this function does not check
+        if the completed nonogram is correct.
+        """
         completed = [
             (self.row_ones[idx] ^ self.row_zeros[idx] ^ self.row_bit_mask) == 0
             for idx in range(self.num_rows)]
@@ -144,13 +156,18 @@ class NonoArray:
 class Nonogram:
 
     def __init__(self, clues):
-        # check which way is faster column wise or row wise
+        # Check which way it is faster to process the clues. Column wise or
+        # row wise?
         col_clues, row_clues = clues[0], clues[1]
-        row_variants = functools.reduce(
-            lambda x, y: x * y, num_variants(row_clues, len(col_clues)))
-        col_variants = functools.reduce(
-            lambda x, y: x * y, num_variants(col_clues, len(row_clues)))
-        if row_variants <= col_variants:
+        self.row_variants = sorted(num_variants(row_clues, len(col_clues)),
+                              key=lambda item: item[1])
+        self.col_variants = sorted(num_variants(col_clues, len(row_clues)),
+                              key=lambda item: item[1])
+        total_row_variants = functools.reduce(
+            lambda x, y: x * y, [elem for _, elem in self.row_variants])
+        total_col_variants = functools.reduce(
+            lambda x, y: x * y, [elem for _, elem in self.col_variants])
+        if total_row_variants <= total_col_variants:
             # process row wise
             self.swap = False
             self.col_clues, self.row_clues = reorder(col_clues), row_clues
@@ -158,8 +175,9 @@ class Nonogram:
             # process column wise
             self.swap = True
             self.col_clues, self.row_clues = reorder(row_clues), col_clues
+            self.col_variants, self.row_variants = self.row_variants, self.col_variants
         # initialise the nonogram array
-        self.nono = NonoArray(self.col_clues, self.row_clues)
+        self.nono = NonoArray(self.row_clues, self.col_clues)
 
     def solve(self):
         # set common positions in columns and rows
@@ -176,30 +194,39 @@ class Nonogram:
         return bin2tuple(self.nono.row_ones, self.nono.num_cols)
 
     def build(self, idx, clues, max_len):
-        variant_is_valid = False
-        for combination in combinations(self.nono, idx, clues, max_len):
-            if self.nono.row_ones[idx] & combination != self.nono.row_ones[idx]:
-                # the combination doesn't match the fields already set
+        varis = {}
+        idx = self.choose_row()
+        varis[idx] = combinations(self.nono, idx, clues, max_len)
+        while not self.nono.complete():
+            try:
+                variant = next(varis[idx])
+            except StopIteration:
+                self.nono.restore()
+                idx = self.choose_row()
+                continue
+            if self.nono.row_ones[idx] & variant != self.nono.row_ones[idx]:
+                # the variant doesn't match the fields already set
                 continue
             self.nono.backup()
-            self.nono.set_ones(rows=[(idx, combination)])
+            self.nono.set_ones(rows=[(idx, variant)])
             self.nono.set_zeros(
-                rows=[(idx, combination ^ self.nono.row_bit_mask)])
+                rows=[(idx, variant ^ self.nono.row_bit_mask)])
             self.deduct_zeros()
             if not self.nonogram_valid():
-                variant_is_valid = False
                 self.nono.restore()
             else:
-                variant_is_valid = True
-                if idx + 1 < len(clues):
-                    if self.build(idx + 1, clues, max_len):
-                        break
-                    else:
-                        variant_is_valid = False
-                        self.nono.restore()
-                else:
-                    break
-        return variant_is_valid
+                idx = self.choose_row()
+                varis[idx] = combinations(self.nono, idx, clues, max_len)
+
+    def choose_row(self):
+        row = None
+        for idx, num in self.row_variants:
+            if (self.nono.row_ones[idx] ^
+                self.nono.row_zeros[idx] ^
+                self.nono.row_bit_mask) != 0:
+                row = idx
+                break
+        return row
 
     def set_common_positions(self):
         # set common positions in columns
@@ -277,14 +304,14 @@ def clues_correct(ones, zeros, masks, num_bits, all_bits_mask, clues):
     return all(check_clues)
 
 
-def num_variants(clues, length):
+def num_variants(clues, max_bit_length):
     total_variants = []
-    for clue in clues:
-        max_r_shift = length - (sum(clue) + len(clue) - 1)
+    for idx, clue in enumerate(clues):
+        max_r_shift = max_bit_length - (sum(clue) + len(clue) - 1)
         count = max_r_shift + 1
         if len(clue) > 1:
             count += sum(variants(max_r_shift, 1, len(clue) - 1))
-        total_variants.append(count)
+        total_variants.append((idx, count))
     return total_variants
 
 
