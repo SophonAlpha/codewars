@@ -160,9 +160,9 @@ class Nonogram:
         # row wise?
         col_clues, row_clues = clues[0], clues[1]
         self.row_variants = sorted(num_variants(row_clues, len(col_clues)),
-                              key=lambda item: item[1])
+                                   key=lambda item: item[1])
         self.col_variants = sorted(num_variants(col_clues, len(row_clues)),
-                              key=lambda item: item[1])
+                                   key=lambda item: item[1])
         total_row_variants = functools.reduce(
             lambda x, y: x * y, [elem for _, elem in self.row_variants])
         total_col_variants = functools.reduce(
@@ -175,15 +175,12 @@ class Nonogram:
             # process column wise
             self.swap = True
             self.col_clues, self.row_clues = reorder(row_clues), col_clues
-            self.col_variants, self.row_variants = self.row_variants, self.col_variants
+            self.col_variants, self.row_variants = self.row_variants, \
+                                                   self.col_variants
         # initialise the nonogram array
         self.nono = NonoArray(self.row_clues, self.col_clues)
 
     def solve(self):
-        # set common positions in columns and rows
-        self.set_common_positions()
-        self.deduct_zeros()
-        # solve the nonogram
         self.build(0, self.row_clues, self.nono.num_cols)
         if self.swap:
             # turn the nonogram back
@@ -194,6 +191,10 @@ class Nonogram:
         return bin2tuple(self.nono.row_ones, self.nono.num_cols)
 
     def build(self, idx, clues, max_len):
+        # set common positions in columns and rows
+        self.set_common_positions()
+        self.deduct_zeros()
+        # solve the nonogram
         varis = {}
         idx = self.choose_row()
         varis[idx] = combinations(self.nono, idx, clues, max_len)
@@ -212,6 +213,7 @@ class Nonogram:
             self.nono.set_zeros(
                 rows=[(idx, variant ^ self.nono.row_bit_mask)])
             self.deduct_zeros()
+            self.deduct_gaps_for_ones()
             if not self.nonogram_valid():
                 self.nono.restore()
             else:
@@ -240,20 +242,32 @@ class Nonogram:
         # TODO: performance optimization. Test if the correct number of clues
         #       is set at the beginning and end of the line. If yes, set the
         #       surrounding zeros.
-        # set zeros in columns
-        new_col_zeros = set_new_zeros(self.nono.col_ones,
-                                      self.nono.col_zeros,
-                                      self.nono.col_num_bits,
-                                      self.nono.col_bit_mask,
-                                      self.col_clues)
-        self.nono.set_zeros(cols=new_col_zeros)
-        # set zeros in rows
-        new_row_zeros = set_new_zeros(self.nono.row_ones,
-                                      self.nono.row_zeros,
-                                      self.nono.row_num_bits,
-                                      self.nono.row_bit_mask,
-                                      self.row_clues)
-        self.nono.set_zeros(rows=new_row_zeros)
+        col_zeros = set_new_zeros(self.nono.col_ones,
+                                  self.nono.col_zeros,
+                                  self.nono.col_num_bits,
+                                  self.nono.col_bit_mask,
+                                  self.col_clues)
+        self.nono.set_zeros(cols=col_zeros)
+        row_zeros = set_new_zeros(self.nono.row_ones,
+                                  self.nono.row_zeros,
+                                  self.nono.row_num_bits,
+                                  self.nono.row_bit_mask,
+                                  self.row_clues)
+        self.nono.set_zeros(rows=row_zeros)
+
+    def deduct_gaps_for_ones(self):
+        rows = fill_gaps(self.nono.row_ones,
+                         self.nono.row_zeros,
+                         self.nono.row_bit_mask,
+                         self.nono.row_num_bits,
+                         self.row_clues)
+        self.nono.set_ones(rows=rows)
+        cols = fill_gaps(self.nono.col_ones,
+                         self.nono.col_zeros,
+                         self.nono.col_bit_mask,
+                         self.nono.col_num_bits,
+                         self.col_clues)
+        self.nono.set_ones(cols=cols)
 
     def show(self):
         """
@@ -266,6 +280,12 @@ class Nonogram:
     def nonogram_valid(self):
         # TODO: add test for mismatch at the beginning or end of row or column.
         #       e.g. (2,1) 10.....
+        # TODO: check for this scenario:
+        #            1,3 |   |   |   | 0 |   | 0 |   | 0 |
+        #                there is no space left for 3 consecutive 1's
+        # TODO: check for this scenario:
+        #          2,1,1 |   |   | 0 | 1 | 0 | 1 |   | 1 |
+        #                three clues set but they don't match the give clues
         # Check that "ones" and "zeros" are separate and don't overlap. Overlap
         # would be when a position is marked with "one" in nonogram_ones and
         # nonogram_zeros. If there is, this indicates that a chosen variant has
@@ -280,6 +300,8 @@ class Nonogram:
                              self.nono.col_bit_mask,
                              self.col_clues):
             return False
+        # Please note: It is not required to check the row clues for
+        # correctness. Rows are generated in a way that they are always correct.
         return True
 
 
@@ -292,14 +314,31 @@ def is_separate(nonogram_ones, nonogram_zeros):
 
 
 def clues_correct(ones, zeros, masks, num_bits, all_bits_mask, clues):
-    check_clues = tuple((tuple(clue.count('1')
-                               for clue in f'{row:0{num_bits}b}'.split('0')
-                               if clue) for row in ones))
+    ones_str = [f'{item:0{num_bits}b}'.replace('0', ' ') for item in ones]
+    zeros_str = [f'{item:0{num_bits}b}'.replace('0', ' ') for item in zeros]
+    for idx_one, one in enumerate(ones_str):
+        for idx_zero, char in enumerate(zeros_str[idx_one]):
+            if char == '1':
+                ones_str[idx_one] = ones_str[idx_one][:idx_zero] + '0' + \
+                                    ones_str[idx_one][idx_zero + 1:]
+    check_clues = list()
+    for item in ones_str:
+        check_clues.append(
+            tuple(
+                m.end() - m.start()
+                for m in re.finditer('(?<=^|0)1+(?=0|$)', item)
+            ))
+    # check_clues = tuple((tuple(clue.count('1')
+    #                            for clue in f'{item:0{num_bits}b}'.split('0')
+    #                            if clue) for item in ones))
     check_clues = tuple(clue if clue else (0,) for clue in check_clues)
     check_clues = [((ones[idx] ^ zeros[idx] ^ all_bits_mask) == 0 and
                     item == clues[idx]) or
                    ((ones[idx] ^ zeros[idx] ^ all_bits_mask) != 0 and
-                    sum(item) <= sum(clues[idx]))
+                    len(item) <= len(clues[idx]) and
+                    sum(item) <= sum(clues[idx])) or
+                   (len(item) == len(clues[idx]) and
+                    item == clues[idx])
                    for idx, item in enumerate(check_clues)]
     return all(check_clues)
 
@@ -366,6 +405,49 @@ def get_bits(num):
     for pos in range(num):
         bits = bits | 1 << pos
     return bits
+
+# TODO: catch this case: 2,2 |   |   |   | 1 |   | 1 |   | 0 |
+#                                                      ^
+#                                                must be 1
+# TODO: catch this case: 1,3 |   |   |   | 0 |   | 0 |   | 0 |
+#                        invalid nonogram, 3 doesn't fit anywhere
+def fill_gaps(ones, zeros, bit_mask, num_bits, clues):
+    items = []
+    for idx, elem in enumerate(zeros):
+        if (ones[idx] ^ zeros[idx] ^ bit_mask) == 0:
+            # skip lines already completed
+            continue
+        # Get length, start and end positions of gaps.
+        gaps = [
+            (m.end() - m.start(), m.start(), m.end())
+            for m in re.finditer('0+', f'{elem:0{num_bits}b}')
+        ]
+        # Get the gaps that can be filled with ones.
+        fill_with_ones = list()
+        clues_cp = list(clues[idx])
+        while gaps and clues_cp:
+            if gaps[-1][0] == clues_cp[-1]: # right side
+                fill_with_ones.append((gaps[-1][1], gaps[-1][2]))
+            if gaps[0][0] == clues[0]:  # left side
+                fill_with_ones.append((gaps[0][1], gaps[0][2]))
+            gaps.pop(-1)
+            clues_cp.pop(-1)
+            gaps.pop(0) if gaps else False
+            clues_cp.pop(0) if clues_cp else False
+        # fill_with_ones = [
+        #     (gaps[clue_idx][1], gaps[clue_idx][2])
+        #     for idx in range(min(len(clues), len(gaps)))
+        #     if gaps[idx][0] == clues[idx]
+        # ]
+        if not fill_with_ones:
+            continue
+        # Fill the gaps with '1's.
+        new_ones = '0' * num_bits
+        for start, end in fill_with_ones:
+            new_ones = new_ones[:start] + '1' * (end - start) + new_ones[end:]
+        new_ones = int(new_ones, 2)
+        items.append((idx, new_ones))
+    return items
 
 
 def find_fixed_positions(clues, pos_masks, nonogram_ones):
@@ -456,8 +538,8 @@ def transpose(items, max_len):
 def set_new_zeros(ones, zeros, num_bits, bit_mask, clues):
     """
     Set the zeros for a nonogram array. The algorithm looks for the segments of
-    '1s' and compares against the given clues. Where the number of '1s' matches
-    the clue set the positions left and right to the '1s' to '0'.
+    '1s' and compares against the given clues. If matches set all remaining
+    positions to '0'.
     """
     new_zeros = []
     for idx, line in enumerate(ones):
@@ -467,7 +549,7 @@ def set_new_zeros(ones, zeros, num_bits, bit_mask, clues):
         segments = tuple(item.count('1')
                          for item in f'{line:0{num_bits}b}'.split('0')
                          if item)
-        if sum(segments) == sum(clues[idx]):
+        if sum(segments) == sum(clues[idx]): # TODO: check if we can do segments == clues[idx]
             # All clues found! Mark all remaining positions as zeros.
             # new_zeros[idx] = all_bits_mask ^ line
             new_zeros.append((idx, bit_mask ^ line))
