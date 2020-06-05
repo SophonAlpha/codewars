@@ -205,7 +205,9 @@ class Nonogram:
                 self.nono.restore()
                 idx = self.choose_row()
                 continue
-            if self.nono.row_ones[idx] & variant != self.nono.row_ones[idx]:
+            if (((self.nono.row_ones[idx] | self.nono.row_zeros[idx]) ^
+                  self.nono.row_bit_mask) | self.nono.row_ones[idx]) & \
+                  variant != variant:
                 # the variant doesn't match the fields already set
                 continue
             self.nono.backup()
@@ -214,6 +216,7 @@ class Nonogram:
                 rows=[(idx, variant ^ self.nono.row_bit_mask)])
             self.deduct_zeros()
             self.deduct_gaps_for_ones()
+            self.deduct_missing_ones()
             if not self.nonogram_valid():
                 self.nono.restore()
             else:
@@ -292,7 +295,7 @@ class Nonogram:
         # overwritten an already found "zero". Therefore the variant is invalid.
         if not is_separate(self.nono.row_ones, self.nono.row_zeros):
             return False
-        # check column '1s' match column clues
+        # Check column '1s' match column clues.
         if not clues_correct(self.nono.col_ones,
                              self.nono.col_zeros,
                              self.nono.col_masks,
@@ -314,24 +317,47 @@ def is_separate(nonogram_ones, nonogram_zeros):
 
 
 def clues_correct(ones, zeros, masks, num_bits, all_bits_mask, clues):
-    ones_str = [f'{item:0{num_bits}b}'.replace('0', ' ') for item in ones]
+    # Transform integer representation of the nonogram into string
+    # representation.
+    indexes = []
+    ones_str = []
+    for idx, item in enumerate(ones):
+        ones_str.append(f'{item:0{num_bits}b}'.replace('0', ' '))
+        if (ones[idx] ^ zeros[idx] ^ all_bits_mask) != 0:
+            indexes.append(idx)
     zeros_str = [f'{item:0{num_bits}b}'.replace('0', ' ') for item in zeros]
     for idx_one, one in enumerate(ones_str):
         for idx_zero, char in enumerate(zeros_str[idx_one]):
             if char == '1':
                 ones_str[idx_one] = ones_str[idx_one][:idx_zero] + '0' + \
                                     ones_str[idx_one][idx_zero + 1:]
+    # Check whether clues fit in remaining gaps between '0's.
+    gaps = [[m.end() - m.start() for m in re.finditer(' +', item)]
+            for item in zeros_str]
+    clues_cp = [list(item) for item in clues]
+    for idx in indexes:
+        while clues_cp[idx] and gaps[idx]:
+            if clues_cp[idx][-1] < gaps[idx][-1]:
+                gaps[idx][-1] = gaps[idx][-1] - clues_cp[idx][-1] - 1
+                clues_cp[idx].pop(-1)
+            elif clues_cp[idx][-1] == gaps[idx][-1]:
+                gaps[idx].pop(-1)
+                clues_cp[idx].pop(-1)
+            else:
+                gaps[idx].pop(-1)
+        if clues_cp[idx]:
+            # There are clues left. Means not all clues fit in the gaps.
+            return False
+    # Get the start and end positions of all segments of '1's.
     check_clues = list()
     for item in ones_str:
         check_clues.append(
             tuple(
                 m.end() - m.start()
-                for m in re.finditer('(?<=^|0)1+(?=0|$)', item)
+                for m in re.finditer('(?<=^)1+(?=0|$)|(?<=0)1+(?=0|$)', item)
+                if (m.end() - m.start()) > 0
             ))
-    # check_clues = tuple((tuple(clue.count('1')
-    #                            for clue in f'{item:0{num_bits}b}'.split('0')
-    #                            if clue) for item in ones))
-    check_clues = tuple(clue if clue else (0,) for clue in check_clues)
+    # Check if the segments of '1's violate the given clues.
     check_clues = [((ones[idx] ^ zeros[idx] ^ all_bits_mask) == 0 and
                     item == clues[idx]) or
                    ((ones[idx] ^ zeros[idx] ^ all_bits_mask) != 0 and
@@ -406,12 +432,16 @@ def get_bits(num):
         bits = bits | 1 << pos
     return bits
 
+
 # TODO: catch this case: 2,2 |   |   |   | 1 |   | 1 |   | 0 |
 #                                                      ^
 #                                                must be 1
 # TODO: catch this case: 1,3 |   |   |   | 0 |   | 0 |   | 0 |
 #                        invalid nonogram, 3 doesn't fit anywhere
 def fill_gaps(ones, zeros, bit_mask, num_bits, clues):
+    """
+    Fill the gaps that match exactly the clues.
+    """
     items = []
     for idx, elem in enumerate(zeros):
         if (ones[idx] ^ zeros[idx] ^ bit_mask) == 0:
@@ -422,11 +452,11 @@ def fill_gaps(ones, zeros, bit_mask, num_bits, clues):
             (m.end() - m.start(), m.start(), m.end())
             for m in re.finditer('0+', f'{elem:0{num_bits}b}')
         ]
-        # Get the gaps that can be filled with ones.
+        # Get the gaps that can be filled with '1's.
         fill_with_ones = list()
         clues_cp = list(clues[idx])
         while gaps and clues_cp:
-            if gaps[-1][0] == clues_cp[-1]: # right side
+            if gaps[-1][0] == clues_cp[-1]:  # right side
                 fill_with_ones.append((gaps[-1][1], gaps[-1][2]))
             if gaps[0][0] == clues[0]:  # left side
                 fill_with_ones.append((gaps[0][1], gaps[0][2]))
@@ -434,14 +464,9 @@ def fill_gaps(ones, zeros, bit_mask, num_bits, clues):
             clues_cp.pop(-1)
             gaps.pop(0) if gaps else False
             clues_cp.pop(0) if clues_cp else False
-        # fill_with_ones = [
-        #     (gaps[clue_idx][1], gaps[clue_idx][2])
-        #     for idx in range(min(len(clues), len(gaps)))
-        #     if gaps[idx][0] == clues[idx]
-        # ]
+        # Fill the gaps with '1's.
         if not fill_with_ones:
             continue
-        # Fill the gaps with '1's.
         new_ones = '0' * num_bits
         for start, end in fill_with_ones:
             new_ones = new_ones[:start] + '1' * (end - start) + new_ones[end:]
