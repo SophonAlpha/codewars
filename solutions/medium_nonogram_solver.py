@@ -43,6 +43,12 @@ def wrapper(func, *args, **kwargs):
     return wrapped
 
 
+class NonogramError(Exception):
+    """
+    Custom error class: thrown when an invalid nonogram has been detected.
+    """
+
+
 class NonoArray:
 
     def __init__(self, row_clues, col_clues):
@@ -215,13 +221,29 @@ class Nonogram:
             self.nono.set_zeros(
                 rows=[(idx, variant ^ self.nono.row_bit_mask)])
             self.deduct_zeros()
-            self.deduct_gaps_for_ones()
-            self.deduct_missing_ones()
-            if not self.nonogram_valid():
+
+            # self.deduct_gaps_for_ones()
+            # self.deduct_missing_ones()
+            # self.deduct_separator_zeros()
+
+            # TODO: use regex to check if nonogram fits the clues.
+            # TODO: use regex to identify segments of '1's that are not
+            #       complete and can be filled with '1's.
+            # TODO: use regex to find positions next to completed clues that
+            #       can be set to '0's.
+            try:
+                self.evaluate_nonogram()
+            except NonogramError:
                 self.nono.restore()
             else:
                 idx = self.choose_row()
                 varis[idx] = combinations(self.nono, idx, clues, max_len)
+
+            # if not self.nonogram_valid():
+            #     self.nono.restore()
+            # else:
+            #     idx = self.choose_row()
+            #     varis[idx] = combinations(self.nono, idx, clues, max_len)
 
     def choose_row(self):
         row = None
@@ -258,6 +280,29 @@ class Nonogram:
                                   self.row_clues)
         self.nono.set_zeros(rows=row_zeros)
 
+    def evaluate_nonogram(self):
+        """
+        Evaluate nonogram rows and columns.
+        """
+        # Evaluate rows.
+        row_ones_str = convert_to_string(self.nono.row_ones,
+                                         self.nono.row_zeros,
+                                         self.nono.row_num_bits)
+        row_ones, row_zeros = process_nonogram(row_ones_str,
+                                               self.row_clues,
+                                               self.nono.row_bit_mask)
+        self.nono.set_ones(rows=row_ones)
+        self.nono.set_zeros(rows=row_zeros)
+        # Evaluate columns.
+        col_ones_str = convert_to_string(self.nono.col_ones,
+                                         self.nono.col_zeros,
+                                         self.nono.col_num_bits)
+        col_ones, col_zeros = process_nonogram(col_ones_str,
+                                               self.col_clues,
+                                               self.nono.col_bit_mask)
+        self.nono.set_ones(cols=col_ones)
+        self.nono.set_zeros(cols=col_zeros)
+
     def deduct_gaps_for_ones(self):
         rows = fill_gaps(self.nono.row_ones,
                          self.nono.row_zeros,
@@ -271,6 +316,17 @@ class Nonogram:
                          self.nono.col_num_bits,
                          self.col_clues)
         self.nono.set_ones(cols=cols)
+
+    def deduct_missing_ones(self):
+        # TODO
+        pass
+
+    def deduct_separator_zeros(self):
+        """
+        Find empty positions adjacent to segments of '1's. These can be set to
+        '0'.
+        """
+        pass
 
     def show(self):
         """
@@ -293,6 +349,9 @@ class Nonogram:
         # would be when a position is marked with "one" in nonogram_ones and
         # nonogram_zeros. If there is, this indicates that a chosen variant has
         # overwritten an already found "zero". Therefore the variant is invalid.
+        # TODO: check if this is_separate() function is still needed now that we
+        #       only allow variants that don't overwrite '0's in the main
+        #       build() function.
         if not is_separate(self.nono.row_ones, self.nono.row_zeros):
             return False
         # Check column '1s' match column clues.
@@ -306,6 +365,80 @@ class Nonogram:
         # Please note: It is not required to check the row clues for
         # correctness. Rows are generated in a way that they are always correct.
         return True
+
+
+def convert_to_string(ones, zeros, num_bits):
+    """
+    Convert the nonogram into a string representation. Required for further
+    analysis with regular expressions.
+    """
+    ones_str = [f'{item:0{num_bits}b}'.replace('0', ' ') for item in ones]
+    zeros_str = [f'{item:0{num_bits}b}'.replace('0', ' ') for item in zeros]
+    for idx_one, one in enumerate(ones_str):
+        for idx_zero, char in enumerate(zeros_str[idx_one]):
+            if char == '1':
+                ones_str[idx_one] = ones_str[idx_one][:idx_zero] + '0' + \
+                                    ones_str[idx_one][idx_zero + 1:]
+    return ones_str
+
+
+def process_nonogram(ones_str, clues, bit_mask):
+    """
+    Check if nonogram is valid, deduct missing '0's and '1's.
+    """
+    new_ones = []
+    new_zeros = []
+    for idx, item in enumerate(ones_str):
+        segments = get_segments(item, clues[idx])
+        if len(segments) != len(clues[idx]):
+            raise NonogramError  # The nonogram is invalid.
+        ones, zeros = deduct_ones_and_zeros(segments, clues[idx], bit_mask)
+        if ones > 0:
+            new_ones.append((idx, ones))
+        if zeros > 0:
+            new_zeros.append((idx, zeros))
+    return new_ones, new_zeros
+
+
+def get_segments(item, clue):
+    pattern = [r'([1 ]{' + str(num) + '})' for num in clue]
+    pattern = '[0 ]+?'.join(pattern)
+    pattern = '^[0 ]*?' + pattern + '[0 ]*?$'
+    matches = re.search(pattern, item)
+    segments = None
+    if matches:
+        segments = [(matches.span(grp), matches.group(grp))
+                    for grp in range(1, len(matches.groups()) + 1)]
+    return segments
+
+
+def deduct_ones_and_zeros(segments, clue, bit_mask):
+    new_ones = '0' * len(bin(bit_mask)[2:])
+    new_zeros = '0' * len(bin(bit_mask)[2:])
+    # Check if '1's match the clues.
+    if tuple(string.count('1') for _, string in segments) == clue:
+        # '1's match clues. Fill remaining positions with '0's.
+        new_zeros = bin(bit_mask)[2:]
+        for (start, end), _ in segments:
+            new_zeros = new_zeros[:start] + (end - start) * '0' + \
+                        new_zeros[end:]
+        return int(new_ones, 2), int(new_zeros, 2)
+    # Find segments of '1's that have space between '1's.
+    ones = []
+    for span, string in segments:
+        match = re.match(r'^11*( +1*)+1$', string)
+        if match:
+            ones.append(span)
+    # Set '1's and '0's.
+    for start, end in ones:
+        # Fill the spaces between '1's with '1's.
+        new_ones = new_ones[:start] + (end - start) * '1' + new_ones[end:]
+        # Fill adjacent positions with '0's (separator '0's).
+        if start > 0:
+            new_zeros = new_zeros[:start - 1] + '1' + new_zeros[start:]
+        if end < len(new_zeros):
+            new_zeros = new_zeros[:end] + '1' + new_zeros[end + 1:]
+    return int(new_ones, 2), int(new_zeros, 2)
 
 
 def is_separate(nonogram_ones, nonogram_zeros):
@@ -440,7 +573,7 @@ def get_bits(num):
 #                        invalid nonogram, 3 doesn't fit anywhere
 def fill_gaps(ones, zeros, bit_mask, num_bits, clues):
     """
-    Fill the gaps that match exactly the clues.
+    Fill the gaps between '0's that match exactly the clues.
     """
     items = []
     for idx, elem in enumerate(zeros):
@@ -475,30 +608,30 @@ def fill_gaps(ones, zeros, bit_mask, num_bits, clues):
     return items
 
 
-def find_fixed_positions(clues, pos_masks, nonogram_ones):
-    max_len = len(clues)
-    items = [0, ] * max_len
-    for idx, clue, mask in [(idx, clue, pos_masks[idx])
-                            for idx, clue in enumerate(clues)]:
-        if mask != 0 and nonogram_ones[idx] != 0:
-            items[idx] = fixed_positions(clue, mask, max_len,
-                                         nonogram_ones[idx])
-    return items
+# def find_fixed_positions(clues, pos_masks, nonogram_ones):
+#     max_len = len(clues)
+#     items = [0, ] * max_len
+#     for idx, clue, mask in [(idx, clue, pos_masks[idx])
+#                             for idx, clue in enumerate(clues)]:
+#         if mask != 0 and nonogram_ones[idx] != 0:
+#             items[idx] = fixed_positions(clue, mask, max_len,
+#                                          nonogram_ones[idx])
+#     return items
 
 
-def fixed_positions(clue, mask, max_len, nonogram_ones_line):
-    option = 0
-    max_r_shift = max_len - (sum(clue) + len(clue) - 1)
-    clue_shftd = init_shift(clue, max_len)
-    for combination in combinator(clue_shftd, 0, 0, max_r_shift, max_len):
-        if (combination & (nonogram_ones_line | mask) == combination) and \
-                (combination & nonogram_ones_line == nonogram_ones_line):
-            if not option:
-                option = combination
-            else:
-                option = 0
-                break
-    return option
+# def fixed_positions(clue, mask, max_len, nonogram_ones_line):
+#     option = 0
+#     max_r_shift = max_len - (sum(clue) + len(clue) - 1)
+#     clue_shftd = init_shift(clue, max_len)
+#     for combination in combinator(clue_shftd, 0, 0, max_r_shift, max_len):
+#         if (combination & (nonogram_ones_line | mask) == combination) and \
+#                 (combination & nonogram_ones_line == nonogram_ones_line):
+#             if not option:
+#                 option = combination
+#             else:
+#                 option = 0
+#                 break
+#     return option
 
 
 def combinations(nono, idx, clues, max_len):
@@ -563,7 +696,7 @@ def transpose(items, max_len):
 def set_new_zeros(ones, zeros, num_bits, bit_mask, clues):
     """
     Set the zeros for a nonogram array. The algorithm looks for the segments of
-    '1s' and compares against the given clues. If matches set all remaining
+    '1s' and compares against the given clues. If it matches, set all remaining
     positions to '0'.
     """
     new_zeros = []
