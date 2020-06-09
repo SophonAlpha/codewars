@@ -241,12 +241,15 @@ class Nonogram:
                     varis[idx] = combinations(self.nono, idx, clues,
                                               max_len)
                 variant = None
-                while variant is None or \
-                        (((self.nono.row_ones[idx] | self.nono.row_zeros[idx]) ^
-                          self.nono.row_bit_mask) | self.nono.row_ones[idx]) & \
-                        variant != variant or \
-                        (self.nono.row_ones[idx] & variant) != \
-                        self.nono.row_ones[idx]:
+                while variant is None:
+
+                    # or \
+                    #     (((self.nono.row_ones[idx] | self.nono.row_zeros[idx]) ^
+                    #       self.nono.row_bit_mask) | self.nono.row_ones[idx]) & \
+                    #     variant != variant or \
+                    #     (self.nono.row_ones[idx] & variant) != \
+                    #     self.nono.row_ones[idx]:
+
                     # Choose a variant that matches the fields already set.
                     try:
                         variant = next(varis[idx])
