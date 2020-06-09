@@ -73,6 +73,14 @@ TESTS = [
              (0, 0, 1, 0, 1, 1, 1),
              (0, 0, 0, 1, 1, 1, 0),
              (0, 1, 0, 0, 0, 0, 1))},
+    {'clues': (((1, 1), (2,), (2, 2), (1,), (1, 1)),
+               ((1,), (3,), (2,), (2,), (1, 1, 1))),
+     'ans': (
+         (0, 0, 1, 0, 0),
+         (0, 0, 1, 1, 1),
+         (1, 1, 0, 0, 0),
+         (0, 1, 1, 0, 0),
+         (1, 0, 1, 0, 1))},
 ]
 
 PERFORMANCE_TESTS = [
@@ -107,14 +115,15 @@ PERFORMANCE_TESTS = [
                 (1, 2), (1, 1, 2), (1, 1, 1), (3, 1)),
                ((1, 1, 2), (1, 1), (6,), (1, 1),
                 (3, 2), (2, 1, 1), (1, 2), (1, 3))),
-     'ans': ((1, 0, 0, 1, 0, 1, 1, 0),
-             (0, 1, 0, 1, 0, 0, 0, 0),
-             (1, 1, 1, 1, 1, 1, 0, 0),
-             (0, 0, 1, 0, 0, 0, 0, 1),
-             (0, 1, 1, 1, 0, 0, 1, 1),
-             (1, 1, 0, 0, 1, 0, 0, 1),
-             (0, 0, 1, 0, 1, 1, 0, 0),
-             (0, 0, 1, 0, 0, 1, 1, 1))}
+     'ans': (
+         (1, 0, 0, 1, 0, 1, 1, 0),
+         (0, 1, 0, 1, 0, 0, 0, 0),
+         (1, 1, 1, 1, 1, 1, 0, 0),
+         (0, 0, 1, 0, 0, 0, 0, 1),
+         (0, 1, 1, 1, 0, 0, 1, 1),
+         (1, 1, 0, 0, 1, 0, 0, 1),
+         (0, 0, 1, 0, 1, 1, 0, 0),
+         (0, 0, 1, 0, 0, 1, 1, 1))},
 ]
 
 
@@ -205,23 +214,6 @@ def tuple2bin(nonogram):
 # ---------- test functions ----------------------------------------------------
 
 
-@pytest.mark.parametrize('test', random_nonograms(num_cols=25,
-                                                  num_rows=25,
-                                                  num_test=50))
-def test_num_variants(test):
-    """
-    Test to ensure that the function for calculating the number of clue variants
-    is correct. We compare calculated variants against the number of all
-    possible combinations.
-    """
-    start_clues = test[0]
-    nono = Nonogram(start_clues)
-    num_row_variants_counts = count_variants(nono.row_clues, nono.num_cols)
-    assert nono.num_row_variants == num_row_variants_counts
-    num_col_variants_counts = count_variants(nono.col_clues, nono.num_rows)
-    assert nono.num_col_variants == num_col_variants_counts
-
-
 @pytest.mark.parametrize('test', TESTS)
 def test_nonograms(test):
     """ tests """
@@ -234,40 +226,24 @@ def test_nonograms(test):
     assert clues_ans == clues_test
 
 
-@pytest.mark.parametrize('test', random_nonograms(num_cols=7,
-                                                  num_rows=7,
+@pytest.mark.timeout(60)
+@pytest.mark.parametrize('test', random_nonograms(num_cols=9,
+                                                  num_rows=9,
                                                   num_test=100))
 def test_random_nonograms(test):
     """ tests """
     clues_test = test[0]
     ans = test[1]
-    # print()
-    # print(f'clues = {clues_test}')
-    # print()
-    # print(f'ans = {ans}')
+    print()
+    print(f'clues = {clues_test}')
+    print()
+    print(f'ans = {ans}')
     num_cols = len(test[1])
     nonogram_ones = tuple2bin(Nonogram(clues_test).solve())
     row_clues, col_clues = get_clues(nonogram_ones, num_cols)
     col_clues = tuple(clue[::-1] for clue in col_clues)
     clues_ans = (col_clues, row_clues)
     assert clues_ans == clues_test
-
-
-@pytest.mark.parametrize('test', random_nonograms(num_cols=25,
-                                                  num_rows=25,
-                                                  num_test=50))
-def test_combinator_speed(test):
-    """ test """
-    col_clues, row_clues = test[0][0], test[0][1]
-    max_len = len(col_clues)
-    print()
-    for clue in row_clues:
-        max_r_shift = max_len - (sum(clue) + len(clue) - 1)
-        clue_shftd = init_shift(clue, max_len)
-        count = 0
-        for _ in combinator(clue_shftd, 0, 0, max_r_shift):
-            count += 1
-        print(f'{clue}: {count:,}')
 
 
 @pytest.mark.parametrize('test', PERFORMANCE_TESTS)
