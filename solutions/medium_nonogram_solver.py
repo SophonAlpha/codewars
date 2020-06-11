@@ -208,9 +208,12 @@ class Nonogram:
                                                    self.col_variants
         # initialise the nonogram array
         self.nono = NonoArray(self.row_clues, self.col_clues)
+        self.row_idx = None
+        self.varis = {}
 
     def solve(self):
         self.build(0, self.row_clues, self.nono.num_cols)
+        self.show()
         if self.swap:
             # turn the nonogram back
             self.nono.row_ones = transpose(
@@ -222,12 +225,6 @@ class Nonogram:
     def build(self, idx, clues, max_len):
         # set common positions in columns and rows
         self.set_common_positions()
-        # solve the nonogram
-        varis = {}
-        # idx = self.choose_row()
-        # varis[idx] = combinations(self.nono, idx, clues, max_len)
-        # variant = None
-        idx = None  # Test
         while not self.nono.complete():
             self.nono.save()
             try:
@@ -235,64 +232,13 @@ class Nonogram:
             except NonogramError:
                 self.nono.restore()
             if not self.nono.has_changed():
-                # Set a row to get moving again.
-                idx = self.choose_row()
-                if idx not in varis.keys():
-                    varis[idx] = combinations(self.nono, idx, clues,
-                                              max_len)
-                variant = None
-                while variant is None:
-
-                    # or \
-                    #     (((self.nono.row_ones[idx] | self.nono.row_zeros[idx]) ^
-                    #       self.nono.row_bit_mask) | self.nono.row_ones[idx]) & \
-                    #     variant != variant or \
-                    #     (self.nono.row_ones[idx] & variant) != \
-                    #     self.nono.row_ones[idx]:
-
-                    # Choose a variant that matches the fields already set.
-                    try:
-                        variant = next(varis[idx])
-                    except StopIteration:
-                        self.nono.restore()
-                        del varis[idx]
-                        idx = None
-                        variant = None
-                        break
+                # Get a variant for a row to get moving again.
+                variant = self.next_variant(clues, max_len)
                 if variant is not None:
                     self.nono.backup()
-                    self.nono.set_ones(rows=[(idx, variant)])
+                    self.nono.set_ones(rows=[(self.row_idx, variant)])
                     self.nono.set_zeros(
-                        rows=[(idx, variant ^ self.nono.row_bit_mask)])
-
-                # # Set a row to get moving again.
-                # # TODO: check if 'if' statement can be removed
-                # if (self.nono.row_ones[idx] ^
-                #     self.nono.row_zeros[idx] ^ self.nono.row_bit_mask) == 0:
-                #     # Row complete. Choose a new one.
-                #     idx = self.choose_row()
-                #     if idx not in varis.keys():
-                #         varis[idx] = combinations(self.nono, idx, clues,
-                #                                   max_len)
-                # while variant is None or \
-                #         (((self.nono.row_ones[idx] | self.nono.row_zeros[idx]) ^
-                #           self.nono.row_bit_mask) | self.nono.row_ones[idx]) & \
-                #         variant != variant:
-                #     # Choose a variant that matches the fields already set.
-                #     try:
-                #         variant = next(varis[idx])
-                #         valid_variant = True #  TODO: see if this can be done better
-                #     except StopIteration:
-                #         self.nono.restore()
-                #         del varis[idx]
-                #         idx = self.choose_row()
-                #         valid_variant = False
-                # if valid_variant:
-                #     self.nono.backup()
-                #     self.nono.set_ones(rows=[(idx, variant)])
-                #     self.nono.set_zeros(
-                #         rows=[(idx, variant ^ self.nono.row_bit_mask)])
-                #     variant = None
+                        rows=[(self.row_idx, variant ^ self.nono.row_bit_mask)])
 
     def choose_row(self):
         row = None
@@ -312,23 +258,6 @@ class Nonogram:
         rows = deduct_common_positions(self.row_clues, self.nono.num_cols)
         self.nono.set_ones(rows=rows)
 
-    def deduct_zeros(self):
-        # TODO: performance optimization. Test if the correct number of clues
-        #       is set at the beginning and end of the line. If yes, set the
-        #       surrounding zeros.
-        col_zeros = set_new_zeros(self.nono.col_ones,
-                                  self.nono.col_zeros,
-                                  self.nono.col_num_bits,
-                                  self.nono.col_bit_mask,
-                                  self.col_clues)
-        self.nono.set_zeros(cols=col_zeros)
-        row_zeros = set_new_zeros(self.nono.row_ones,
-                                  self.nono.row_zeros,
-                                  self.nono.row_num_bits,
-                                  self.nono.row_bit_mask,
-                                  self.row_clues)
-        self.nono.set_zeros(rows=row_zeros)
-
     def deduct_positions(self):
         """
         Evaluate nonogram rows and columns.
@@ -339,6 +268,8 @@ class Nonogram:
                                          self.nono.row_num_bits)
         row_ones, row_zeros = process_nonogram(row_ones_str,
                                                self.row_clues,
+                                               self.nono.row_ones,
+                                               self.nono.row_zeros,
                                                self.nono.row_bit_mask)
         self.nono.set_ones(rows=row_ones)
         self.nono.set_zeros(rows=row_zeros)
@@ -348,6 +279,8 @@ class Nonogram:
                                          self.nono.col_num_bits)
         col_ones, col_zeros = process_nonogram(col_ones_str,
                                                self.col_clues,
+                                               self.nono.col_ones,
+                                               self.nono.col_zeros,
                                                self.nono.col_bit_mask)
         self.nono.set_ones(cols=col_ones)
         self.nono.set_zeros(cols=col_zeros)
@@ -358,30 +291,43 @@ class Nonogram:
         if not nonogram_valid(row_ones_str, self.row_clues):
             raise NonogramError
 
-    def deduct_gaps_for_ones(self):
-        rows = fill_gaps(self.nono.row_ones,
-                         self.nono.row_zeros,
-                         self.nono.row_bit_mask,
-                         self.nono.row_num_bits,
-                         self.row_clues)
-        self.nono.set_ones(rows=rows)
-        cols = fill_gaps(self.nono.col_ones,
-                         self.nono.col_zeros,
-                         self.nono.col_bit_mask,
-                         self.nono.col_num_bits,
-                         self.col_clues)
-        self.nono.set_ones(cols=cols)
+    def next_variant(self, clues, max_len):
+        self.row_idx = self.choose_row()
+        if self.row_idx not in self.varis.keys():
+            self.varis[self.row_idx] = combinations(self.nono,
+                                                    self.row_idx,
+                                                    clues, max_len)
+        variant = None
+        while variant is None or \
+                not self.is_fitting_existing_ones(variant) or \
+                not self.is_preserving_existing_ones(variant):
+            # Choose a variant that matches the fields already set.
+            try:
+                variant = next(self.varis[self.row_idx])
+            except StopIteration:
+                self.nono.restore()
+                del self.varis[self.row_idx]
+                self.row_idx = None
+                variant = None
+                break
+        return variant
 
-    def deduct_missing_ones(self):
-        # TODO
-        pass
+    def is_fitting_existing_ones(self, variant):
+        """
+        Check if variant fits to the existing '1's and empty positions.
+        """
+        return (((self.nono.row_ones[self.row_idx] |
+                  self.nono.row_zeros[self.row_idx]) ^
+                 self.nono.row_bit_mask) |
+                self.nono.row_ones[self.row_idx]) & \
+               variant == variant
 
-    def deduct_separator_zeros(self):
+    def is_preserving_existing_ones(self, variant):
         """
-        Find empty positions adjacent to segments of '1's. These can be set to
-        '0'.
+        Check if variant does not alternate existing '1's.
         """
-        pass
+        return (self.nono.row_ones[self.row_idx] & variant) == \
+               self.nono.row_ones[self.row_idx]
 
     def show(self):
         """
@@ -390,36 +336,6 @@ class Nonogram:
         reordered_col_clues = reorder(self.col_clues)
         nshow.show(self.nono.row_ones, self.nono.row_zeros,
                    reordered_col_clues, self.row_clues)
-
-    # def nonogram_valid(self):
-    #     # TODO: add test for mismatch at the beginning or end of row or column.
-    #     #       e.g. (2,1) 10.....
-    #     # TODO: check for this scenario:
-    #     #            1,3 |   |   |   | 0 |   | 0 |   | 0 |
-    #     #                there is no space left for 3 consecutive 1's
-    #     # TODO: check for this scenario:
-    #     #          2,1,1 |   |   | 0 | 1 | 0 | 1 |   | 1 |
-    #     #                three clues set but they don't match the give clues
-    #     # Check that "ones" and "zeros" are separate and don't overlap. Overlap
-    #     # would be when a position is marked with "one" in nonogram_ones and
-    #     # nonogram_zeros. If there is, this indicates that a chosen variant has
-    #     # overwritten an already found "zero". Therefore the variant is invalid.
-    #     # TODO: check if this is_separate() function is still needed now that we
-    #     #       only allow variants that don't overwrite '0's in the main
-    #     #       build() function.
-    #     if not is_separate(self.nono.row_ones, self.nono.row_zeros):
-    #         return False
-    #     # Check column '1s' match column clues.
-    #     if not clues_correct(self.nono.col_ones,
-    #                          self.nono.col_zeros,
-    #                          self.nono.col_masks,
-    #                          self.nono.col_num_bits,
-    #                          self.nono.col_bit_mask,
-    #                          self.col_clues):
-    #         return False
-    #     # Please note: It is not required to check the row clues for
-    #     # correctness. Rows are generated in a way that they are always correct.
-    #     return True
 
 
 def convert_to_string(ones, zeros, num_bits):
@@ -437,7 +353,7 @@ def convert_to_string(ones, zeros, num_bits):
     return ones_str
 
 
-def process_nonogram(ones_str, clues, bit_mask):
+def process_nonogram(ones_str, clues, ones_int, zeros_int, bit_mask):
     """
     Check if nonogram is valid, deduct missing '0's and '1's.
     """
@@ -449,6 +365,7 @@ def process_nonogram(ones_str, clues, bit_mask):
         if not (len(segments_left) == len(segments_right) == len(clues[idx])):
             raise NonogramError  # The nonogram is invalid.
         ones, zeros = deduct_ones_and_zeros(segments_common, clues[idx],
+                                            ones_int[idx], zeros_int[idx],
                                             bit_mask)
         if ones > 0:
             new_ones.append((idx, ones))
@@ -460,7 +377,8 @@ def process_nonogram(ones_str, clues, bit_mask):
 def nonogram_valid(ones_str, clues):
     for idx, item in enumerate(ones_str):
         segments_left, \
-        segments_right, segments_common = get_clue_segments(item, clues[idx])
+            segments_right,\
+            segments_common = get_clue_segments(item, clues[idx])
         if not (len(segments_left) == len(segments_right) == len(clues[idx])):
             return False
     return True
@@ -492,17 +410,15 @@ def get_segments(item, clue):
     return segments
 
 
-def deduct_ones_and_zeros(segments, clue, bit_mask):
+def deduct_ones_and_zeros(segments, clue, ones_int, zeros_int, bit_mask):
     new_ones = '0' * len(bin(bit_mask)[2:])
     new_zeros = '0' * len(bin(bit_mask)[2:])
     # Check if '1's match the clues.
     if tuple(string.count('1') for _, string in segments) == clue:
         # '1's match clues. Fill remaining positions with '0's.
-        new_zeros = bin(bit_mask)[2:]
-        for (start, end), _ in segments:
-            new_zeros = new_zeros[:start] + (end - start) * '0' + \
-                        new_zeros[end:]
-        return int(new_ones, 2), int(new_zeros, 2)
+        new_ones = 0
+        new_zeros = ones_int ^ bit_mask
+        return new_ones, new_zeros
     # Find segments of '1's that have space between '1's.
     ones = []
     for span, string in segments:
@@ -519,67 +435,6 @@ def deduct_ones_and_zeros(segments, clue, bit_mask):
         if end < len(new_zeros):
             new_zeros = new_zeros[:end] + '1' + new_zeros[end + 1:]
     return int(new_ones, 2), int(new_zeros, 2)
-
-
-def is_separate(nonogram_ones, nonogram_zeros):
-    separate = [
-        row ^ nonogram_zeros[idx] == row | nonogram_zeros[idx]
-        for idx, row in enumerate(nonogram_ones)
-    ]
-    return all(separate)
-
-
-def clues_correct(ones, zeros, masks, num_bits, all_bits_mask, clues):
-    # Transform integer representation of the nonogram into string
-    # representation.
-    indexes = []
-    ones_str = []
-    for idx, item in enumerate(ones):
-        ones_str.append(f'{item:0{num_bits}b}'.replace('0', ' '))
-        if (ones[idx] ^ zeros[idx] ^ all_bits_mask) != 0:
-            indexes.append(idx)
-    zeros_str = [f'{item:0{num_bits}b}'.replace('0', ' ') for item in zeros]
-    for idx_one, one in enumerate(ones_str):
-        for idx_zero, char in enumerate(zeros_str[idx_one]):
-            if char == '1':
-                ones_str[idx_one] = ones_str[idx_one][:idx_zero] + '0' + \
-                                    ones_str[idx_one][idx_zero + 1:]
-    # Check whether clues fit in remaining gaps between '0's.
-    gaps = [[m.end() - m.start() for m in re.finditer(' +', item)]
-            for item in zeros_str]
-    clues_cp = [list(item) for item in clues]
-    for idx in indexes:
-        while clues_cp[idx] and gaps[idx]:
-            if clues_cp[idx][-1] < gaps[idx][-1]:
-                gaps[idx][-1] = gaps[idx][-1] - clues_cp[idx][-1] - 1
-                clues_cp[idx].pop(-1)
-            elif clues_cp[idx][-1] == gaps[idx][-1]:
-                gaps[idx].pop(-1)
-                clues_cp[idx].pop(-1)
-            else:
-                gaps[idx].pop(-1)
-        if clues_cp[idx]:
-            # There are clues left. Means not all clues fit in the gaps.
-            return False
-    # Get the start and end positions of all segments of '1's.
-    check_clues = list()
-    for item in ones_str:
-        check_clues.append(
-            tuple(
-                m.end() - m.start()
-                for m in re.finditer('(?<=^)1+(?=0|$)|(?<=0)1+(?=0|$)', item)
-                if (m.end() - m.start()) > 0
-            ))
-    # Check if the segments of '1's violate the given clues.
-    check_clues = [((ones[idx] ^ zeros[idx] ^ all_bits_mask) == 0 and
-                    item == clues[idx]) or
-                   ((ones[idx] ^ zeros[idx] ^ all_bits_mask) != 0 and
-                    len(item) <= len(clues[idx]) and
-                    sum(item) <= sum(clues[idx])) or
-                   (len(item) == len(clues[idx]) and
-                    item == clues[idx])
-                   for idx, item in enumerate(check_clues)]
-    return all(check_clues)
 
 
 def num_variants(clues, max_bit_length):
@@ -646,48 +501,6 @@ def get_bits(num):
     return bits
 
 
-# TODO: catch this case: 2,2 |   |   |   | 1 |   | 1 |   | 0 |
-#                                                      ^
-#                                                must be 1
-# TODO: catch this case: 1,3 |   |   |   | 0 |   | 0 |   | 0 |
-#                        invalid nonogram, 3 doesn't fit anywhere
-def fill_gaps(ones, zeros, bit_mask, num_bits, clues):
-    """
-    Fill the gaps between '0's that match exactly the clues.
-    """
-    items = []
-    for idx, elem in enumerate(zeros):
-        if (ones[idx] ^ zeros[idx] ^ bit_mask) == 0:
-            # skip lines already completed
-            continue
-        # Get length, start and end positions of gaps.
-        gaps = [
-            (m.end() - m.start(), m.start(), m.end())
-            for m in re.finditer('0+', f'{elem:0{num_bits}b}')
-        ]
-        # Get the gaps that can be filled with '1's.
-        fill_with_ones = list()
-        clues_cp = list(clues[idx])
-        while gaps and clues_cp:
-            if gaps[-1][0] == clues_cp[-1]:  # right side
-                fill_with_ones.append((gaps[-1][1], gaps[-1][2]))
-            if gaps[0][0] == clues[0]:  # left side
-                fill_with_ones.append((gaps[0][1], gaps[0][2]))
-            gaps.pop(-1)
-            clues_cp.pop(-1)
-            gaps.pop(0) if gaps else False
-            clues_cp.pop(0) if clues_cp else False
-        # Fill the gaps with '1's.
-        if not fill_with_ones:
-            continue
-        new_ones = '0' * num_bits
-        for start, end in fill_with_ones:
-            new_ones = new_ones[:start] + '1' * (end - start) + new_ones[end:]
-        new_ones = int(new_ones, 2)
-        items.append((idx, new_ones))
-    return items
-
-
 def combinations(nono, idx, clues, max_len):
     clue = clues[idx]
     max_r_shift = max_len - (sum(clue) + len(clue) - 1)
@@ -721,22 +534,6 @@ def or_merge(items):
     return functools.reduce(lambda x, y: x | y, items)
 
 
-def cols2rows(items, max_len):
-    new_rows = []
-    for idx in reversed(range(max_len)):
-        new_rows.append(sum([((item & (1 << idx)) >> idx) << pos
-                             for pos, item in enumerate(items)]))
-    return new_rows
-
-
-def rows2cols(items, max_len):
-    new_cols = []
-    for idx, _ in enumerate(items):
-        new_cols.append(sum([((item & (1 << idx)) >> idx) << (max_len - pos - 1)
-                             for pos, item in enumerate(items)]))
-    return new_cols
-
-
 def transpose(items, max_len):
     new_rows = []
     for col_idx in reversed(range(max_len)):
@@ -745,43 +542,6 @@ def transpose(items, max_len):
              for row_idx, item in enumerate(items)])
         )
     return new_rows
-
-
-def set_new_zeros(ones, zeros, num_bits, bit_mask, clues):
-    """
-    Set the zeros for a nonogram array. The algorithm looks for the segments of
-    '1s' and compares against the given clues. If it matches, set all remaining
-    positions to '0'.
-    """
-    new_zeros = []
-    for idx, line in enumerate(ones):
-        if (ones[idx] ^ zeros[idx] ^ bit_mask) == 0:
-            # skip lines already completed
-            continue
-        segments = tuple(item.count('1')
-                         for item in f'{line:0{num_bits}b}'.split('0')
-                         if item)
-        if sum(segments) == sum(
-                clues[idx]):  # TODO: check if we can do segments == clues[idx]
-            # All clues found! Mark all remaining positions as zeros.
-            # new_zeros[idx] = all_bits_mask ^ line
-            new_zeros.append((idx, bit_mask ^ line))
-    return new_zeros
-
-
-def find_neighbour_zeros(line, segments, clue, width):
-    bits_to_set = 0
-    segments_start_end = [(m.start(), m.end())
-                          for m in re.finditer('1+', f'{line:0{width}b}')]
-    for count_idx, count in enumerate(segments):
-        if count == clue[count_idx]:
-            start, end = segments_start_end[count_idx]
-            if start > 0:
-                bits_to_set = bits_to_set | 1 << (width - 1) - (start - 1)
-            if end <= (width - 1):
-                bits_to_set = bits_to_set | 1 << (width - 1) - end
-    new_zeros = bits_to_set
-    return new_zeros
 
 
 def bin2tuple(nonogram_ones, num_cols):
@@ -793,20 +553,61 @@ def bin2tuple(nonogram_ones, num_cols):
 
 
 if __name__ == '__main__':
-    test_clues = (((1, 2), (1, 3, 1), (1, 3), (1,),
-                   (4, 3), (1, 3, 1), (2, 1), (2, 1, 2), (1, 2)),
-                  ((1, 1), (1, 1), (2, 1, 1), (1, 1, 2),
-                   (1, 3), (1, 1, 1), (4,),  (1, 1, 1, 2), (3, 5)))
-    test_ans = ((0, 1, 0, 0, 0, 1, 0, 0, 0),
-                (0, 0, 0, 0, 1, 0, 0, 0, 1),
-                (0, 1, 1, 0, 1, 0, 0, 1, 0),
-                (0, 1, 0, 0, 1, 0, 1, 1, 0),
-                (0, 1, 0, 0, 1, 1, 1, 0, 0),
-                (1, 0, 0, 0, 0, 1, 0, 1, 0),
-                (0, 0, 1, 1, 1, 1, 0, 0, 0),
-                (1, 0, 1, 0, 1, 0, 0, 1, 1),
-                (1, 1, 1, 0, 1, 1, 1, 1, 1))
+    test_clues_slow = (
+        ((1, 2, 3, 1), (1, 1), (1, 2, 1, 1), (1, 1, 5), (1, 2, 2),
+         (1, 3, 2), (2, 1), (2, 1, 1, 1), (2, 3, 1, 1), (1, 1, 3, 1),
+         (4, 1, 1), (2, 3, 1)),
+        ((2, 4, 1), (1, 3, 2), (1, 1, 1), (1, 2, 1, 1), (3, 5), (1, 1, 1, 1, 1),
+         (1, 2, 1, 1), (1, 3, 1, 1), (1, 2, 3), (1, 3, 1), (3, 1, 1),
+         (1, 1, 2)))
+    test_ans_slow = (
+        (0, 0, 1, 1, 0, 0, 1, 1, 1, 1, 0, 1),
+        (1, 0, 0, 0, 0, 0, 1, 1, 1, 0, 1, 1),
+        (0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0),
+        (0, 0, 1, 0, 0, 1, 1, 0, 1, 0, 1, 0),
+        (1, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 1),
+        (1, 0, 0, 1, 0, 1, 0, 0, 1, 0, 0, 1),
+        (0, 0, 1, 0, 1, 1, 0, 0, 0, 1, 0, 1),
+        (1, 0, 0, 1, 1, 1, 0, 1, 0, 1, 0, 0),
+        (1, 0, 1, 1, 0, 0, 0, 0, 0, 1, 1, 1),
+        (1, 0, 0, 1, 1, 1, 0, 0, 1, 0, 0, 0),
+        (0, 0, 0, 1, 1, 1, 0, 1, 0, 0, 1, 0),
+        (1, 0, 0, 1, 0, 0, 0, 0, 1, 1, 0, 0))
+    test_clues_fast = (
+        ((1, 4), (1, 1, 4), (2, 3, 2, 2), (2, 4, 3), (3, 1, 1),
+         (1, 3, 1, 1), (2, 2, 1), (1, 1, 1, 5), (3, 2, 3), (10,),
+         (2, 2, 1, 3), (1, 2, 1, 1)),
+        ((2, 7), (5, 1, 3), (2, 3), (5, 2), (2, 2, 3), (2, 4, 1), (1, 2, 2),
+         (2, 1, 1, 2), (4, 3, 1), (2, 8), (1, 2, 2, 1), (1, 1, 1, 2)))
+    test_ans_fast = (
+        (0, 0, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1),
+        (1, 1, 1, 1, 1, 0, 1, 0, 1, 1, 1, 0),
+        (0, 0, 0, 0, 1, 1, 0, 1, 1, 1, 0, 0),
+        (0, 1, 1, 1, 1, 1, 0, 0, 0, 1, 1, 0),
+        (0, 0, 1, 1, 0, 1, 1, 0, 0, 1, 1, 1),
+        (0, 0, 1, 1, 0, 0, 1, 1, 1, 1, 0, 1),
+        (0, 1, 0, 1, 1, 0, 0, 0, 1, 1, 0, 0),
+        (0, 1, 1, 0, 0, 1, 0, 1, 0, 1, 1, 0),
+        (1, 1, 1, 1, 0, 0, 0, 1, 1, 1, 0, 1),
+        (1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 0),
+        (1, 0, 1, 1, 0, 0, 0, 1, 1, 0, 1, 0),
+        (1, 0, 1, 0, 0, 0, 0, 1, 0, 0, 1, 1))
+    test_clues = (((2, 1, 1), (4, 2), (2, 1, 1), (1, 1, 1), (2, 1, 1),
+                   (5, 2), (2, 1), (1, 1, 2), (3, 1, 2), (1, 1, 1)),
+                  ((1, 1, 2), (1, 1, 2, 2), (1, 1, 1), (1, 1, 2), (1, 4, 1),
+                   (1, 2, 1), (2, 1), (1, 2, 1), (2, 1, 3), (2, 1, 1)))
+    test_ans = (
+        (1, 0, 0, 1, 0, 0, 1, 1, 0, 0),
+        (1, 0, 1, 0, 0, 1, 1, 0, 1, 1),
+        (0, 0, 1, 0, 0, 1, 0, 0, 1, 0),
+        (0, 1, 0, 0, 0, 1, 0, 1, 1, 0),
+        (0, 1, 0, 1, 1, 1, 1, 0, 0, 1),
+        (0, 1, 0, 0, 1, 1, 0, 0, 1, 0),
+        (1, 1, 0, 1, 0, 0, 0, 0, 0, 0),
+        (0, 0, 1, 0, 1, 1, 0, 0, 1, 0),
+        (1, 1, 0, 0, 0, 1, 0, 1, 1, 1),
+        (0, 1, 1, 0, 1, 0, 0, 1, 0, 0))
     nonogram = Nonogram(test_clues)
     sol = nonogram.solve()
-    print()
-    pprint.pprint(sol)
+    nonogram = Nonogram(test_clues)
+    sol = nonogram.solve()
