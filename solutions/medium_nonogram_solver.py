@@ -34,6 +34,8 @@ import operator
 import re
 import pprint
 
+SPACE_PATTERN = re.compile('(?:1( +)(?=1))')
+
 
 def wrapper(func, *args, **kwargs):
     """
@@ -188,14 +190,8 @@ class Nonogram:
         # Check which way it is faster to process the clues. Column wise or
         # row wise?
         col_clues, row_clues = clues[0], clues[1]
-        self.row_variants = sorted(num_variants(row_clues, len(col_clues)),
-                                   key=lambda item: item[1])
-        self.col_variants = sorted(num_variants(col_clues, len(row_clues)),
-                                   key=lambda item: item[1])
-        total_row_variants = functools.reduce(
-            lambda x, y: x * y, [elem for _, elem in self.row_variants])
-        total_col_variants = functools.reduce(
-            lambda x, y: x * y, [elem for _, elem in self.col_variants])
+        total_row_variants, \
+            total_col_variants = self.get_total_variants(col_clues, row_clues)
         if total_row_variants <= total_col_variants:
             # process row wise
             self.swap = False
@@ -210,6 +206,18 @@ class Nonogram:
         self.nono = NonoArray(self.row_clues, self.col_clues)
         self.row_idx = None
         self.varis = {}
+
+    def get_total_variants(self, col_clues, row_clues):
+
+        self.row_variants = sorted(num_variants(row_clues, len(col_clues)),
+                                   key=lambda item: item[1])
+        self.col_variants = sorted(num_variants(col_clues, len(row_clues)),
+                                   key=lambda item: item[1])
+        total_row_variants = functools.reduce(
+            lambda x, y: x * y, [elem for _, elem in self.row_variants])
+        total_col_variants = functools.reduce(
+            lambda x, y: x * y, [elem for _, elem in self.col_variants])
+        return total_row_variants, total_col_variants
 
     def solve(self):
         self.build(0, self.row_clues, self.nono.num_cols)
@@ -239,16 +247,28 @@ class Nonogram:
                     self.nono.set_ones(rows=[(self.row_idx, variant)])
                     self.nono.set_zeros(
                         rows=[(self.row_idx, variant ^ self.nono.row_bit_mask)])
+                    # TODO: can we avoid this type of test or do
+                    #       more efficiently?
+                    col_ones_str = convert_to_string(self.nono.col_ones,
+                                                     self.nono.col_zeros,
+                                                     self.nono.col_num_bits)
+                    if not nonogram_valid(col_ones_str, self.col_clues):
+                        self.nono.restore()
+                else:
+                    self.nono.restore()
 
     def choose_row(self):
         row = None
         for idx, num in self.row_variants:
-            if (self.nono.row_ones[idx] ^
-                self.nono.row_zeros[idx] ^
-                self.nono.row_bit_mask) != 0:
+            if not self.line_complete(idx):
                 row = idx
                 break
         return row
+
+    def line_complete(self, idx):
+        return (self.nono.row_ones[idx] ^
+                self.nono.row_zeros[idx] ^
+                self.nono.row_bit_mask) == 0
 
     def set_common_positions(self):
         # set common positions in columns
@@ -266,28 +286,29 @@ class Nonogram:
         row_ones_str = convert_to_string(self.nono.row_ones,
                                          self.nono.row_zeros,
                                          self.nono.row_num_bits)
-        row_ones, row_zeros = process_nonogram(row_ones_str,
-                                               self.row_clues,
-                                               self.nono.row_ones,
-                                               self.nono.row_zeros,
-                                               self.nono.row_bit_mask)
+        row_ones, row_zeros = update_nonogram(row_ones_str,
+                                              self.row_clues,
+                                              self.nono.row_ones,
+                                              self.nono.row_zeros,
+                                              self.nono.row_bit_mask)
         self.nono.set_ones(rows=row_ones)
         self.nono.set_zeros(rows=row_zeros)
         # Deduct positions in columns.
         col_ones_str = convert_to_string(self.nono.col_ones,
                                          self.nono.col_zeros,
                                          self.nono.col_num_bits)
-        col_ones, col_zeros = process_nonogram(col_ones_str,
-                                               self.col_clues,
-                                               self.nono.col_ones,
-                                               self.nono.col_zeros,
-                                               self.nono.col_bit_mask)
+        col_ones, col_zeros = update_nonogram(col_ones_str,
+                                              self.col_clues,
+                                              self.nono.col_ones,
+                                              self.nono.col_zeros,
+                                              self.nono.col_bit_mask)
         self.nono.set_ones(cols=col_ones)
         self.nono.set_zeros(cols=col_zeros)
         row_ones_str = convert_to_string(self.nono.row_ones,
                                          self.nono.row_zeros,
                                          self.nono.row_num_bits)
         # Check if the nonogram is valid.
+        # TODO: check if this can be removed
         if not nonogram_valid(row_ones_str, self.row_clues):
             raise NonogramError
 
@@ -299,20 +320,20 @@ class Nonogram:
                                                     clues, max_len)
         variant = None
         while variant is None or \
-                not self.is_fitting_existing_ones(variant) or \
-                not self.is_preserving_existing_ones(variant):
+                not self.is_fitting_existing_1s(variant) or \
+                not self.is_preserving_existing_1s(variant):
             # Choose a variant that matches the fields already set.
             try:
                 variant = next(self.varis[self.row_idx])
             except StopIteration:
-                self.nono.restore()
+                # self.nono.restore()
                 del self.varis[self.row_idx]
                 self.row_idx = None
                 variant = None
                 break
         return variant
 
-    def is_fitting_existing_ones(self, variant):
+    def is_fitting_existing_1s(self, variant):
         """
         Check if variant fits to the existing '1's and empty positions.
         """
@@ -322,7 +343,7 @@ class Nonogram:
                 self.nono.row_ones[self.row_idx]) & \
                variant == variant
 
-    def is_preserving_existing_ones(self, variant):
+    def is_preserving_existing_1s(self, variant):
         """
         Check if variant does not alternate existing '1's.
         """
@@ -353,20 +374,49 @@ def convert_to_string(ones, zeros, num_bits):
     return ones_str
 
 
-def process_nonogram(ones_str, clues, ones_int, zeros_int, bit_mask):
+def update_nonogram(ones_str, clues, ones_int, zeros_int, bit_mask):
     """
     Check if nonogram is valid, deduct missing '0's and '1's.
     """
+    # TODO: detection these patterns (3, 2) '  0_1_ 1 '
+    # TODO: set separator '0's    (1, 1, 1) '  0_1  0 '
+    # TODO: detect pattern          (3,1,1) '0_111_ 0 '
+    # TODO: detect pattern            (1,2) '10_10 '
+    # (2,1) >>1 01  << ^0*([1 ]{2})(?=0)0+([1 ]{1})0*$
+    # (1,2) >> 0 01 <<
     new_ones = []
     new_zeros = []
-    for idx, item in enumerate(ones_str):
-        segments_left, \
-        segments_right, segments_common = get_clue_segments(item, clues[idx])
-        if not (len(segments_left) == len(segments_right) == len(clues[idx])):
-            raise NonogramError  # The nonogram is invalid.
-        ones, zeros = deduct_ones_and_zeros(segments_common, clues[idx],
-                                            ones_int[idx], zeros_int[idx],
-                                            bit_mask)
+    for idx, line in enumerate(ones_str):
+        ones = 0
+        zeros = 0
+        if tuple(segment.count('1')
+                 for segment in line.replace('0', ' ').split(' ')
+                 if segment.count('1') > 0) == clues[idx]:
+            # '1's match clues. Fill remaining positions with '0's.
+            ones = 0
+            zeros = ones_int[idx] ^ bit_mask
+        else:
+            ones = '0' * len(bin(bit_mask)[2:])
+            segments_pattern = re.compile(detect_segments_pattern(clues[idx]))
+            segments_match = segments_pattern.match(line)
+            if segments_match:
+                for grp_num in range(1, len(segments_match.groups()) + 1):
+                    if '1' in segments_match.group(grp_num):
+                        space_matches = SPACE_PATTERN.finditer(
+                            line,
+                            segments_match.start(grp_num),
+                            segments_match.end(grp_num)
+                        )
+                        for match_num, match in enumerate(space_matches, start=1):
+                            start, end = match.start(1), match.end(1)
+                            length = end - start
+                            ones = ones[:start] + '1' * length + ones[start + length:]
+                    else:
+                        ones = '0'
+                        break
+                ones = int(ones, 2)
+            else:
+                raise NonogramError  # The nonogram is invalid.
         if ones > 0:
             new_ones.append((idx, ones))
         if zeros > 0:
@@ -375,6 +425,15 @@ def process_nonogram(ones_str, clues, ones_int, zeros_int, bit_mask):
 
 
 def nonogram_valid(ones_str, clues):
+    for idx, line in enumerate(ones_str):
+        segments_pattern = re.compile(detect_segments_pattern(clues[idx]))
+        segments_match = segments_pattern.match(line)
+        if not segments_match:
+            return False
+    return True
+
+
+def nonogram_valid_v1(ones_str, clues):
     for idx, item in enumerate(ones_str):
         segments_left, \
             segments_right,\
@@ -398,16 +457,33 @@ def get_clue_segments(item, clue):
     return segments_left, segments_right, segments_common
 
 
-def get_segments(item, clue):
-    pattern = [r'([1 ]{' + str(num) + '})' for num in clue]
-    pattern = '[0 ]+?'.join(pattern)
-    pattern = '^[0 ]*?' + pattern + '[0 ]*?$'
-    matches = re.search(pattern, item)
+def get_segments(line, clue):
+    pattern_segments = re.compile(detect_segments_pattern(clue))
+    matche = pattern_segments.search(line)
+    return matche
+
+
+def get_segments_v1(item, clue):
+    pattern_segments = detect_segments_pattern(clue)
+    matches = re.search(pattern_segments, item)
     segments = []
     if matches:
+        # TODO: remove the list comprehension
         segments = [(matches.span(grp), matches.group(grp))
                     for grp in range(1, len(matches.groups()) + 1)]
     return segments
+
+
+def detect_segments_pattern(clue):
+    pattern = [r'([1 ]{' + str(num) + '})' for num in clue]
+    pattern = '[0 ]+?'.join(pattern)
+    pattern = '^[0 ]*?' + pattern + '[0 ]*?$'
+    return pattern
+
+
+def detect_missing_ones():
+    pattern = '(?:1( +))'
+    return pattern
 
 
 def deduct_ones_and_zeros(segments, clue, ones_int, zeros_int, bit_mask):
@@ -553,61 +629,18 @@ def bin2tuple(nonogram_ones, num_cols):
 
 
 if __name__ == '__main__':
-    test_clues_slow = (
-        ((1, 2, 3, 1), (1, 1), (1, 2, 1, 1), (1, 1, 5), (1, 2, 2),
-         (1, 3, 2), (2, 1), (2, 1, 1, 1), (2, 3, 1, 1), (1, 1, 3, 1),
-         (4, 1, 1), (2, 3, 1)),
-        ((2, 4, 1), (1, 3, 2), (1, 1, 1), (1, 2, 1, 1), (3, 5), (1, 1, 1, 1, 1),
-         (1, 2, 1, 1), (1, 3, 1, 1), (1, 2, 3), (1, 3, 1), (3, 1, 1),
-         (1, 1, 2)))
-    test_ans_slow = (
-        (0, 0, 1, 1, 0, 0, 1, 1, 1, 1, 0, 1),
-        (1, 0, 0, 0, 0, 0, 1, 1, 1, 0, 1, 1),
-        (0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0),
-        (0, 0, 1, 0, 0, 1, 1, 0, 1, 0, 1, 0),
-        (1, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 1),
-        (1, 0, 0, 1, 0, 1, 0, 0, 1, 0, 0, 1),
-        (0, 0, 1, 0, 1, 1, 0, 0, 0, 1, 0, 1),
-        (1, 0, 0, 1, 1, 1, 0, 1, 0, 1, 0, 0),
-        (1, 0, 1, 1, 0, 0, 0, 0, 0, 1, 1, 1),
-        (1, 0, 0, 1, 1, 1, 0, 0, 1, 0, 0, 0),
-        (0, 0, 0, 1, 1, 1, 0, 1, 0, 0, 1, 0),
-        (1, 0, 0, 1, 0, 0, 0, 0, 1, 1, 0, 0))
-    test_clues_fast = (
-        ((1, 4), (1, 1, 4), (2, 3, 2, 2), (2, 4, 3), (3, 1, 1),
-         (1, 3, 1, 1), (2, 2, 1), (1, 1, 1, 5), (3, 2, 3), (10,),
-         (2, 2, 1, 3), (1, 2, 1, 1)),
-        ((2, 7), (5, 1, 3), (2, 3), (5, 2), (2, 2, 3), (2, 4, 1), (1, 2, 2),
-         (2, 1, 1, 2), (4, 3, 1), (2, 8), (1, 2, 2, 1), (1, 1, 1, 2)))
-    test_ans_fast = (
-        (0, 0, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1),
-        (1, 1, 1, 1, 1, 0, 1, 0, 1, 1, 1, 0),
-        (0, 0, 0, 0, 1, 1, 0, 1, 1, 1, 0, 0),
-        (0, 1, 1, 1, 1, 1, 0, 0, 0, 1, 1, 0),
-        (0, 0, 1, 1, 0, 1, 1, 0, 0, 1, 1, 1),
-        (0, 0, 1, 1, 0, 0, 1, 1, 1, 1, 0, 1),
-        (0, 1, 0, 1, 1, 0, 0, 0, 1, 1, 0, 0),
-        (0, 1, 1, 0, 0, 1, 0, 1, 0, 1, 1, 0),
-        (1, 1, 1, 1, 0, 0, 0, 1, 1, 1, 0, 1),
-        (1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 0),
-        (1, 0, 1, 1, 0, 0, 0, 1, 1, 0, 1, 0),
-        (1, 0, 1, 0, 0, 0, 0, 1, 0, 0, 1, 1))
-    test_clues = (((2, 1, 1), (4, 2), (2, 1, 1), (1, 1, 1), (2, 1, 1),
-                   (5, 2), (2, 1), (1, 1, 2), (3, 1, 2), (1, 1, 1)),
-                  ((1, 1, 2), (1, 1, 2, 2), (1, 1, 1), (1, 1, 2), (1, 4, 1),
-                   (1, 2, 1), (2, 1), (1, 2, 1), (2, 1, 3), (2, 1, 1)))
+    # test case for:
+    # detect pattern          (3,1,1) '0_111_ 0 '
+    # detect pattern            (1,2) '10_10 '
+    test_clues = (
+        ((3,), (2, 1), (3, 2), (5,), (2, 1), (3, 1)),
+        ((1, 2), (4,), (4, 1), (2, 1), (1, 2, 1), (4,)))
     test_ans = (
-        (1, 0, 0, 1, 0, 0, 1, 1, 0, 0),
-        (1, 0, 1, 0, 0, 1, 1, 0, 1, 1),
-        (0, 0, 1, 0, 0, 1, 0, 0, 1, 0),
-        (0, 1, 0, 0, 0, 1, 0, 1, 1, 0),
-        (0, 1, 0, 1, 1, 1, 1, 0, 0, 1),
-        (0, 1, 0, 0, 1, 1, 0, 0, 1, 0),
-        (1, 1, 0, 1, 0, 0, 0, 0, 0, 0),
-        (0, 0, 1, 0, 1, 1, 0, 0, 1, 0),
-        (1, 1, 0, 0, 0, 1, 0, 1, 1, 1),
-        (0, 1, 1, 0, 1, 0, 0, 1, 0, 0))
-    nonogram = Nonogram(test_clues)
-    sol = nonogram.solve()
+        (0, 0, 1, 0, 1, 1),
+        (0, 0, 1, 1, 1, 1),
+        (1, 1, 1, 1, 0, 1),
+        (1, 1, 0, 1, 0, 0),
+        (1, 0, 1, 1, 0, 1),
+        (0, 1, 1, 1, 1, 0))
     nonogram = Nonogram(test_clues)
     sol = nonogram.solve()
