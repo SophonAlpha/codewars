@@ -382,8 +382,29 @@ def update_nonogram(ones_str, clues, ones_int, zeros_int, bit_mask):
     # TODO: set separator '0's    (1, 1, 1) '  0_1  0 '
     # TODO: detect pattern          (3,1,1) '0_111_ 0 '
     # TODO: detect pattern            (1,2) '10_10 '
-    # (2,1) >>1 01  << ^0*([1 ]{2})(?=0)0+([1 ]{1})0*$
+    # detect possible spaces: (1,2)                      ^[0 ]*?([1 ]{1})[0 ]+?([1 ]{2})[0 ]*?$
+    # fill '1's when all '0's are set: (2,1) >>001 010<< ^0*([1 ]{2})(?=0)0+([1 ]{1})0*$
     # (1,2) >> 0 01 <<
+    # (1,3) >> 1 11 <<
+    # fill gaps between separator '0's from left to right:
+    #   clue (3, 5, 7)
+    # >>   0000000     00000       0<<
+    #   ^^^       ^^^^^     ^^^^^^^
+    #   (?:^0*([1 ]{3})(?=0)0+([1 ]{5})(?=0)0+([1 ]{7})(?=0|$))|
+    #
+    #   (?:^0*([1 ]{3})(?=0)0+([1 ]{5})(?=0|$))|
+    #
+    #   (?:^0*([1 ]{3})(?=0|$))
+    #
+    # fill gaps between separator '0's from right to left
+    #   clue (3, 5, 7)
+    #
+    #   (?:(?<=0)([1 ]{5})(?=0)0+(?<=0)([1 ]{7})(?=0|$))|
+    #
+    #   (?:(?<=0)([1 ]{7})(?=0|$))
+    #
+    #
+
     new_ones = []
     new_zeros = []
     for idx, line in enumerate(ones_str):
@@ -402,15 +423,11 @@ def update_nonogram(ones_str, clues, ones_int, zeros_int, bit_mask):
             if segments_match:
                 for grp_num in range(1, len(segments_match.groups()) + 1):
                     if '1' in segments_match.group(grp_num):
-                        space_matches = SPACE_PATTERN.finditer(
-                            line,
-                            segments_match.start(grp_num),
-                            segments_match.end(grp_num)
-                        )
-                        for match_num, match in enumerate(space_matches, start=1):
-                            start, end = match.start(1), match.end(1)
-                            length = end - start
-                            ones = ones[:start] + '1' * length + ones[start + length:]
+                        start = line.find('1', segments_match.start(grp_num))
+                        end = segments_match.end(grp_num)
+                        length = end - start
+                        ones = ones[:start] + '1' * length \
+                               + ones[start + length:]
                     else:
                         ones = '0'
                         break
