@@ -34,7 +34,7 @@ import operator
 import re
 import pprint
 
-SPACE_PATTERN = re.compile('(?:1( +)(?=1))')
+GAPS_PATTERN = re.compile('[1 ]+')
 
 
 def wrapper(func, *args, **kwargs):
@@ -403,41 +403,92 @@ def update_nonogram(ones_str, clues, ones_int, zeros_int, bit_mask):
     #
     #   (?:(?<=0)([1 ]{7})(?=0|$))
     #
+    #   (5, 3, 3, 7)
+    # >>0 0 0 0  00   1 00  10 0 0 1 0     1 00<<
+    #              ^^^^^  ^^^     ^^^ ^^^^^^^
+    # >>0 0 0 0  00   1 00         1 0     1 00<<
     #
-
+    #
+    line_len = len(bin(bit_mask)[2:])
     new_ones = []
     new_zeros = []
     for idx, line in enumerate(ones_str):
-        ones = 0
-        zeros = 0
+        # ----- process only lines that still have gaps -----
+        if ' ' not in line:
+            # skip lines already completed
+            continue
+        # ----- find gaps that can be filled with '1's -----
+        ones = '0' * len(bin(bit_mask)[2:])
+        # search left to right
+        clues_checked = list(clues[idx])
+        # TODO: change to while loop to remove 'if not clues_checked:'
+        for match in GAPS_PATTERN.finditer(line):
+            start, end = match.start(), match.end()
+            length = end - start
+            if length == clues_checked[0] and '1' in match.group():
+                clues_checked.pop(0)
+                ones = ones[:start] + '1' * length + ones[start + length:]
+            if not clues_checked:
+                break
+        # search left to right
+        if clues_checked:
+            line_len = len(line)
+            clues_checked = list(clues[idx][::-1])
+            # TODO: change to while loop to remove 'if not clues_checked:'
+            for match in GAPS_PATTERN.finditer(line[::-1]):
+                start, end = line_len - match.end(), line_len - match.start()
+                length = end - start
+                if length == clues_checked[0] and '1' in match.group():
+                    clues_checked.pop(0)
+                    ones = ones[:start] + '1' * length + ones[start + length:]
+                if not clues_checked:
+                    break
+        ones = int(ones, 2)
+        if ones > 0:
+            new_ones.append((idx, ones))
+            continue
+        # ----- if all clues set, fill rest with '0's -----
         if tuple(segment.count('1')
                  for segment in line.replace('0', ' ').split(' ')
                  if segment.count('1') > 0) == clues[idx]:
             # '1's match clues. Fill remaining positions with '0's.
-            ones = 0
             zeros = ones_int[idx] ^ bit_mask
-        else:
-            ones = '0' * len(bin(bit_mask)[2:])
-            segments_pattern = re.compile(detect_segments_pattern(clues[idx]))
-            segments_match = segments_pattern.match(line)
-            if segments_match:
-                for grp_num in range(1, len(segments_match.groups()) + 1):
-                    if '1' in segments_match.group(grp_num):
-                        start = line.find('1', segments_match.start(grp_num))
-                        end = segments_match.end(grp_num)
-                        length = end - start
-                        ones = ones[:start] + '1' * length \
-                               + ones[start + length:]
-                    else:
-                        ones = '0'
-                        break
-                ones = int(ones, 2)
-            else:
-                raise NonogramError  # The nonogram is invalid.
+            if zeros > 0:
+                new_zeros.append((idx, zeros))
+                continue
+        # ----- deduct segments that can be filled with '1's -----
+        ones = '0' * len(bin(bit_mask)[2:])
+        # get segments doing regex left to right
+        segments_pat_l2r = re.compile(detect_segments_pattern(clues[idx]))
+        segments_left2right = segments_pat_l2r.match(line)
+        if not segments_left2right:
+            raise NonogramError  # The nonogram is invalid.
+        segments_left2right = [
+            (segments_left2right.start(grp_num),
+             segments_left2right.end(grp_num))
+            for grp_num in range(1, len(segments_left2right.groups()) + 1)]
+        # get segments doing regex right to left
+        segments_pat_r2l = re.compile(detect_segments_pattern(clues[idx][::-1]))
+        segments_right2left = segments_pat_r2l.match(line[::-1])
+        segments_right2left = [
+            (line_len - segments_right2left.start(grp_num),
+             line_len - segments_right2left.end(grp_num))
+            for grp_num in range(1, len(segments_right2left.groups()) + 1)]
+        segments_right2left = [elem[::-1]
+                               for elem in segments_right2left][::-1]
+        # calculate the overlap between the segments
+        segments = [
+            (segments_right2left[seg_idx][0],
+             segments_left2right[seg_idx][1])
+            for seg_idx in range(len(segments_left2right))
+            if segments_right2left[seg_idx][0] < segments_left2right[seg_idx][1]]
+        for start, end in segments:
+            length = end - start
+            if '1' in line[start:end] and ' ' in line[start:end]:
+                ones = ones[:start] + '1' * length + ones[start + length:]
+        ones = int(ones, 2)
         if ones > 0:
             new_ones.append((idx, ones))
-        if zeros > 0:
-            new_zeros.append((idx, zeros))
     return new_ones, new_zeros
 
 
@@ -646,18 +697,14 @@ def bin2tuple(nonogram_ones, num_cols):
 
 
 if __name__ == '__main__':
-    # test case for:
-    # detect pattern          (3,1,1) '0_111_ 0 '
-    # detect pattern            (1,2) '10_10 '
     test_clues = (
-        ((3,), (2, 1), (3, 2), (5,), (2, 1), (3, 1)),
-        ((1, 2), (4,), (4, 1), (2, 1), (1, 2, 1), (4,)))
+        ((1,), (3,), (1,), (3, 1), (3, 1)),
+        ((3,), (2,), (2, 2), (1,), (1, 2)))
     test_ans = (
-        (0, 0, 1, 0, 1, 1),
-        (0, 0, 1, 1, 1, 1),
-        (1, 1, 1, 1, 0, 1),
-        (1, 1, 0, 1, 0, 0),
-        (1, 0, 1, 1, 0, 1),
-        (0, 1, 1, 1, 1, 0))
+        (0, 0, 1, 1, 1),
+        (0, 0, 0, 1, 1),
+        (1, 1, 0, 1, 1),
+        (0, 1, 0, 0, 0),
+        (0, 1, 0, 1, 1))
     nonogram = Nonogram(test_clues)
     sol = nonogram.solve()
