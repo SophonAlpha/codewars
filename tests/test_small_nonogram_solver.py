@@ -326,8 +326,8 @@ def test_nonograms(test):
 
 
 @pytest.mark.timeout(60)
-@pytest.mark.parametrize('test', random_nonograms(num_cols=9,
-                                                  num_rows=9,
+@pytest.mark.parametrize('test', random_nonograms(num_cols=12,
+                                                  num_rows=12,
                                                   num_test=100))
 def test_random_nonograms(test):
     """ tests """

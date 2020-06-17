@@ -25,6 +25,8 @@ Performance optimization:
     9 June 2020, use regex to deduct positions for '0's
                  and '1's:                                    0.0193118 seconds
                  100 tests (9x9) passed in                    1.983 seconds
+   17 June 2020, refinement for detecting patterns for
+                 setting '1's (12x12_complex test case):     64.1435230 seconds
 """
 
 import functools
@@ -221,7 +223,6 @@ class Nonogram:
 
     def solve(self):
         self.build(0, self.row_clues, self.nono.num_cols)
-        self.show()
         if self.swap:
             # turn the nonogram back
             self.nono.row_ones = transpose(
@@ -304,12 +305,17 @@ class Nonogram:
                                               self.nono.col_bit_mask)
         self.nono.set_ones(cols=col_ones)
         self.nono.set_zeros(cols=col_zeros)
+        # Check if the nonogram is valid.
+        # TODO: Check if this test can be done better.
         row_ones_str = convert_to_string(self.nono.row_ones,
                                          self.nono.row_zeros,
                                          self.nono.row_num_bits)
-        # Check if the nonogram is valid.
-        # TODO: check if this can be removed
         if not nonogram_valid(row_ones_str, self.row_clues):
+            raise NonogramError
+        col_ones_str = convert_to_string(self.nono.col_ones,
+                                         self.nono.col_zeros,
+                                         self.nono.col_num_bits)
+        if not nonogram_valid(col_ones_str, self.col_clues):
             raise NonogramError
 
     def next_variant(self, clues, max_len):
@@ -378,37 +384,6 @@ def update_nonogram(ones_str, clues, ones_int, zeros_int, bit_mask):
     """
     Check if nonogram is valid, deduct missing '0's and '1's.
     """
-    # TODO: detection these patterns (3, 2) '  0_1_ 1 '
-    # TODO: set separator '0's    (1, 1, 1) '  0_1  0 '
-    # TODO: detect pattern          (3,1,1) '0_111_ 0 '
-    # TODO: detect pattern            (1,2) '10_10 '
-    # detect possible spaces: (1,2)                      ^[0 ]*?([1 ]{1})[0 ]+?([1 ]{2})[0 ]*?$
-    # fill '1's when all '0's are set: (2,1) >>001 010<< ^0*([1 ]{2})(?=0)0+([1 ]{1})0*$
-    # (1,2) >> 0 01 <<
-    # (1,3) >> 1 11 <<
-    # fill gaps between separator '0's from left to right:
-    #   clue (3, 5, 7)
-    # >>   0000000     00000       0<<
-    #   ^^^       ^^^^^     ^^^^^^^
-    #   (?:^0*([1 ]{3})(?=0)0+([1 ]{5})(?=0)0+([1 ]{7})(?=0|$))|
-    #
-    #   (?:^0*([1 ]{3})(?=0)0+([1 ]{5})(?=0|$))|
-    #
-    #   (?:^0*([1 ]{3})(?=0|$))
-    #
-    # fill gaps between separator '0's from right to left
-    #   clue (3, 5, 7)
-    #
-    #   (?:(?<=0)([1 ]{5})(?=0)0+(?<=0)([1 ]{7})(?=0|$))|
-    #
-    #   (?:(?<=0)([1 ]{7})(?=0|$))
-    #
-    #   (5, 3, 3, 7)
-    # >>0 0 0 0  00   1 00  10 0 0 1 0     1 00<<
-    #              ^^^^^  ^^^     ^^^ ^^^^^^^
-    # >>0 0 0 0  00   1 00         1 0     1 00<<
-    #
-    #
     line_len = len(bin(bit_mask)[2:])
     new_ones = []
     new_zeros = []
@@ -425,22 +400,47 @@ def update_nonogram(ones_str, clues, ones_int, zeros_int, bit_mask):
         for match in GAPS_PATTERN.finditer(line):
             start, end = match.start(), match.end()
             length = end - start
-            if length == clues_checked[0] and '1' in match.group():
+            if length < clues_checked[0]:
+                continue
+            if length == clues_checked[0] and \
+                    '1' in match.group() and \
+                    ' ' in match.group():
                 clues_checked.pop(0)
                 ones = ones[:start] + '1' * length + ones[start + length:]
+            elif length == clues_checked[0] and \
+                    '1' in match.group() and \
+                    ' ' not in match.group():
+                clues_checked.pop(0)
+            else:
+                # Stop searching. The gap is either bigger than the given clue
+                # or doesn't contain a '1'.
+                break
             if not clues_checked:
                 break
         # search left to right
         if clues_checked:
             line_len = len(line)
+            # TODO: change to clues_checked = clues_checked[::-1]
             clues_checked = list(clues[idx][::-1])
             # TODO: change to while loop to remove 'if not clues_checked:'
             for match in GAPS_PATTERN.finditer(line[::-1]):
                 start, end = line_len - match.end(), line_len - match.start()
                 length = end - start
-                if length == clues_checked[0] and '1' in match.group():
+                if length < clues_checked[0]:
+                    continue
+                if length == clues_checked[0] and \
+                        '1' in match.group() and \
+                        ' ' in match.group():
                     clues_checked.pop(0)
                     ones = ones[:start] + '1' * length + ones[start + length:]
+                elif length == clues_checked[0] and \
+                     '1' in match.group() and \
+                     ' ' not in match.group():
+                    clues_checked.pop(0)
+                else:
+                    # Stop searching. The gap is either bigger than the given
+                    # clue or doesn't contain a '1'.
+                    break
                 if not clues_checked:
                     break
         ones = int(ones, 2)
@@ -698,13 +698,7 @@ def bin2tuple(nonogram_ones, num_cols):
 
 if __name__ == '__main__':
     test_clues = (
-        ((1,), (3,), (1,), (3, 1), (3, 1)),
-        ((3,), (2,), (2, 2), (1,), (1, 2)))
-    test_ans = (
-        (0, 0, 1, 1, 1),
-        (0, 0, 0, 1, 1),
-        (1, 1, 0, 1, 1),
-        (0, 1, 0, 0, 0),
-        (0, 1, 0, 1, 1))
+        ((1, 1), (2,), (2, 2), (1,), (1, 1)),
+        ((1,), (3,), (2,), (2,), (1, 1, 1)))
     nonogram = Nonogram(test_clues)
     sol = nonogram.solve()
