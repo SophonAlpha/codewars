@@ -497,84 +497,11 @@ def nonogram_valid(ones_str, clues):
     return True
 
 
-def nonogram_valid_v1(ones_str, clues):
-    for idx, item in enumerate(ones_str):
-        segments_left, \
-            segments_right,\
-            segments_common = get_clue_segments(item, clues[idx])
-        if not (len(segments_left) == len(segments_right) == len(clues[idx])):
-            return False
-    return True
-
-
-# def get_clue_segments(item, clue):
-#     segments_left = get_segments(item, clue)
-#     segments_right = get_segments(item[::-1], clue[::-1])
-#     length = len(item)
-#     if segments_right:
-#         segments_right = [
-#             ((length - end, length - start), string)
-#             for (start, end), string in segments_right[::-1]]
-#     segments_common = [(span, elem)
-#                        for idx, (span, elem) in enumerate(segments_right)
-#                        if segments_left[idx][0] == span]
-#     return segments_left, segments_right, segments_common
-#
-#
-# def get_segments(line, clue):
-#     pattern_segments = re.compile(detect_segments_pattern(clue))
-#     matche = pattern_segments.search(line)
-#     return matche
-
-
-def get_segments_v1(item, clue):
-    pattern_segments = detect_segments_pattern(clue)
-    matches = re.search(pattern_segments, item)
-    segments = []
-    if matches:
-        # TODO: remove the list comprehension
-        segments = [(matches.span(grp), matches.group(grp))
-                    for grp in range(1, len(matches.groups()) + 1)]
-    return segments
-
-
 def detect_segments_pattern(clue):
     pattern = [r'([1 ]{' + str(num) + '})' for num in clue]
     pattern = '[0 ]+?'.join(pattern)
     pattern = '^[0 ]*?' + pattern + '[0 ]*?$'
     return pattern
-
-
-def detect_missing_ones():
-    pattern = '(?:1( +))'
-    return pattern
-
-
-def deduct_ones_and_zeros(segments, clue, ones_int, zeros_int, bit_mask):
-    new_ones = '0' * len(bin(bit_mask)[2:])
-    new_zeros = '0' * len(bin(bit_mask)[2:])
-    # Check if '1's match the clues.
-    if tuple(string.count('1') for _, string in segments) == clue:
-        # '1's match clues. Fill remaining positions with '0's.
-        new_ones = 0
-        new_zeros = ones_int ^ bit_mask
-        return new_ones, new_zeros
-    # Find segments of '1's that have space between '1's.
-    ones = []
-    for span, string in segments:
-        match = re.match(r'1*( +1*)', string)
-        if match:
-            ones.append(span)
-    # Set '1's and '0's.
-    for start, end in ones:
-        # Fill the spaces between '1's with '1's.
-        new_ones = new_ones[:start] + (end - start) * '1' + new_ones[end:]
-        # Fill adjacent positions with '0's (separator '0's).
-        if start > 0:
-            new_zeros = new_zeros[:start - 1] + '1' + new_zeros[start:]
-        if end < len(new_zeros):
-            new_zeros = new_zeros[:end] + '1' + new_zeros[end + 1:]
-    return int(new_ones, 2), int(new_zeros, 2)
 
 
 def num_variants(clues, max_bit_length):
