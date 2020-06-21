@@ -158,6 +158,45 @@ class NonoArray:
                         self.rows[row_idx][col_idx] = '1'
         self.update_int()
 
+    def set_zeros_str(self, rows=None, cols=None):
+        """
+        Temporary function for refactoring.
+        """
+        if rows:
+            for col_idx, (row_idx, row) in itertools.product(
+                    range(self.num_cols), rows):
+                row = f'{row:0{self.num_cols}b}'
+                if row[col_idx] == '1':
+                    self.rows[row_idx][col_idx] = '0'
+        if cols:
+            for row_idx, (col_idx, col) in itertools.product(
+                    range(self.num_rows), cols):
+                col = f'{col:0{self.num_rows}b}'
+                col = col[::-1]
+                if col[row_idx] == '1':
+                    self.rows[row_idx][col_idx] = '0'
+        self.update_int()
+
+    def transpose(self):
+        """
+        Transpose the nonogram (rows become columns and vice versa).
+        """
+        self.rows = [[row[col_idx] for row in self.rows]
+                     for col_idx in range(self.num_cols)]
+
+    def get_row_ones(self, idx):
+        # TODO: check if this is still required after refactoring to character
+        #       representation.
+        return int(''.join(self.rows[idx]).
+                   replace(' ', '0'), 2)
+
+    def get_row_zeros(self, idx):
+        # TODO: check if this is still required after refactoring to character
+        #       representation.
+        return int(''.join(self.rows[idx]).
+                   replace('1', ' ').
+                   replace('0', '1').
+                   replace(' ', '0'), 2)
 
     def set_ones(self, rows=None, cols=None):
         if rows:
@@ -255,7 +294,7 @@ class NonoArray:
              self.col_ones.copy(),
              self.col_zeros.copy(),
              self.col_masks.copy(),
-             self.rows)
+             [row.copy() for row in self.rows])
         )
 
     def restore(self):
@@ -310,11 +349,10 @@ class Nonogram:
         self.build(0, self.row_clues, self.nono.num_cols)
         if self.swap:
             # turn the nonogram back
-            self.nono.row_ones = transpose(
-                self.nono.row_ones, self.nono.num_cols)
+            self.nono.transpose()
             self.nono.num_rows, self.nono.num_cols = self.nono.num_cols, \
                                                      self.nono.num_rows
-        return bin2tuple(self.nono.row_ones, self.nono.num_cols)
+        return bin2tuple(self.nono.rows)
 
     def build(self, idx, clues, max_len):
         # set common positions in columns and rows
@@ -330,8 +368,8 @@ class Nonogram:
                 variant = self.next_variant(clues, max_len)
                 if variant is not None:
                     self.nono.backup()
-                    self.nono.set_ones(rows=[(self.row_idx, variant)])
-                    self.nono.set_zeros(
+                    self.nono.set_ones_str(rows=[(self.row_idx, variant)])
+                    self.nono.set_zeros_str(
                         rows=[(self.row_idx, variant ^ self.nono.row_bit_mask)])
                     # TODO: can we avoid this type of test or do it
                     #       more efficiently?
@@ -352,17 +390,17 @@ class Nonogram:
         return row
 
     def line_complete(self, idx):
-        return (self.nono.row_ones[idx] ^
-                self.nono.row_zeros[idx] ^
-                self.nono.row_bit_mask) == 0
+        row_ones = self.nono.get_row_ones(idx)
+        row_zeros = self.nono.get_row_zeros(idx)
+        return (row_ones ^ row_zeros ^ self.nono.row_bit_mask) == 0
 
     def set_common_positions(self):
         # set common positions in columns
         cols = deduct_common_positions(self.col_clues, self.nono.num_rows)
-        self.nono.set_ones(cols=cols)
+        self.nono.set_ones_str(cols=cols)
         # set common positions in rows
         rows = deduct_common_positions(self.row_clues, self.nono.num_cols)
-        self.nono.set_ones(rows=rows)
+        self.nono.set_ones_str(rows=rows)
 
     def deduct_positions(self):
         """
@@ -375,9 +413,8 @@ class Nonogram:
                                               self.nono.row_ones,
                                               self.nono.row_zeros,
                                               self.nono.row_bit_mask)
-        # self.nono.set_ones(rows=row_ones)
         self.nono.set_ones_str(rows=row_ones)
-        self.nono.set_zeros(rows=row_zeros)
+        self.nono.set_zeros_str(rows=row_zeros)
         # Deduct positions in columns.
         col_ones_str = self.nono.cols2str()
         # TODO: temporary, fix once full str representation done
@@ -387,8 +424,8 @@ class Nonogram:
                                               self.nono.col_ones,
                                               self.nono.col_zeros,
                                               self.nono.col_bit_mask)
-        self.nono.set_ones(cols=col_ones)
-        self.nono.set_zeros(cols=col_zeros)
+        self.nono.set_ones_str(cols=col_ones)
+        self.nono.set_zeros_str(cols=col_zeros)
         # Check if the nonogram is valid.
         # TODO: Check if this test can be done better.
         row_ones_str = self.nono.rows2str()
@@ -425,26 +462,28 @@ class Nonogram:
         """
         Check if variant fits to the existing '1's and empty positions.
         """
-        return (((self.nono.row_ones[self.row_idx] |
-                  self.nono.row_zeros[self.row_idx]) ^
-                 self.nono.row_bit_mask) |
-                self.nono.row_ones[self.row_idx]) & \
-               variant == variant
+        row_ones = self.nono.get_row_ones(self.row_idx)
+        row_zeros = self.nono.get_row_zeros(self.row_idx)
+        return (((row_ones | row_zeros) ^ self.nono.row_bit_mask) |
+                row_ones) & variant == variant
 
     def is_preserving_existing_1s(self, variant):
         """
         Check if variant does not alternate existing '1's.
         """
-        return (self.nono.row_ones[self.row_idx] & variant) == \
-               self.nono.row_ones[self.row_idx]
+        row_ones = self.nono.get_row_ones(self.row_idx)
+        return (row_ones & variant) == row_ones
 
     def show(self):
         """
         Helper function to visualize the nonogram.
         """
+        row_ones = [self.nono.get_row_ones(idx)
+                    for idx in range(self.nono.num_rows)]
+        row_zeros = [self.nono.get_row_zeros(idx)
+                     for idx in range(self.nono.num_rows)]
         reordered_col_clues = reorder(self.col_clues)
-        nshow.show(self.nono.row_ones, self.nono.row_zeros,
-                   reordered_col_clues, self.row_clues)
+        nshow.show(row_ones, row_zeros, reordered_col_clues, self.row_clues)
 
 
 def convert_to_string(ones, zeros, num_bits):
@@ -501,7 +540,6 @@ def update_nonogram(ones_str, clues, ones_int, zeros_int, bit_mask):
         ones = int(ones, 2)
         if ones > 0:
             new_ones.append((idx, ones))
-            continue
     return new_ones, new_zeros
 
 
@@ -695,18 +733,16 @@ def transpose(items, max_len):
     return new_rows
 
 
-def bin2tuple(nonogram_ones, num_cols):
-    fmt = '{0:0' + str(num_cols) + 'b}'
+def bin2tuple(nonogram_ones):
     nonogram = tuple(
-        tuple(int(cell) for cell in fmt.format(item)) for item in nonogram_ones
-    )
+        tuple(int(cell) for cell in row) for row in nonogram_ones)
     return nonogram
 
 
 if __name__ == '__main__':
     test_clues = (
-        ((1, 1), (4,), (1, 1, 1), (3,), (1,)),
-        ((1,), (2,), (3,), (2, 1), (4,)))
+        ((1,), (1, 1), (2,), (1, 2), (1, 1)),
+        ((1,), (1, 1), (1,), (4,), (2,)))
     nonogram = Nonogram(test_clues)
     sol = nonogram.solve()
     print(sol)
