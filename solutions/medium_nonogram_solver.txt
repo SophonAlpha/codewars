@@ -1,0 +1,104 @@
+         23413746 function calls (23225047 primitive calls) in 19.9407690 seconds
+
+   Ordered by: cumulative time
+   List reduced from 53 to 42 due to restriction <'medium_nonogram_solver.py:'>
+
+   ncalls  tottime  percall  cumtime  percall filename:lineno(function)
+        1    0.000    0.000   20.494   20.494 medium_nonogram_solver.py:69(solve)
+   8681/1    0.357    0.000   20.494   20.494 medium_nonogram_solver.py:80(build)
+    94136    0.440    0.000   12.120    0.000 medium_nonogram_solver.py:155(set_zeros)
+   285140    2.326    0.000    7.433    0.000 medium_nonogram_solver.py:345(cols2rows)
+    94134    0.191    0.000    6.523    0.000 medium_nonogram_solver.py:184(nonogram_valid)
+  2281120    4.324    0.000    4.324    0.000 medium_nonogram_solver.py:348(<listcomp>)
+   188272    2.318    0.000    3.788    0.000 medium_nonogram_solver.py:371(set_new_zeros)
+    96868    0.480    0.000    3.462    0.000 medium_nonogram_solver.py:217(clues_correct)
+
+
+         21196095 function calls (21007396 primitive calls) in 18.3516539 seconds
+
+   Ordered by: cumulative time
+   List reduced from 53 to 42 due to restriction <'medium_nonogram_solver.py:'>
+
+   ncalls  tottime  percall  cumtime  percall filename:lineno(function)
+        1    0.000    0.000   18.647   18.647 medium_nonogram_solver.py:69(solve)
+   8681/1    0.357    0.000   18.647   18.647 medium_nonogram_solver.py:80(build)
+    94136    0.438    0.000   12.009    0.000 medium_nonogram_solver.py:155(set_zeros)
+   285140    2.280    0.000    7.321    0.000 medium_nonogram_solver.py:345(cols2rows)
+    94134    0.150    0.000    4.772    0.000 medium_nonogram_solver.py:184(nonogram_valid)
+  2281120    4.289    0.000    4.289    0.000 medium_nonogram_solver.py:348(<listcomp>)
+   188272    2.287    0.000    3.727    0.000 medium_nonogram_solver.py:371(set_new_zeros)
+    94137    0.792    0.000    2.750    0.000 medium_nonogram_solver.py:353(rows2cols)
+    48434    0.243    0.000    1.813    0.000 medium_nonogram_solver.py:217(clues_correct)
+
+         32603770 function calls (32413816 primitive calls) in 24.8389660 seconds
+
+   Ordered by: cumulative time
+   List reduced from 58 to 47 due to restriction <'medium_nonogram_solver.py:'>
+
+   ncalls  tottime  percall  cumtime  percall filename:lineno(function)
+        1    0.000    0.000   25.148   25.148 medium_nonogram_solver.py:82(solve)
+   8811/1    0.532    0.000   25.148   25.148 medium_nonogram_solver.py:93(build)
+   189792    0.542    0.000   10.976    0.000 medium_nonogram_solver.py:156(update_nonogram_mask)
+   189792    1.338    0.000    8.871    0.000 medium_nonogram_solver.py:174(<listcomp>)
+    94901    0.373    0.000    7.331    0.000 medium_nonogram_solver.py:185(set_zeros)
+    94899    0.162    0.000    5.013    0.000 medium_nonogram_solver.py:219(nonogram_valid)
+   189802    2.376    0.000    3.868    0.000 medium_nonogram_solver.py:403(set_new_zeros)
+  1518336    3.841    0.000    3.841    0.000 medium_nonogram_solver.py:175(<listcomp>)
+  1613235    0.665    0.000    3.792    0.000 medium_nonogram_solver.py:373(or_merge)
+    94902    0.827    0.000    2.839    0.000 medium_nonogram_solver.py:385(rows2cols)
+    98354    0.841    0.000    2.591    0.000 medium_nonogram_solver.py:377(cols2rows)
+    49177    0.257    0.000    1.910    0.000 medium_nonogram_solver.py:245(clues_correct)
+
+         29881436 function calls (29692737 primitive calls) in 20.2697291 seconds
+
+   Ordered by: cumulative time
+   List reduced from 58 to 47 due to restriction <'medium_nonogram_solver.py:'>
+
+   ncalls  tottime  percall  cumtime  percall filename:lineno(function)
+        1    0.000    0.000   20.551   20.551 medium_nonogram_solver.py:82(solve)
+   8681/1    0.447    0.000   20.551   20.551 medium_nonogram_solver.py:95(build)
+   188261    0.461    0.000   10.128    0.000 medium_nonogram_solver.py:162(update_nonogram_mask)
+   188261    1.206    0.000    8.245    0.000 medium_nonogram_solver.py:180(<listcomp>)
+    94135    0.324    0.000    6.713    0.000 medium_nonogram_solver.py:191(set_zeros)
+  1506088    3.576    0.000    3.576    0.000 medium_nonogram_solver.py:181(<listcomp>)
+  1600222    0.584    0.000    3.554    0.000 medium_nonogram_solver.py:374(or_merge)
+   188270    2.117    0.000    3.473    0.000 medium_nonogram_solver.py:404(set_new_zeros)
+    94136    0.777    0.000    2.678    0.000 medium_nonogram_solver.py:386(rows2cols)
+    94134    0.097    0.000    2.125    0.000 medium_nonogram_solver.py:220(nonogram_valid)
+    48434    0.228    0.000    1.710    0.000 medium_nonogram_solver.py:246(clues_correct)
+   753088    1.661    0.000    1.661    0.000 medium_nonogram_solver.py:389(<listcomp>)
+ 10670186    1.174    0.000    1.174    0.000 medium_nonogram_solver.py:375(<lambda>)
+   435906    0.648    0.000    1.170    0.000 medium_nonogram_solver.py:247(<genexpr>)
+   188261    0.862    0.000    0.862    0.000 medium_nonogram_solver.py:177(<listcomp>)
+  2267459    0.584    0.000    0.842    0.000 medium_nonogram_solver.py:414(<genexpr>)
+282819/102824    0.343    0.000    0.647    0.000 medium_nonogram_solver.py:350(combinator)
+   188261    0.560    0.000    0.560    0.000 medium_nonogram_solver.py:174(<listcomp>)
+    94134    0.092    0.000    0.319    0.000 medium_nonogram_solver.py:238(is_separate)
+    48434    0.179    0.000    0.255    0.000 medium_nonogram_solver.py:251(<listcomp>)
+    94134    0.206    0.000    0.206    0.000 medium_nonogram_solver.py:240(<listcomp>)
+    94134    0.197    0.000    0.197    0.000 medium_nonogram_solver.py:359(<listcomp>)
+    94134    0.185    0.000    0.185    0.000 medium_nonogram_solver.py:106(<listcomp>)
+    94134    0.122    0.000    0.181    0.000 medium_nonogram_solver.py:148(backup)
+    94135    0.130    0.000    0.130    0.000 medium_nonogram_solver.py:209(<listcomp>)
+    94135    0.108    0.000    0.108    0.000 medium_nonogram_solver.py:212(<listcomp>)
+    94126    0.082    0.000    0.099    0.000 medium_nonogram_solver.py:156(restore)
+   435906    0.047    0.000    0.047    0.000 medium_nonogram_solver.py:250(<genexpr>)
+     8681    0.019    0.000    0.022    0.000 medium_nonogram_solver.py:364(init_shift)
+        1    0.000    0.000    0.000    0.000 medium_nonogram_solver.py:54(__init__)
+        1    0.000    0.000    0.000    0.000 medium_nonogram_solver.py:127(set_common_positions)
+        2    0.000    0.000    0.000    0.000 medium_nonogram_solver.py:259(num_variants)
+        1    0.000    0.000    0.000    0.000 medium_nonogram_solver.py:439(bin2tuple)
+        9    0.000    0.000    0.000    0.000 medium_nonogram_solver.py:442(<genexpr>)
+    66/42    0.000    0.000    0.000    0.000 medium_nonogram_solver.py:270(variants)
+        2    0.000    0.000    0.000    0.000 medium_nonogram_solver.py:285(find_common_positions)
+        2    0.000    0.000    0.000    0.000 medium_nonogram_solver.py:144(<listcomp>)
+       27    0.000    0.000    0.000    0.000 medium_nonogram_solver.py:277(sum_arithmetic_seq)
+        2    0.000    0.000    0.000    0.000 medium_nonogram_solver.py:187(set_ones)
+        1    0.000    0.000    0.000    0.000 medium_nonogram_solver.py:281(reorder)
+        2    0.000    0.000    0.000    0.000 medium_nonogram_solver.py:301(<listcomp>)
+        3    0.000    0.000    0.000    0.000 medium_nonogram_solver.py:317(get_bits)
+        2    0.000    0.000    0.000    0.000 medium_nonogram_solver.py:188(<listcomp>)
+        9    0.000    0.000    0.000    0.000 medium_nonogram_solver.py:282(<genexpr>)
+        1    0.000    0.000    0.000    0.000 medium_nonogram_solver.py:132(<listcomp>)
+        7    0.000    0.000    0.000    0.000 medium_nonogram_solver.py:58(<lambda>)
+        7    0.000    0.000    0.000    0.000 medium_nonogram_solver.py:60(<lambda>)
